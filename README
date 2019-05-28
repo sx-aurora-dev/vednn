@@ -1,0 +1,31 @@
+
+## Install llvm
+
+llvm is used to build vednn.
+Install llvm for VE from [[https://github.com/sx-aurora-dev/llvm]].
+
+## Build
+$ mkdir build
+$ cd build
+$ cmake -DLLVM_DIR=<llvm_install_prefix>/lib/cmake/llvm [OPTIONS] ..
+$ make && make install
+
+<CMake Options>
+-DNCC=<Path of ncc>           [Default : /opt/nec/ve/bin/ncc]
+-DNCXX=<Path of nc++>         [Default : /opt/nec/ve/bin/nc++]
+-DUSE_OPENMP=ON/OFF           [Default : ON ]
+-DBUILD_SHARED_LIB=ON/OFF     [Default : OFF]
+
+-DCMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT	[Default : OFF ( Install to /usr/local ) ]
+-DCMAKE_INSTALL_PREFIX=<PATH> [Default : /usr/local]
+
+
+## Run some tests
+$ cd ../test
+$ make
+$ ./vednn_conv_test   -H 0.8e9 -p params/conv/alexnet.txt   -T ConvForward
+$ ftrace
+$ ./vednn_linear_test -H 0.8e9 -p params/linear/alexnet.txt -T LinearForward
+$ ftrace
+$ ./vednn_pool_test   -H 0.8e9 -p params/pool/alexnet.txt   -T MaxPoolForward
+$ ftrace

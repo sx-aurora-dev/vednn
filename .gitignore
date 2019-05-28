@@ -1,0 +1,13 @@
+vednn.tar.gz
+vednn-ftrace1.tar.gz
+build-vednn
+build-vednn_omp
+build-ft1-vednn
+build-ft1-vednn_omp
+mk-vednn.log
+mk-vednn_omp.log
+mk-ft1-vednn.log
+mk-ft1-vednn_omp.log
+mk-build.log
+vednn
+build

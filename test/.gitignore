@@ -1,0 +1,7 @@
+*.L
+*.o
+*.O
+vednn_conv_test
+vednn_linear_test
+vednn_pool_test
+
