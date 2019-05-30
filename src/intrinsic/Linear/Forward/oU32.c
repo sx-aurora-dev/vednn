@@ -5,7 +5,7 @@
 
 #include "vednn.h"
 
-#include "veintrin.h"
+#include "velintrin.h"
 #define VLEN	(256)
 
 
@@ -32,87 +32,76 @@ vednnError_t vednnLinearForward_oU32(
   case 1:
     for(int64_t o=0; o<outDim; o++) {
 
-      _ve_lvl(maxvl) ;
-      __vr vrsum_b0 = _ve_vbrdu_vs_f32(0.0f) ;
+      __vr vrsum_b0 = _vel_vbrds_vsl(0.0f, maxvl) ;
 
       for(int64_t i=0; i<inDim; i+=VLEN ) {
 	const int64_t vl = inDim-i < VLEN ? inDim-i : VLEN ;
-	_ve_lvl(vl) ;
 
-	__vr vrw = _ve_vldu_vss(outDim*4, pWeight+i*outDim+o) ;
+	__vr vrw = _vel_vldu_vssl(outDim*4, pWeight+i*outDim+o, vl) ;
 
-	__vr vri_b0 = _ve_vldu_vss(4, pIn+(n+0)*inDim+i) ;
+	__vr vri_b0 = _vel_vldu_vssl(4, pIn+(n+0)*inDim+i, vl) ;
 
-	vrsum_b0 = _ve_vfmads_vvvv(vrsum_b0, vrw, vri_b0) ;
+	vrsum_b0 = _vel_vfmads_vvvvvl(vrsum_b0, vrw, vri_b0, vrsum_b0, vl) ;
       }
-      _ve_lvl(maxvl) ;
-      vrsum_b0 = _ve_vfsums_vv(vrsum_b0) ;
+      vrsum_b0 = _vel_vfsums_vvl(vrsum_b0, maxvl) ;
 
-      _ve_lvl(1) ;
-      _ve_vstu_vss(vrsum_b0, 4, pOut+(n+0)*outDim+o) ;
+      _vel_vstu_vssl(vrsum_b0, 4, pOut+(n+0)*outDim+o, 1) ;
     }
     n+=1 ;
     break ;
+
   case 2:
     for(int64_t o=0; o<outDim; o++) {
 
-      _ve_lvl(maxvl) ;
-      __vr vrsum_b0 = _ve_vbrdu_vs_f32(0.0f) ;
-      __vr vrsum_b1 = _ve_vbrdu_vs_f32(0.0f) ;
+      __vr vrsum_b0 = _vel_vbrds_vsl(0.0f, maxvl) ;
+      __vr vrsum_b1 = _vel_vbrds_vsl(0.0f, maxvl) ;
 
       for(int64_t i=0; i<inDim; i+=VLEN ) {
 	const int64_t vl = inDim-i < VLEN ? inDim-i : VLEN ;
-	_ve_lvl(vl) ;
 
-	__vr vrw = _ve_vldu_vss(outDim*4, pWeight+i*outDim+o) ;
+	__vr vrw = _vel_vldu_vssl(outDim*4, pWeight+i*outDim+o, vl) ;
 
-	__vr vri_b0 = _ve_vldu_vss(4, pIn+(n+0)*inDim+i) ;
-	__vr vri_b1 = _ve_vldu_vss(4, pIn+(n+1)*inDim+i) ;
+	__vr vri_b0 = _vel_vldu_vssl(4, pIn+(n+0)*inDim+i, vl) ;
+	__vr vri_b1 = _vel_vldu_vssl(4, pIn+(n+1)*inDim+i, vl) ;
 
-	vrsum_b0 = _ve_vfmads_vvvv(vrsum_b0, vrw, vri_b0) ;
-	vrsum_b1 = _ve_vfmads_vvvv(vrsum_b1, vrw, vri_b1) ;
+	vrsum_b0 = _vel_vfmads_vvvvvl(vrsum_b0, vrw, vri_b0, vrsum_b0, vl) ;
+	vrsum_b1 = _vel_vfmads_vvvvvl(vrsum_b1, vrw, vri_b1, vrsum_b1, vl) ;
       }
-      _ve_lvl(maxvl) ;
-      vrsum_b0 = _ve_vfsums_vv(vrsum_b0) ;
-      vrsum_b1 = _ve_vfsums_vv(vrsum_b1) ;
+      vrsum_b0 = _vel_vfsums_vvl(vrsum_b0, maxvl) ;
+      vrsum_b1 = _vel_vfsums_vvl(vrsum_b1, maxvl) ;
 
-      _ve_lvl(1) ;
-      _ve_vstu_vss(vrsum_b0, 4, pOut+(n+0)*outDim+o) ;
-      _ve_vstu_vss(vrsum_b1, 4, pOut+(n+1)*outDim+o) ;
+      _vel_vstu_vssl(vrsum_b0, 4, pOut+(n+0)*outDim+o, 1) ;
+      _vel_vstu_vssl(vrsum_b1, 4, pOut+(n+1)*outDim+o, 1) ;
     }
     n+=2 ;
     break ;
   case 3:
     for(int64_t o=0; o<outDim; o++) {
 
-      _ve_lvl(maxvl) ;
-      __vr vrsum_b0 = _ve_vbrdu_vs_f32(0.0f) ;
-      __vr vrsum_b1 = _ve_vbrdu_vs_f32(0.0f) ;
-      __vr vrsum_b2 = _ve_vbrdu_vs_f32(0.0f) ;
+      __vr vrsum_b0 = _vel_vbrds_vsl(0.0f, maxvl) ;
+      __vr vrsum_b1 = _vel_vbrds_vsl(0.0f, maxvl) ;
+      __vr vrsum_b2 = _vel_vbrds_vsl(0.0f, maxvl) ;
 
       for(int64_t i=0; i<inDim; i+=VLEN ) {
 	const int64_t vl = inDim-i < VLEN ? inDim-i : VLEN ;
-	_ve_lvl(vl) ;
 
-	__vr vrw = _ve_vldu_vss(outDim*4, pWeight+i*outDim+o) ;
+	__vr vrw = _vel_vldu_vssl(outDim*4, pWeight+i*outDim+o, vl) ;
 
-	__vr vri_b0 = _ve_vldu_vss(4, pIn+(n+0)*inDim+i) ;
-	__vr vri_b1 = _ve_vldu_vss(4, pIn+(n+1)*inDim+i) ;
-	__vr vri_b2 = _ve_vldu_vss(4, pIn+(n+2)*inDim+i) ;
+	__vr vri_b0 = _vel_vldu_vssl(4, pIn+(n+0)*inDim+i, vl) ;
+	__vr vri_b1 = _vel_vldu_vssl(4, pIn+(n+1)*inDim+i, vl) ;
+	__vr vri_b2 = _vel_vldu_vssl(4, pIn+(n+2)*inDim+i, vl) ;
 
-	vrsum_b0 = _ve_vfmads_vvvv(vrsum_b0, vrw, vri_b0) ;
-	vrsum_b1 = _ve_vfmads_vvvv(vrsum_b1, vrw, vri_b1) ;
-	vrsum_b2 = _ve_vfmads_vvvv(vrsum_b2, vrw, vri_b2) ;
+	vrsum_b0 = _vel_vfmads_vvvvvl(vrsum_b0, vrw, vri_b0, vrsum_b0, vl) ;
+	vrsum_b1 = _vel_vfmads_vvvvvl(vrsum_b1, vrw, vri_b1, vrsum_b1, vl) ;
+	vrsum_b2 = _vel_vfmads_vvvvvl(vrsum_b2, vrw, vri_b2, vrsum_b2, vl) ;
       }
-      _ve_lvl(maxvl) ;
-      vrsum_b0 = _ve_vfsums_vv(vrsum_b0) ;
-      vrsum_b1 = _ve_vfsums_vv(vrsum_b1) ;
-      vrsum_b2 = _ve_vfsums_vv(vrsum_b2) ;
+      vrsum_b0 = _vel_vfsums_vvl(vrsum_b0, maxvl) ;
+      vrsum_b1 = _vel_vfsums_vvl(vrsum_b1, maxvl) ;
+      vrsum_b2 = _vel_vfsums_vvl(vrsum_b2, maxvl) ;
 
-      _ve_lvl(1) ;
-      _ve_vstu_vss(vrsum_b0, 4, pOut+(n+0)*outDim+o) ;
-      _ve_vstu_vss(vrsum_b1, 4, pOut+(n+1)*outDim+o) ;
-      _ve_vstu_vss(vrsum_b2, 4, pOut+(n+2)*outDim+o) ;
+      _vel_vstu_vssl(vrsum_b0, 4, pOut+(n+0)*outDim+o, 1) ;
+      _vel_vstu_vssl(vrsum_b1, 4, pOut+(n+1)*outDim+o, 1) ;
+      _vel_vstu_vssl(vrsum_b2, 4, pOut+(n+2)*outDim+o, 1) ;
     }
     n+=3 ;
     break ;
@@ -123,71 +112,39 @@ vednnError_t vednnLinearForward_oU32(
   for(; n<nBatch; n+=4) {
     for(int64_t o=0; o<outDim; o++) {
 
-      _ve_lvl(maxvl) ;
-      __vr vrsum_b0 = _ve_vbrdu_vs_f32(0.0f) ;
-      __vr vrsum_b1 = _ve_vbrdu_vs_f32(0.0f) ;
-      __vr vrsum_b2 = _ve_vbrdu_vs_f32(0.0f) ;
-      __vr vrsum_b3 = _ve_vbrdu_vs_f32(0.0f) ;
+      __vr vrsum_b0 = _vel_vbrds_vsl(0.0f, maxvl) ;
+      __vr vrsum_b1 = _vel_vbrds_vsl(0.0f, maxvl) ;
+      __vr vrsum_b2 = _vel_vbrds_vsl(0.0f, maxvl) ;
+      __vr vrsum_b3 = _vel_vbrds_vsl(0.0f, maxvl) ;
 
       for(int64_t i=0; i<inDim; i+=VLEN ) {
 	const int64_t vl = inDim-i < VLEN ? inDim-i : VLEN ;
-	_ve_lvl(vl) ;
 
-	__vr vrw = _ve_vldu_vss(outDim*4, pWeight+i*outDim+o) ;
+	__vr vrw = _vel_vldu_vssl(outDim*4, pWeight+i*outDim+o, vl) ;
 
-	__vr vri_b0 = _ve_vldu_vss(4, pIn+(n+0)*inDim+i) ;
-	__vr vri_b1 = _ve_vldu_vss(4, pIn+(n+1)*inDim+i) ;
-	__vr vri_b2 = _ve_vldu_vss(4, pIn+(n+2)*inDim+i) ;
-	__vr vri_b3 = _ve_vldu_vss(4, pIn+(n+3)*inDim+i) ;
+	__vr vri_b0 = _vel_vldu_vssl(4, pIn+(n+0)*inDim+i, vl) ;
+	__vr vri_b1 = _vel_vldu_vssl(4, pIn+(n+1)*inDim+i, vl) ;
+	__vr vri_b2 = _vel_vldu_vssl(4, pIn+(n+2)*inDim+i, vl) ;
+	__vr vri_b3 = _vel_vldu_vssl(4, pIn+(n+3)*inDim+i, vl) ;
 
-	vrsum_b0 = _ve_vfmads_vvvv(vrsum_b0, vrw, vri_b0) ;
-	vrsum_b1 = _ve_vfmads_vvvv(vrsum_b1, vrw, vri_b1) ;
-	vrsum_b2 = _ve_vfmads_vvvv(vrsum_b2, vrw, vri_b2) ;
-	vrsum_b3 = _ve_vfmads_vvvv(vrsum_b3, vrw, vri_b3) ;
+	vrsum_b0 = _vel_vfmads_vvvvvl(vrsum_b0, vrw, vri_b0, vrsum_b0, vl) ;
+	vrsum_b1 = _vel_vfmads_vvvvvl(vrsum_b1, vrw, vri_b1, vrsum_b1, vl) ;
+	vrsum_b2 = _vel_vfmads_vvvvvl(vrsum_b2, vrw, vri_b2, vrsum_b2, vl) ;
+	vrsum_b3 = _vel_vfmads_vvvvvl(vrsum_b3, vrw, vri_b3, vrsum_b3, vl) ;
       }
-      _ve_lvl(maxvl) ;
-      vrsum_b0 = _ve_vfsums_vv(vrsum_b0) ;
-      vrsum_b1 = _ve_vfsums_vv(vrsum_b1) ;
-      vrsum_b2 = _ve_vfsums_vv(vrsum_b2) ;
-      vrsum_b3 = _ve_vfsums_vv(vrsum_b3) ;
+      vrsum_b0 = _vel_vfsums_vvl(vrsum_b0, maxvl) ;
+      vrsum_b1 = _vel_vfsums_vvl(vrsum_b1, maxvl) ;
+      vrsum_b2 = _vel_vfsums_vvl(vrsum_b2, maxvl) ;
+      vrsum_b3 = _vel_vfsums_vvl(vrsum_b3, maxvl) ;
 
-      _ve_lvl(1) ;
-      _ve_vstu_vss(vrsum_b0, 4, pOut+(n+0)*outDim+o) ;
-      _ve_vstu_vss(vrsum_b1, 4, pOut+(n+1)*outDim+o) ;
-      _ve_vstu_vss(vrsum_b2, 4, pOut+(n+2)*outDim+o) ;
-      _ve_vstu_vss(vrsum_b3, 4, pOut+(n+3)*outDim+o) ;
+      _vel_vstu_vssl(vrsum_b0, 4, pOut+(n+0)*outDim+o, 1) ;
+      _vel_vstu_vssl(vrsum_b1, 4, pOut+(n+1)*outDim+o, 1) ;
+      _vel_vstu_vssl(vrsum_b2, 4, pOut+(n+2)*outDim+o, 1) ;
+      _vel_vstu_vssl(vrsum_b3, 4, pOut+(n+3)*outDim+o, 1) ;
     }
   }
 
   return VEDNN_SUCCESS ;
 }
-
-#if 0 // reference code
-vednnError_t vednnLinearForward_default(
-    const uint64_t			inDim,
-    const uint64_t			outDim,
-    const uint64_t			nBatch,
-    const void * restrict		pDataIn,
-    const void * restrict		pDataWeight,
-    void * restrict			pDataOut
-)
-{
-  const float * restrict pIn     = pDataIn;
-  const float * restrict pWeight = pDataWeight;
-  float * restrict const pOut    = pDataOut;
-
-  for(int64_t n=0; n<nBatch; n++) {
-    for(int64_t o=0; o<outDim; o++) {
-      float sum = 0.f ;
-      for(int64_t i=0; i<inDim; i++ ) {
-	sum += pWeight[i*outDim+o] * pIn[n*inDim+i] ;
-      }
-      pOut[n*outDim+o] = sum ;
-    }
-  }
-
-  return VEDNN_SUCCESS ;
-}
-#endif
 
 
