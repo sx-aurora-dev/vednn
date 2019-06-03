@@ -8,17 +8,6 @@
 #include "velintrin.h"
 #define VLEN	(256)
 
-// fixme : use new intrinsic
-#if 0
-static inline uint64_t pack_f32p(const float *pInU, const float *pInL) {
-  const uint64_t InU = *((uint32_t*)(pInU)) ;
-  const uint64_t InL = *((uint32_t*)(pInL)) ;
-  return (InU << 32) | InL ;
-}
-#else
-#define pack_f32p __builtin_ve_pack_f32p
-#endif
-
 static inline void b1(
   const uint64_t	inDim,
   const uint64_t	outDim,
@@ -43,7 +32,7 @@ static inline void b1(
 
       __vr vrw_i01 = _vel_vshf_vvvsl(vrw_i0, vrw_i1, VE_VSHUFFLE_YUZU, vl) ;
 
-      const uint64_t in_i01_b0 = pack_f32p(pIn+0*inDim+i+0, pIn+0*inDim+i+1) ;
+      const uint64_t in_i01_b0 = _vel_pack_f32p(pIn+0*inDim+i+0, pIn+0*inDim+i+1) ;
       vrsum_b0 = _vel_pvfmad_vvsvl(vrsum_b0, in_i01_b0, vrw_i01, vl) ;
       i+=2 ;
     }
@@ -56,9 +45,9 @@ static inline void b1(
       __vr vrw_i01 = _vel_vshf_vvvsl(vrw_i0, vrw_i1, VE_VSHUFFLE_YUZU, vl) ;
       __vr vrw_i23 = _vel_vshf_vvvsl(vrw_i2, vrw_i3, VE_VSHUFFLE_YUZU, vl) ;
 
-      const uint64_t in_i01_b0 = pack_f32p(pIn+0*inDim+i+0, pIn+0*inDim+i+1) ;
+      const uint64_t in_i01_b0 = _vel_pack_f32p(pIn+0*inDim+i+0, pIn+0*inDim+i+1) ;
       vrsum_b0 = _vel_pvfmad_vvsvl(vrsum_b0, in_i01_b0, vrw_i01, vl) ;
-      const uint64_t in_i23_b0 = pack_f32p(pIn+0*inDim+i+2, pIn+0*inDim+i+3) ;
+      const uint64_t in_i23_b0 = _vel_pack_f32p(pIn+0*inDim+i+2, pIn+0*inDim+i+3) ;
       vrsum_b0 = _vel_pvfmad_vvsvl(vrsum_b0, in_i23_b0, vrw_i23, vl) ;
     }
 
@@ -94,8 +83,8 @@ static inline void b2(
 
       __vr vrw_i01 = _vel_vshf_vvvsl(vrw_i0, vrw_i1, VE_VSHUFFLE_YUZU, vl) ;
 
-      const uint64_t in_i01_b0 = pack_f32p(pIn+0*inDim+i+0, pIn+0*inDim+i+1) ;
-      const uint64_t in_i01_b1 = pack_f32p(pIn+1*inDim+i+0, pIn+1*inDim+i+1) ;
+      const uint64_t in_i01_b0 = _vel_pack_f32p(pIn+0*inDim+i+0, pIn+0*inDim+i+1) ;
+      const uint64_t in_i01_b1 = _vel_pack_f32p(pIn+1*inDim+i+0, pIn+1*inDim+i+1) ;
 
       vrsum_b0 = _vel_pvfmad_vvsvl(vrsum_b0, in_i01_b0, vrw_i01, vl) ;
       vrsum_b1 = _vel_pvfmad_vvsvl(vrsum_b1, in_i01_b1, vrw_i01, vl) ;
@@ -111,14 +100,14 @@ static inline void b2(
       __vr vrw_i01 = _vel_vshf_vvvsl(vrw_i0, vrw_i1, VE_VSHUFFLE_YUZU, vl) ;
       __vr vrw_i23 = _vel_vshf_vvvsl(vrw_i2, vrw_i3, VE_VSHUFFLE_YUZU, vl) ;
 
-      const uint64_t in_i01_b0 = pack_f32p(pIn+0*inDim+i+0, pIn+0*inDim+i+1) ;
-      const uint64_t in_i01_b1 = pack_f32p(pIn+1*inDim+i+0, pIn+1*inDim+i+1) ;
+      const uint64_t in_i01_b0 = _vel_pack_f32p(pIn+0*inDim+i+0, pIn+0*inDim+i+1) ;
+      const uint64_t in_i01_b1 = _vel_pack_f32p(pIn+1*inDim+i+0, pIn+1*inDim+i+1) ;
 
       vrsum_b0 = _vel_pvfmad_vvsvl(vrsum_b0, in_i01_b0, vrw_i01, vl) ;
       vrsum_b1 = _vel_pvfmad_vvsvl(vrsum_b1, in_i01_b1, vrw_i01, vl) ;
 
-      const uint64_t in_i23_b0 = pack_f32p(pIn+0*inDim+i+2, pIn+0*inDim+i+3) ;
-      const uint64_t in_i23_b1 = pack_f32p(pIn+1*inDim+i+2, pIn+1*inDim+i+3) ;
+      const uint64_t in_i23_b0 = _vel_pack_f32p(pIn+0*inDim+i+2, pIn+0*inDim+i+3) ;
+      const uint64_t in_i23_b1 = _vel_pack_f32p(pIn+1*inDim+i+2, pIn+1*inDim+i+3) ;
 
       vrsum_b0 = _vel_pvfmad_vvsvl(vrsum_b0, in_i23_b0, vrw_i23, vl) ;
       vrsum_b1 = _vel_pvfmad_vvsvl(vrsum_b1, in_i23_b1, vrw_i23, vl) ;
@@ -160,9 +149,9 @@ static inline void b3(
 
       __vr vrw_i01 = _vel_vshf_vvvsl(vrw_i0, vrw_i1, VE_VSHUFFLE_YUZU, vl) ;
 
-      const uint64_t in_i01_b0 = pack_f32p(pIn+0*inDim+i+0, pIn+0*inDim+i+1) ;
-      const uint64_t in_i01_b1 = pack_f32p(pIn+1*inDim+i+0, pIn+1*inDim+i+1) ;
-      const uint64_t in_i01_b2 = pack_f32p(pIn+2*inDim+i+0, pIn+2*inDim+i+1) ;
+      const uint64_t in_i01_b0 = _vel_pack_f32p(pIn+0*inDim+i+0, pIn+0*inDim+i+1) ;
+      const uint64_t in_i01_b1 = _vel_pack_f32p(pIn+1*inDim+i+0, pIn+1*inDim+i+1) ;
+      const uint64_t in_i01_b2 = _vel_pack_f32p(pIn+2*inDim+i+0, pIn+2*inDim+i+1) ;
 
       vrsum_b0 = _vel_pvfmad_vvsvl(vrsum_b0, in_i01_b0, vrw_i01, vl) ;
       vrsum_b1 = _vel_pvfmad_vvsvl(vrsum_b1, in_i01_b1, vrw_i01, vl) ;
@@ -179,17 +168,17 @@ static inline void b3(
       __vr vrw_i01 = _vel_vshf_vvvsl(vrw_i0, vrw_i1, VE_VSHUFFLE_YUZU, vl) ;
       __vr vrw_i23 = _vel_vshf_vvvsl(vrw_i2, vrw_i3, VE_VSHUFFLE_YUZU, vl) ;
 
-      const uint64_t in_i01_b0 = pack_f32p(pIn+0*inDim+i+0, pIn+0*inDim+i+1) ;
-      const uint64_t in_i01_b1 = pack_f32p(pIn+1*inDim+i+0, pIn+1*inDim+i+1) ;
-      const uint64_t in_i01_b2 = pack_f32p(pIn+2*inDim+i+0, pIn+2*inDim+i+1) ;
+      const uint64_t in_i01_b0 = _vel_pack_f32p(pIn+0*inDim+i+0, pIn+0*inDim+i+1) ;
+      const uint64_t in_i01_b1 = _vel_pack_f32p(pIn+1*inDim+i+0, pIn+1*inDim+i+1) ;
+      const uint64_t in_i01_b2 = _vel_pack_f32p(pIn+2*inDim+i+0, pIn+2*inDim+i+1) ;
 
       vrsum_b0 = _vel_pvfmad_vvsvl(vrsum_b0, in_i01_b0, vrw_i01, vl) ;
       vrsum_b1 = _vel_pvfmad_vvsvl(vrsum_b1, in_i01_b1, vrw_i01, vl) ;
       vrsum_b2 = _vel_pvfmad_vvsvl(vrsum_b2, in_i01_b2, vrw_i01, vl) ;
 
-      const uint64_t in_i23_b0 = pack_f32p(pIn+0*inDim+i+2, pIn+0*inDim+i+3) ;
-      const uint64_t in_i23_b1 = pack_f32p(pIn+1*inDim+i+2, pIn+1*inDim+i+3) ;
-      const uint64_t in_i23_b2 = pack_f32p(pIn+2*inDim+i+2, pIn+2*inDim+i+3) ;
+      const uint64_t in_i23_b0 = _vel_pack_f32p(pIn+0*inDim+i+2, pIn+0*inDim+i+3) ;
+      const uint64_t in_i23_b1 = _vel_pack_f32p(pIn+1*inDim+i+2, pIn+1*inDim+i+3) ;
+      const uint64_t in_i23_b2 = _vel_pack_f32p(pIn+2*inDim+i+2, pIn+2*inDim+i+3) ;
 
       vrsum_b0 = _vel_pvfmad_vvsvl(vrsum_b0, in_i23_b0, vrw_i23, vl) ;
       vrsum_b1 = _vel_pvfmad_vvsvl(vrsum_b1, in_i23_b1, vrw_i23, vl) ;
@@ -237,10 +226,10 @@ static inline void b4(
 
       __vr vrw_i01 = _vel_vshf_vvvsl(vrw_i0, vrw_i1, VE_VSHUFFLE_YUZU, vl) ;
 
-      const uint64_t in_i01_b0 = pack_f32p(pIn+0*inDim+i+0, pIn+0*inDim+i+1) ;
-      const uint64_t in_i01_b1 = pack_f32p(pIn+1*inDim+i+0, pIn+1*inDim+i+1) ;
-      const uint64_t in_i01_b2 = pack_f32p(pIn+2*inDim+i+0, pIn+2*inDim+i+1) ;
-      const uint64_t in_i01_b3 = pack_f32p(pIn+3*inDim+i+0, pIn+3*inDim+i+1) ;
+      const uint64_t in_i01_b0 = _vel_pack_f32p(pIn+0*inDim+i+0, pIn+0*inDim+i+1) ;
+      const uint64_t in_i01_b1 = _vel_pack_f32p(pIn+1*inDim+i+0, pIn+1*inDim+i+1) ;
+      const uint64_t in_i01_b2 = _vel_pack_f32p(pIn+2*inDim+i+0, pIn+2*inDim+i+1) ;
+      const uint64_t in_i01_b3 = _vel_pack_f32p(pIn+3*inDim+i+0, pIn+3*inDim+i+1) ;
 
       vrsum_b0 = _vel_pvfmad_vvsvl(vrsum_b0, in_i01_b0, vrw_i01, vl) ;
       vrsum_b1 = _vel_pvfmad_vvsvl(vrsum_b1, in_i01_b1, vrw_i01, vl) ;
@@ -258,20 +247,20 @@ static inline void b4(
       __vr vrw_i01 = _vel_vshf_vvvsl(vrw_i0, vrw_i1, VE_VSHUFFLE_YUZU, vl) ;
       __vr vrw_i23 = _vel_vshf_vvvsl(vrw_i2, vrw_i3, VE_VSHUFFLE_YUZU, vl) ;
 
-      const uint64_t in_i01_b0 = pack_f32p(pIn+0*inDim+i+0, pIn+0*inDim+i+1) ;
-      const uint64_t in_i01_b1 = pack_f32p(pIn+1*inDim+i+0, pIn+1*inDim+i+1) ;
-      const uint64_t in_i01_b2 = pack_f32p(pIn+2*inDim+i+0, pIn+2*inDim+i+1) ;
-      const uint64_t in_i01_b3 = pack_f32p(pIn+3*inDim+i+0, pIn+3*inDim+i+1) ;
+      const uint64_t in_i01_b0 = _vel_pack_f32p(pIn+0*inDim+i+0, pIn+0*inDim+i+1) ;
+      const uint64_t in_i01_b1 = _vel_pack_f32p(pIn+1*inDim+i+0, pIn+1*inDim+i+1) ;
+      const uint64_t in_i01_b2 = _vel_pack_f32p(pIn+2*inDim+i+0, pIn+2*inDim+i+1) ;
+      const uint64_t in_i01_b3 = _vel_pack_f32p(pIn+3*inDim+i+0, pIn+3*inDim+i+1) ;
 
       vrsum_b0 = _vel_pvfmad_vvsvl(vrsum_b0, in_i01_b0, vrw_i01, vl) ;
       vrsum_b1 = _vel_pvfmad_vvsvl(vrsum_b1, in_i01_b1, vrw_i01, vl) ;
       vrsum_b2 = _vel_pvfmad_vvsvl(vrsum_b2, in_i01_b2, vrw_i01, vl) ;
       vrsum_b3 = _vel_pvfmad_vvsvl(vrsum_b3, in_i01_b3, vrw_i01, vl) ;
 
-      const uint64_t in_i23_b0 = pack_f32p(pIn+0*inDim+i+2, pIn+0*inDim+i+3) ;
-      const uint64_t in_i23_b1 = pack_f32p(pIn+1*inDim+i+2, pIn+1*inDim+i+3) ;
-      const uint64_t in_i23_b2 = pack_f32p(pIn+2*inDim+i+2, pIn+2*inDim+i+3) ;
-      const uint64_t in_i23_b3 = pack_f32p(pIn+3*inDim+i+2, pIn+3*inDim+i+3) ;
+      const uint64_t in_i23_b0 = _vel_pack_f32p(pIn+0*inDim+i+2, pIn+0*inDim+i+3) ;
+      const uint64_t in_i23_b1 = _vel_pack_f32p(pIn+1*inDim+i+2, pIn+1*inDim+i+3) ;
+      const uint64_t in_i23_b2 = _vel_pack_f32p(pIn+2*inDim+i+2, pIn+2*inDim+i+3) ;
+      const uint64_t in_i23_b3 = _vel_pack_f32p(pIn+3*inDim+i+2, pIn+3*inDim+i+3) ;
 
       vrsum_b0 = _vel_pvfmad_vvsvl(vrsum_b0, in_i23_b0, vrw_i23, vl) ;
       vrsum_b1 = _vel_pvfmad_vvsvl(vrsum_b1, in_i23_b1, vrw_i23, vl) ;
@@ -324,11 +313,11 @@ static inline void b5(
 
       __vr vrw_i01 = _vel_vshf_vvvsl(vrw_i0, vrw_i1, VE_VSHUFFLE_YUZU, vl) ;
 
-      const uint64_t in_i01_b0 = pack_f32p(pIn+0*inDim+i+0, pIn+0*inDim+i+1) ;
-      const uint64_t in_i01_b1 = pack_f32p(pIn+1*inDim+i+0, pIn+1*inDim+i+1) ;
-      const uint64_t in_i01_b2 = pack_f32p(pIn+2*inDim+i+0, pIn+2*inDim+i+1) ;
-      const uint64_t in_i01_b3 = pack_f32p(pIn+3*inDim+i+0, pIn+3*inDim+i+1) ;
-      const uint64_t in_i01_b4 = pack_f32p(pIn+4*inDim+i+0, pIn+4*inDim+i+1) ;
+      const uint64_t in_i01_b0 = _vel_pack_f32p(pIn+0*inDim+i+0, pIn+0*inDim+i+1) ;
+      const uint64_t in_i01_b1 = _vel_pack_f32p(pIn+1*inDim+i+0, pIn+1*inDim+i+1) ;
+      const uint64_t in_i01_b2 = _vel_pack_f32p(pIn+2*inDim+i+0, pIn+2*inDim+i+1) ;
+      const uint64_t in_i01_b3 = _vel_pack_f32p(pIn+3*inDim+i+0, pIn+3*inDim+i+1) ;
+      const uint64_t in_i01_b4 = _vel_pack_f32p(pIn+4*inDim+i+0, pIn+4*inDim+i+1) ;
 
       vrsum_b0 = _vel_pvfmad_vvsvl(vrsum_b0, in_i01_b0, vrw_i01, vl) ;
       vrsum_b1 = _vel_pvfmad_vvsvl(vrsum_b1, in_i01_b1, vrw_i01, vl) ;
@@ -347,11 +336,11 @@ static inline void b5(
       __vr vrw_i01 = _vel_vshf_vvvsl(vrw_i0, vrw_i1, VE_VSHUFFLE_YUZU, vl) ;
       __vr vrw_i23 = _vel_vshf_vvvsl(vrw_i2, vrw_i3, VE_VSHUFFLE_YUZU, vl) ;
 
-      const uint64_t in_i01_b0 = pack_f32p(pIn+0*inDim+i+0, pIn+0*inDim+i+1) ;
-      const uint64_t in_i01_b1 = pack_f32p(pIn+1*inDim+i+0, pIn+1*inDim+i+1) ;
-      const uint64_t in_i01_b2 = pack_f32p(pIn+2*inDim+i+0, pIn+2*inDim+i+1) ;
-      const uint64_t in_i01_b3 = pack_f32p(pIn+3*inDim+i+0, pIn+3*inDim+i+1) ;
-      const uint64_t in_i01_b4 = pack_f32p(pIn+4*inDim+i+0, pIn+4*inDim+i+1) ;
+      const uint64_t in_i01_b0 = _vel_pack_f32p(pIn+0*inDim+i+0, pIn+0*inDim+i+1) ;
+      const uint64_t in_i01_b1 = _vel_pack_f32p(pIn+1*inDim+i+0, pIn+1*inDim+i+1) ;
+      const uint64_t in_i01_b2 = _vel_pack_f32p(pIn+2*inDim+i+0, pIn+2*inDim+i+1) ;
+      const uint64_t in_i01_b3 = _vel_pack_f32p(pIn+3*inDim+i+0, pIn+3*inDim+i+1) ;
+      const uint64_t in_i01_b4 = _vel_pack_f32p(pIn+4*inDim+i+0, pIn+4*inDim+i+1) ;
 
       vrsum_b0 = _vel_pvfmad_vvsvl(vrsum_b0, in_i01_b0, vrw_i01, vl) ;
       vrsum_b1 = _vel_pvfmad_vvsvl(vrsum_b1, in_i01_b1, vrw_i01, vl) ;
@@ -359,11 +348,11 @@ static inline void b5(
       vrsum_b3 = _vel_pvfmad_vvsvl(vrsum_b3, in_i01_b3, vrw_i01, vl) ;
       vrsum_b4 = _vel_pvfmad_vvsvl(vrsum_b4, in_i01_b4, vrw_i01, vl) ;
 
-      const uint64_t in_i23_b0 = pack_f32p(pIn+0*inDim+i+2, pIn+0*inDim+i+3) ;
-      const uint64_t in_i23_b1 = pack_f32p(pIn+1*inDim+i+2, pIn+1*inDim+i+3) ;
-      const uint64_t in_i23_b2 = pack_f32p(pIn+2*inDim+i+2, pIn+2*inDim+i+3) ;
-      const uint64_t in_i23_b3 = pack_f32p(pIn+3*inDim+i+2, pIn+3*inDim+i+3) ;
-      const uint64_t in_i23_b4 = pack_f32p(pIn+4*inDim+i+2, pIn+4*inDim+i+3) ;
+      const uint64_t in_i23_b0 = _vel_pack_f32p(pIn+0*inDim+i+2, pIn+0*inDim+i+3) ;
+      const uint64_t in_i23_b1 = _vel_pack_f32p(pIn+1*inDim+i+2, pIn+1*inDim+i+3) ;
+      const uint64_t in_i23_b2 = _vel_pack_f32p(pIn+2*inDim+i+2, pIn+2*inDim+i+3) ;
+      const uint64_t in_i23_b3 = _vel_pack_f32p(pIn+3*inDim+i+2, pIn+3*inDim+i+3) ;
+      const uint64_t in_i23_b4 = _vel_pack_f32p(pIn+4*inDim+i+2, pIn+4*inDim+i+3) ;
 
       vrsum_b0 = _vel_pvfmad_vvsvl(vrsum_b0, in_i23_b0, vrw_i23, vl) ;
       vrsum_b1 = _vel_pvfmad_vvsvl(vrsum_b1, in_i23_b1, vrw_i23, vl) ;
@@ -421,12 +410,12 @@ static inline void b6(
 
       __vr vrw_i01 = _vel_vshf_vvvsl(vrw_i0, vrw_i1, VE_VSHUFFLE_YUZU, vl) ;
 
-      const uint64_t in_i01_b0 = pack_f32p(pIn+0*inDim+i+0, pIn+0*inDim+i+1) ;
-      const uint64_t in_i01_b1 = pack_f32p(pIn+1*inDim+i+0, pIn+1*inDim+i+1) ;
-      const uint64_t in_i01_b2 = pack_f32p(pIn+2*inDim+i+0, pIn+2*inDim+i+1) ;
-      const uint64_t in_i01_b3 = pack_f32p(pIn+3*inDim+i+0, pIn+3*inDim+i+1) ;
-      const uint64_t in_i01_b4 = pack_f32p(pIn+4*inDim+i+0, pIn+4*inDim+i+1) ;
-      const uint64_t in_i01_b5 = pack_f32p(pIn+5*inDim+i+0, pIn+5*inDim+i+1) ;
+      const uint64_t in_i01_b0 = _vel_pack_f32p(pIn+0*inDim+i+0, pIn+0*inDim+i+1) ;
+      const uint64_t in_i01_b1 = _vel_pack_f32p(pIn+1*inDim+i+0, pIn+1*inDim+i+1) ;
+      const uint64_t in_i01_b2 = _vel_pack_f32p(pIn+2*inDim+i+0, pIn+2*inDim+i+1) ;
+      const uint64_t in_i01_b3 = _vel_pack_f32p(pIn+3*inDim+i+0, pIn+3*inDim+i+1) ;
+      const uint64_t in_i01_b4 = _vel_pack_f32p(pIn+4*inDim+i+0, pIn+4*inDim+i+1) ;
+      const uint64_t in_i01_b5 = _vel_pack_f32p(pIn+5*inDim+i+0, pIn+5*inDim+i+1) ;
 
       vrsum_b0 = _vel_pvfmad_vvsvl(vrsum_b0, in_i01_b0, vrw_i01, vl) ;
       vrsum_b1 = _vel_pvfmad_vvsvl(vrsum_b1, in_i01_b1, vrw_i01, vl) ;
@@ -446,12 +435,12 @@ static inline void b6(
       __vr vrw_i01 = _vel_vshf_vvvsl(vrw_i0, vrw_i1, VE_VSHUFFLE_YUZU, vl) ;
       __vr vrw_i23 = _vel_vshf_vvvsl(vrw_i2, vrw_i3, VE_VSHUFFLE_YUZU, vl) ;
 
-      const uint64_t in_i01_b0 = pack_f32p(pIn+0*inDim+i+0, pIn+0*inDim+i+1) ;
-      const uint64_t in_i01_b1 = pack_f32p(pIn+1*inDim+i+0, pIn+1*inDim+i+1) ;
-      const uint64_t in_i01_b2 = pack_f32p(pIn+2*inDim+i+0, pIn+2*inDim+i+1) ;
-      const uint64_t in_i01_b3 = pack_f32p(pIn+3*inDim+i+0, pIn+3*inDim+i+1) ;
-      const uint64_t in_i01_b4 = pack_f32p(pIn+4*inDim+i+0, pIn+4*inDim+i+1) ;
-      const uint64_t in_i01_b5 = pack_f32p(pIn+5*inDim+i+0, pIn+5*inDim+i+1) ;
+      const uint64_t in_i01_b0 = _vel_pack_f32p(pIn+0*inDim+i+0, pIn+0*inDim+i+1) ;
+      const uint64_t in_i01_b1 = _vel_pack_f32p(pIn+1*inDim+i+0, pIn+1*inDim+i+1) ;
+      const uint64_t in_i01_b2 = _vel_pack_f32p(pIn+2*inDim+i+0, pIn+2*inDim+i+1) ;
+      const uint64_t in_i01_b3 = _vel_pack_f32p(pIn+3*inDim+i+0, pIn+3*inDim+i+1) ;
+      const uint64_t in_i01_b4 = _vel_pack_f32p(pIn+4*inDim+i+0, pIn+4*inDim+i+1) ;
+      const uint64_t in_i01_b5 = _vel_pack_f32p(pIn+5*inDim+i+0, pIn+5*inDim+i+1) ;
 
       vrsum_b0 = _vel_pvfmad_vvsvl(vrsum_b0, in_i01_b0, vrw_i01, vl) ;
       vrsum_b1 = _vel_pvfmad_vvsvl(vrsum_b1, in_i01_b1, vrw_i01, vl) ;
@@ -460,12 +449,12 @@ static inline void b6(
       vrsum_b4 = _vel_pvfmad_vvsvl(vrsum_b4, in_i01_b4, vrw_i01, vl) ;
       vrsum_b5 = _vel_pvfmad_vvsvl(vrsum_b5, in_i01_b5, vrw_i01, vl) ;
 
-      const uint64_t in_i23_b0 = pack_f32p(pIn+0*inDim+i+2, pIn+0*inDim+i+3) ;
-      const uint64_t in_i23_b1 = pack_f32p(pIn+1*inDim+i+2, pIn+1*inDim+i+3) ;
-      const uint64_t in_i23_b2 = pack_f32p(pIn+2*inDim+i+2, pIn+2*inDim+i+3) ;
-      const uint64_t in_i23_b3 = pack_f32p(pIn+3*inDim+i+2, pIn+3*inDim+i+3) ;
-      const uint64_t in_i23_b4 = pack_f32p(pIn+4*inDim+i+2, pIn+4*inDim+i+3) ;
-      const uint64_t in_i23_b5 = pack_f32p(pIn+5*inDim+i+2, pIn+5*inDim+i+3) ;
+      const uint64_t in_i23_b0 = _vel_pack_f32p(pIn+0*inDim+i+2, pIn+0*inDim+i+3) ;
+      const uint64_t in_i23_b1 = _vel_pack_f32p(pIn+1*inDim+i+2, pIn+1*inDim+i+3) ;
+      const uint64_t in_i23_b2 = _vel_pack_f32p(pIn+2*inDim+i+2, pIn+2*inDim+i+3) ;
+      const uint64_t in_i23_b3 = _vel_pack_f32p(pIn+3*inDim+i+2, pIn+3*inDim+i+3) ;
+      const uint64_t in_i23_b4 = _vel_pack_f32p(pIn+4*inDim+i+2, pIn+4*inDim+i+3) ;
+      const uint64_t in_i23_b5 = _vel_pack_f32p(pIn+5*inDim+i+2, pIn+5*inDim+i+3) ;
 
       vrsum_b0 = _vel_pvfmad_vvsvl(vrsum_b0, in_i23_b0, vrw_i23, vl) ;
       vrsum_b1 = _vel_pvfmad_vvsvl(vrsum_b1, in_i23_b1, vrw_i23, vl) ;
