@@ -5,7 +5,7 @@
 
 #include "vednn.h"
 
-#include "veintrin.h"
+#include "velintrin.h"
 #define VLEN	(256)
 
 
@@ -21,85 +21,76 @@ static inline void b1(
   switch(inDim&0x3) {
   case 1:
     {
-      _ve_lvl(VLEN) ;
-      __vr vrsum_b0 = _ve_vbrdu_vs_f32(0.f) ;
+      __vr vrsum_b0 = _vel_vbrds_vsl(0.f, VLEN) ;
 
       for(int64_t o=0; o<outDim; o+=VLEN) {
 	const int64_t vl = outDim-o < VLEN ? outDim - o : VLEN ;
-	_ve_lvl(vl) ;
-	__vr vrw    = _ve_vldu_vss(4, pWeight+i*outDim+o) ;
-	__vr vro_b0 = _ve_vldu_vss(4, pGOut+0*outDim+o) ;
 
-	vrsum_b0 = _ve_vfmads_vvvv(vrsum_b0, vrw, vro_b0) ;
+	__vr vrw    = _vel_vldu_vssl(4, pWeight+i*outDim+o, vl) ;
+	__vr vro_b0 = _vel_vldu_vssl(4, pGOut+0*outDim+o, vl) ;
+
+	vrsum_b0 = _vel_vfmads_vvvvvl(vrsum_b0, vrw, vro_b0, vrsum_b0, vl) ;
       }
 
-      _ve_lvl(VLEN) ;
-      vrsum_b0 = _ve_vfsums_vv(vrsum_b0);
+      vrsum_b0 = _vel_vfsums_vvl(vrsum_b0, VLEN);
 
-      _ve_lvl(1) ;
-      _ve_vstu_vss(vrsum_b0, 4, pGIn+0*inDim+i) ;
+      _vel_vstu_vssl(vrsum_b0, 4, pGIn+0*inDim+i, 1) ;
     }
     i+=1;
     break ;
   case 2 :
     {
-      _ve_lvl(VLEN) ;
-      __vr vrsum_b0_i0 = _ve_vbrdu_vs_f32(0.f) ;
-      __vr vrsum_b0_i1 = _ve_vbrdu_vs_f32(0.f) ;
+      __vr vrsum_b0_i0 = _vel_vbrds_vsl(0.f, VLEN) ;
+      __vr vrsum_b0_i1 = _vel_vbrds_vsl(0.f, VLEN) ;
 
       for(int64_t o=0; o<outDim; o+=VLEN) {
 	const int64_t vl = outDim-o < VLEN ? outDim - o : VLEN ;
-	_ve_lvl(vl) ;
-	__vr vrw_i0 = _ve_vldu_vss(4, pWeight+(i  )*outDim+o) ;
-	__vr vrw_i1 = _ve_vldu_vss(4, pWeight+(i+1)*outDim+o) ;
 
-	__vr vro_b0 = _ve_vldu_vss(4, pGOut+0*outDim+o) ;
+	__vr vrw_i0 = _vel_vldu_vssl(4, pWeight+(i  )*outDim+o, vl) ;
+	__vr vrw_i1 = _vel_vldu_vssl(4, pWeight+(i+1)*outDim+o, vl) ;
 
-	vrsum_b0_i0 = _ve_vfmads_vvvv(vrsum_b0_i0, vrw_i0, vro_b0) ;
-	vrsum_b0_i1 = _ve_vfmads_vvvv(vrsum_b0_i1, vrw_i1, vro_b0) ;
+	__vr vro_b0 = _vel_vldu_vssl(4, pGOut+0*outDim+o, vl) ;
+
+	vrsum_b0_i0 = _vel_vfmads_vvvvvl(vrsum_b0_i0, vrw_i0, vro_b0, vrsum_b0_i0, vl) ;
+	vrsum_b0_i1 = _vel_vfmads_vvvvvl(vrsum_b0_i1, vrw_i1, vro_b0, vrsum_b0_i1, vl) ;
       }
 
-      _ve_lvl(VLEN) ;
-      vrsum_b0_i0 = _ve_vfsums_vv(vrsum_b0_i0);
-      vrsum_b0_i1 = _ve_vfsums_vv(vrsum_b0_i1);
+      vrsum_b0_i0 = _vel_vfsums_vvl(vrsum_b0_i0, VLEN);
+      vrsum_b0_i1 = _vel_vfsums_vvl(vrsum_b0_i1, VLEN);
 
-      _ve_lvl(1) ;
-      _ve_vstu_vss(vrsum_b0_i0, 4, pGIn+0*inDim+i) ;
-      _ve_vstu_vss(vrsum_b0_i1, 4, pGIn+0*inDim+i+1) ;
+      _vel_vstu_vssl(vrsum_b0_i0, 4, pGIn+0*inDim+i,   1) ;
+      _vel_vstu_vssl(vrsum_b0_i1, 4, pGIn+0*inDim+i+1, 1) ;
     }
 
     i+=2 ;
     break ;
   case 3:
     {
-      _ve_lvl(VLEN) ;
-      __vr vrsum_b0_i0 = _ve_vbrdu_vs_f32(0.f) ;
-      __vr vrsum_b0_i1 = _ve_vbrdu_vs_f32(0.f) ;
-      __vr vrsum_b0_i2 = _ve_vbrdu_vs_f32(0.f) ;
+      __vr vrsum_b0_i0 = _vel_vbrds_vsl(0.f, VLEN) ;
+      __vr vrsum_b0_i1 = _vel_vbrds_vsl(0.f, VLEN) ;
+      __vr vrsum_b0_i2 = _vel_vbrds_vsl(0.f, VLEN) ;
 
       for(int64_t o=0; o<outDim; o+=VLEN) {
 	const int64_t vl = outDim-o < VLEN ? outDim - o : VLEN ;
-	_ve_lvl(vl) ;
-	__vr vrw_i0 = _ve_vldu_vss(4, pWeight+(i  )*outDim+o) ;
-	__vr vrw_i1 = _ve_vldu_vss(4, pWeight+(i+1)*outDim+o) ;
-	__vr vrw_i2 = _ve_vldu_vss(4, pWeight+(i+2)*outDim+o) ;
 
-	__vr vro_b0 = _ve_vldu_vss(4, pGOut+0*outDim+o) ;
+	__vr vrw_i0 = _vel_vldu_vssl(4, pWeight+(i  )*outDim+o, vl) ;
+	__vr vrw_i1 = _vel_vldu_vssl(4, pWeight+(i+1)*outDim+o, vl) ;
+	__vr vrw_i2 = _vel_vldu_vssl(4, pWeight+(i+2)*outDim+o, vl) ;
 
-	vrsum_b0_i0 = _ve_vfmads_vvvv(vrsum_b0_i0, vrw_i0, vro_b0) ;
-	vrsum_b0_i1 = _ve_vfmads_vvvv(vrsum_b0_i1, vrw_i1, vro_b0) ;
-	vrsum_b0_i2 = _ve_vfmads_vvvv(vrsum_b0_i2, vrw_i2, vro_b0) ;
+	__vr vro_b0 = _vel_vldu_vssl(4, pGOut+0*outDim+o, vl) ;
+
+	vrsum_b0_i0 = _vel_vfmads_vvvvvl(vrsum_b0_i0, vrw_i0, vro_b0, vrsum_b0_i0, vl) ;
+	vrsum_b0_i1 = _vel_vfmads_vvvvvl(vrsum_b0_i1, vrw_i1, vro_b0, vrsum_b0_i1, vl) ;
+	vrsum_b0_i2 = _vel_vfmads_vvvvvl(vrsum_b0_i2, vrw_i2, vro_b0, vrsum_b0_i2, vl) ;
       }
 
-      _ve_lvl(VLEN) ;
-      vrsum_b0_i0 = _ve_vfsums_vv(vrsum_b0_i0);
-      vrsum_b0_i1 = _ve_vfsums_vv(vrsum_b0_i1);
-      vrsum_b0_i2 = _ve_vfsums_vv(vrsum_b0_i2);
+      vrsum_b0_i0 = _vel_vfsums_vvl(vrsum_b0_i0, VLEN);
+      vrsum_b0_i1 = _vel_vfsums_vvl(vrsum_b0_i1, VLEN);
+      vrsum_b0_i2 = _vel_vfsums_vvl(vrsum_b0_i2, VLEN);
 
-      _ve_lvl(1) ;
-      _ve_vstu_vss(vrsum_b0_i0, 4, pGIn+0*inDim+i) ;
-      _ve_vstu_vss(vrsum_b0_i1, 4, pGIn+0*inDim+i+1) ;
-      _ve_vstu_vss(vrsum_b0_i2, 4, pGIn+0*inDim+i+2) ;
+      _vel_vstu_vssl(vrsum_b0_i0, 4, pGIn+0*inDim+i,   1) ;
+      _vel_vstu_vssl(vrsum_b0_i1, 4, pGIn+0*inDim+i+1, 1) ;
+      _vel_vstu_vssl(vrsum_b0_i2, 4, pGIn+0*inDim+i+2, 1) ;
 
     }
     i+=3 ;
@@ -108,39 +99,36 @@ static inline void b1(
   }
   for(; i<inDim; i+=4)
   {
-    _ve_lvl(VLEN) ;
-    __vr vrsum_b0_i0 = _ve_vbrdu_vs_f32(0.f) ;
-    __vr vrsum_b0_i1 = _ve_vbrdu_vs_f32(0.f) ;
-    __vr vrsum_b0_i2 = _ve_vbrdu_vs_f32(0.f) ;
-    __vr vrsum_b0_i3 = _ve_vbrdu_vs_f32(0.f) ;
+    __vr vrsum_b0_i0 = _vel_vbrds_vsl(0.f, VLEN) ;
+    __vr vrsum_b0_i1 = _vel_vbrds_vsl(0.f, VLEN) ;
+    __vr vrsum_b0_i2 = _vel_vbrds_vsl(0.f, VLEN) ;
+    __vr vrsum_b0_i3 = _vel_vbrds_vsl(0.f, VLEN) ;
 
     for(int64_t o=0; o<outDim; o+=VLEN) {
       const int64_t vl = outDim-o < VLEN ? outDim - o : VLEN ;
-      _ve_lvl(vl) ;
-      __vr vrw_i0 = _ve_vldu_vss(4, pWeight+(i  )*outDim+o) ;
-      __vr vrw_i1 = _ve_vldu_vss(4, pWeight+(i+1)*outDim+o) ;
-      __vr vrw_i2 = _ve_vldu_vss(4, pWeight+(i+2)*outDim+o) ;
-      __vr vrw_i3 = _ve_vldu_vss(4, pWeight+(i+3)*outDim+o) ;
 
-      __vr vro_b0 = _ve_vldu_vss(4, pGOut+0*outDim+o) ;
+      __vr vrw_i0 = _vel_vldu_vssl(4, pWeight+(i  )*outDim+o, vl) ;
+      __vr vrw_i1 = _vel_vldu_vssl(4, pWeight+(i+1)*outDim+o, vl) ;
+      __vr vrw_i2 = _vel_vldu_vssl(4, pWeight+(i+2)*outDim+o, vl) ;
+      __vr vrw_i3 = _vel_vldu_vssl(4, pWeight+(i+3)*outDim+o, vl) ;
 
-      vrsum_b0_i0 = _ve_vfmads_vvvv(vrsum_b0_i0, vrw_i0, vro_b0) ;
-      vrsum_b0_i1 = _ve_vfmads_vvvv(vrsum_b0_i1, vrw_i1, vro_b0) ;
-      vrsum_b0_i2 = _ve_vfmads_vvvv(vrsum_b0_i2, vrw_i2, vro_b0) ;
-      vrsum_b0_i3 = _ve_vfmads_vvvv(vrsum_b0_i3, vrw_i3, vro_b0) ;
+      __vr vro_b0 = _vel_vldu_vssl(4, pGOut+0*outDim+o, vl) ;
+
+      vrsum_b0_i0 = _vel_vfmads_vvvvvl(vrsum_b0_i0, vrw_i0, vro_b0, vrsum_b0_i0, vl) ;
+      vrsum_b0_i1 = _vel_vfmads_vvvvvl(vrsum_b0_i1, vrw_i1, vro_b0, vrsum_b0_i1, vl) ;
+      vrsum_b0_i2 = _vel_vfmads_vvvvvl(vrsum_b0_i2, vrw_i2, vro_b0, vrsum_b0_i2, vl) ;
+      vrsum_b0_i3 = _vel_vfmads_vvvvvl(vrsum_b0_i3, vrw_i3, vro_b0, vrsum_b0_i3, vl) ;
     }
 
-    _ve_lvl(VLEN) ;
-    vrsum_b0_i0 = _ve_vfsums_vv(vrsum_b0_i0);
-    vrsum_b0_i1 = _ve_vfsums_vv(vrsum_b0_i1);
-    vrsum_b0_i2 = _ve_vfsums_vv(vrsum_b0_i2);
-    vrsum_b0_i3 = _ve_vfsums_vv(vrsum_b0_i3);
+    vrsum_b0_i0 = _vel_vfsums_vvl(vrsum_b0_i0, VLEN);
+    vrsum_b0_i1 = _vel_vfsums_vvl(vrsum_b0_i1, VLEN);
+    vrsum_b0_i2 = _vel_vfsums_vvl(vrsum_b0_i2, VLEN);
+    vrsum_b0_i3 = _vel_vfsums_vvl(vrsum_b0_i3, VLEN);
 
-    _ve_lvl(1) ;
-    _ve_vstu_vss(vrsum_b0_i0, 4, pGIn+0*inDim+i) ;
-    _ve_vstu_vss(vrsum_b0_i1, 4, pGIn+0*inDim+i+1) ;
-    _ve_vstu_vss(vrsum_b0_i2, 4, pGIn+0*inDim+i+2) ;
-    _ve_vstu_vss(vrsum_b0_i3, 4, pGIn+0*inDim+i+3) ;
+    _vel_vstu_vssl(vrsum_b0_i0, 4, pGIn+0*inDim+i,   1) ;
+    _vel_vstu_vssl(vrsum_b0_i1, 4, pGIn+0*inDim+i+1, 1) ;
+    _vel_vstu_vssl(vrsum_b0_i2, 4, pGIn+0*inDim+i+2, 1) ;
+    _vel_vstu_vssl(vrsum_b0_i3, 4, pGIn+0*inDim+i+3, 1) ;
   }
 }
 
@@ -156,115 +144,106 @@ static inline void b2(
   switch(inDim&0x3) {
   case 1:
     {
-      _ve_lvl(VLEN) ;
-      __vr vrsum_b0 = _ve_vbrdu_vs_f32(0.f) ;
-      __vr vrsum_b1 = _ve_vbrdu_vs_f32(0.f) ;
+      __vr vrsum_b0 = _vel_vbrds_vsl(0.f, VLEN) ;
+      __vr vrsum_b1 = _vel_vbrds_vsl(0.f, VLEN) ;
 
       for(int64_t o=0; o<outDim; o+=VLEN) {
 	const int64_t vl = outDim-o < VLEN ? outDim - o : VLEN ;
-	_ve_lvl(vl) ;
-	__vr vrw    = _ve_vldu_vss(4, pWeight+i*outDim+o) ;
-	__vr vro_b0 = _ve_vldu_vss(4, pGOut+0*outDim+o) ;
-	__vr vro_b1 = _ve_vldu_vss(4, pGOut+1*outDim+o) ;
 
-	vrsum_b0 = _ve_vfmads_vvvv(vrsum_b0, vrw, vro_b0) ;
-	vrsum_b1 = _ve_vfmads_vvvv(vrsum_b1, vrw, vro_b1) ;
+	__vr vrw    = _vel_vldu_vssl(4, pWeight+i*outDim+o, vl) ;
+	__vr vro_b0 = _vel_vldu_vssl(4, pGOut+0*outDim+o, vl) ;
+	__vr vro_b1 = _vel_vldu_vssl(4, pGOut+1*outDim+o, vl) ;
+
+	vrsum_b0 = _vel_vfmads_vvvvvl(vrsum_b0, vrw, vro_b0, vrsum_b0, vl) ;
+	vrsum_b1 = _vel_vfmads_vvvvvl(vrsum_b1, vrw, vro_b1, vrsum_b1, vl) ;
       }
 
-      _ve_lvl(VLEN) ;
-      vrsum_b0 = _ve_vfsums_vv(vrsum_b0);
-      vrsum_b1 = _ve_vfsums_vv(vrsum_b1);
+      vrsum_b0 = _vel_vfsums_vvl(vrsum_b0, VLEN);
+      vrsum_b1 = _vel_vfsums_vvl(vrsum_b1, VLEN);
 
-      _ve_lvl(1) ;
-      _ve_vstu_vss(vrsum_b0, 4, pGIn+0*inDim+i) ;
-      _ve_vstu_vss(vrsum_b1, 4, pGIn+1*inDim+i) ;
+      _vel_vstu_vssl(vrsum_b0, 4, pGIn+0*inDim+i, 1) ;
+      _vel_vstu_vssl(vrsum_b1, 4, pGIn+1*inDim+i, 1) ;
     }
     i+=1;
     break ;
   case 2 :
     {
-      _ve_lvl(VLEN) ;
-      __vr vrsum_b0_i0 = _ve_vbrdu_vs_f32(0.f) ;
-      __vr vrsum_b1_i0 = _ve_vbrdu_vs_f32(0.f) ;
-      __vr vrsum_b0_i1 = _ve_vbrdu_vs_f32(0.f) ;
-      __vr vrsum_b1_i1 = _ve_vbrdu_vs_f32(0.f) ;
+      __vr vrsum_b0_i0 = _vel_vbrds_vsl(0.f, VLEN) ;
+      __vr vrsum_b1_i0 = _vel_vbrds_vsl(0.f, VLEN) ;
+      __vr vrsum_b0_i1 = _vel_vbrds_vsl(0.f, VLEN) ;
+      __vr vrsum_b1_i1 = _vel_vbrds_vsl(0.f, VLEN) ;
 
       for(int64_t o=0; o<outDim; o+=VLEN) {
 	const int64_t vl = outDim-o < VLEN ? outDim - o : VLEN ;
-	_ve_lvl(vl) ;
-	__vr vrw_i0 = _ve_vldu_vss(4, pWeight+(i  )*outDim+o) ;
-	__vr vrw_i1 = _ve_vldu_vss(4, pWeight+(i+1)*outDim+o) ;
 
-	__vr vro_b0 = _ve_vldu_vss(4, pGOut+0*outDim+o) ;
-	__vr vro_b1 = _ve_vldu_vss(4, pGOut+1*outDim+o) ;
+	__vr vrw_i0 = _vel_vldu_vssl(4, pWeight+(i  )*outDim+o, vl) ;
+	__vr vrw_i1 = _vel_vldu_vssl(4, pWeight+(i+1)*outDim+o, vl) ;
 
-	vrsum_b0_i0 = _ve_vfmads_vvvv(vrsum_b0_i0, vrw_i0, vro_b0) ;
-	vrsum_b1_i0 = _ve_vfmads_vvvv(vrsum_b1_i0, vrw_i0, vro_b1) ;
+	__vr vro_b0 = _vel_vldu_vssl(4, pGOut+0*outDim+o, vl) ;
+	__vr vro_b1 = _vel_vldu_vssl(4, pGOut+1*outDim+o, vl) ;
 
-	vrsum_b0_i1 = _ve_vfmads_vvvv(vrsum_b0_i1, vrw_i1, vro_b0) ;
-	vrsum_b1_i1 = _ve_vfmads_vvvv(vrsum_b1_i1, vrw_i1, vro_b1) ;
+	vrsum_b0_i0 = _vel_vfmads_vvvvvl(vrsum_b0_i0, vrw_i0, vro_b0, vrsum_b0_i0, vl) ;
+	vrsum_b1_i0 = _vel_vfmads_vvvvvl(vrsum_b1_i0, vrw_i0, vro_b1, vrsum_b1_i0, vl) ;
+
+	vrsum_b0_i1 = _vel_vfmads_vvvvvl(vrsum_b0_i1, vrw_i1, vro_b0, vrsum_b0_i1, vl) ;
+	vrsum_b1_i1 = _vel_vfmads_vvvvvl(vrsum_b1_i1, vrw_i1, vro_b1, vrsum_b1_i1, vl) ;
       }
 
-      _ve_lvl(VLEN) ;
-      vrsum_b0_i0 = _ve_vfsums_vv(vrsum_b0_i0);
-      vrsum_b1_i0 = _ve_vfsums_vv(vrsum_b1_i0);
-      vrsum_b0_i1 = _ve_vfsums_vv(vrsum_b0_i1);
-      vrsum_b1_i1 = _ve_vfsums_vv(vrsum_b1_i1);
+      vrsum_b0_i0 = _vel_vfsums_vvl(vrsum_b0_i0, VLEN);
+      vrsum_b1_i0 = _vel_vfsums_vvl(vrsum_b1_i0, VLEN);
+      vrsum_b0_i1 = _vel_vfsums_vvl(vrsum_b0_i1, VLEN);
+      vrsum_b1_i1 = _vel_vfsums_vvl(vrsum_b1_i1, VLEN);
 
-      _ve_lvl(1) ;
-      _ve_vstu_vss(vrsum_b0_i0, 4, pGIn+0*inDim+i) ;
-      _ve_vstu_vss(vrsum_b1_i0, 4, pGIn+1*inDim+i) ;
-      _ve_vstu_vss(vrsum_b0_i1, 4, pGIn+0*inDim+i+1) ;
-      _ve_vstu_vss(vrsum_b1_i1, 4, pGIn+1*inDim+i+1) ;
+      _vel_vstu_vssl(vrsum_b0_i0, 4, pGIn+0*inDim+i,   1) ;
+      _vel_vstu_vssl(vrsum_b1_i0, 4, pGIn+1*inDim+i,   1) ;
+      _vel_vstu_vssl(vrsum_b0_i1, 4, pGIn+0*inDim+i+1, 1) ;
+      _vel_vstu_vssl(vrsum_b1_i1, 4, pGIn+1*inDim+i+1, 1) ;
     }
 
     i+=2 ;
     break ;
   case 3:
     {
-      _ve_lvl(VLEN) ;
-      __vr vrsum_b0_i0 = _ve_vbrdu_vs_f32(0.f) ;
-      __vr vrsum_b1_i0 = _ve_vbrdu_vs_f32(0.f) ;
-      __vr vrsum_b0_i1 = _ve_vbrdu_vs_f32(0.f) ;
-      __vr vrsum_b1_i1 = _ve_vbrdu_vs_f32(0.f) ;
-      __vr vrsum_b0_i2 = _ve_vbrdu_vs_f32(0.f) ;
-      __vr vrsum_b1_i2 = _ve_vbrdu_vs_f32(0.f) ;
+      __vr vrsum_b0_i0 = _vel_vbrds_vsl(0.f, VLEN) ;
+      __vr vrsum_b1_i0 = _vel_vbrds_vsl(0.f, VLEN) ;
+      __vr vrsum_b0_i1 = _vel_vbrds_vsl(0.f, VLEN) ;
+      __vr vrsum_b1_i1 = _vel_vbrds_vsl(0.f, VLEN) ;
+      __vr vrsum_b0_i2 = _vel_vbrds_vsl(0.f, VLEN) ;
+      __vr vrsum_b1_i2 = _vel_vbrds_vsl(0.f, VLEN) ;
 
       for(int64_t o=0; o<outDim; o+=VLEN) {
 	const int64_t vl = outDim-o < VLEN ? outDim - o : VLEN ;
-	_ve_lvl(vl) ;
-	__vr vrw_i0 = _ve_vldu_vss(4, pWeight+(i  )*outDim+o) ;
-	__vr vrw_i1 = _ve_vldu_vss(4, pWeight+(i+1)*outDim+o) ;
-	__vr vrw_i2 = _ve_vldu_vss(4, pWeight+(i+2)*outDim+o) ;
 
-	__vr vro_b0 = _ve_vldu_vss(4, pGOut+0*outDim+o) ;
-	__vr vro_b1 = _ve_vldu_vss(4, pGOut+1*outDim+o) ;
+	__vr vrw_i0 = _vel_vldu_vssl(4, pWeight+(i  )*outDim+o, vl) ;
+	__vr vrw_i1 = _vel_vldu_vssl(4, pWeight+(i+1)*outDim+o, vl) ;
+	__vr vrw_i2 = _vel_vldu_vssl(4, pWeight+(i+2)*outDim+o, vl) ;
 
-	vrsum_b0_i0 = _ve_vfmads_vvvv(vrsum_b0_i0, vrw_i0, vro_b0) ;
-	vrsum_b1_i0 = _ve_vfmads_vvvv(vrsum_b1_i0, vrw_i0, vro_b1) ;
+	__vr vro_b0 = _vel_vldu_vssl(4, pGOut+0*outDim+o, vl) ;
+	__vr vro_b1 = _vel_vldu_vssl(4, pGOut+1*outDim+o, vl) ;
 
-	vrsum_b0_i1 = _ve_vfmads_vvvv(vrsum_b0_i1, vrw_i1, vro_b0) ;
-	vrsum_b1_i1 = _ve_vfmads_vvvv(vrsum_b1_i1, vrw_i1, vro_b1) ;
+	vrsum_b0_i0 = _vel_vfmads_vvvvvl(vrsum_b0_i0, vrw_i0, vro_b0, vrsum_b0_i0, vl) ;
+	vrsum_b1_i0 = _vel_vfmads_vvvvvl(vrsum_b1_i0, vrw_i0, vro_b1, vrsum_b1_i0, vl) ;
 
-	vrsum_b0_i2 = _ve_vfmads_vvvv(vrsum_b0_i2, vrw_i2, vro_b0) ;
-	vrsum_b1_i2 = _ve_vfmads_vvvv(vrsum_b1_i2, vrw_i2, vro_b1) ;
+	vrsum_b0_i1 = _vel_vfmads_vvvvvl(vrsum_b0_i1, vrw_i1, vro_b0, vrsum_b0_i1, vl) ;
+	vrsum_b1_i1 = _vel_vfmads_vvvvvl(vrsum_b1_i1, vrw_i1, vro_b1, vrsum_b1_i1, vl) ;
+
+	vrsum_b0_i2 = _vel_vfmads_vvvvvl(vrsum_b0_i2, vrw_i2, vro_b0, vrsum_b0_i2, vl) ;
+	vrsum_b1_i2 = _vel_vfmads_vvvvvl(vrsum_b1_i2, vrw_i2, vro_b1, vrsum_b1_i2, vl) ;
       }
 
-      _ve_lvl(VLEN) ;
-      vrsum_b0_i0 = _ve_vfsums_vv(vrsum_b0_i0);
-      vrsum_b1_i0 = _ve_vfsums_vv(vrsum_b1_i0);
-      vrsum_b0_i1 = _ve_vfsums_vv(vrsum_b0_i1);
-      vrsum_b1_i1 = _ve_vfsums_vv(vrsum_b1_i1);
-      vrsum_b0_i2 = _ve_vfsums_vv(vrsum_b0_i2);
-      vrsum_b1_i2 = _ve_vfsums_vv(vrsum_b1_i2);
+      vrsum_b0_i0 = _vel_vfsums_vvl(vrsum_b0_i0, VLEN);
+      vrsum_b1_i0 = _vel_vfsums_vvl(vrsum_b1_i0, VLEN);
+      vrsum_b0_i1 = _vel_vfsums_vvl(vrsum_b0_i1, VLEN);
+      vrsum_b1_i1 = _vel_vfsums_vvl(vrsum_b1_i1, VLEN);
+      vrsum_b0_i2 = _vel_vfsums_vvl(vrsum_b0_i2, VLEN);
+      vrsum_b1_i2 = _vel_vfsums_vvl(vrsum_b1_i2, VLEN);
 
-      _ve_lvl(1) ;
-      _ve_vstu_vss(vrsum_b0_i0, 4, pGIn+0*inDim+i) ;
-      _ve_vstu_vss(vrsum_b1_i0, 4, pGIn+1*inDim+i) ;
-      _ve_vstu_vss(vrsum_b0_i1, 4, pGIn+0*inDim+i+1) ;
-      _ve_vstu_vss(vrsum_b1_i1, 4, pGIn+1*inDim+i+1) ;
-      _ve_vstu_vss(vrsum_b0_i2, 4, pGIn+0*inDim+i+2) ;
-      _ve_vstu_vss(vrsum_b1_i2, 4, pGIn+1*inDim+i+2) ;
+      _vel_vstu_vssl(vrsum_b0_i0, 4, pGIn+0*inDim+i,   1) ;
+      _vel_vstu_vssl(vrsum_b1_i0, 4, pGIn+1*inDim+i,   1) ;
+      _vel_vstu_vssl(vrsum_b0_i1, 4, pGIn+0*inDim+i+1, 1) ;
+      _vel_vstu_vssl(vrsum_b1_i1, 4, pGIn+1*inDim+i+1, 1) ;
+      _vel_vstu_vssl(vrsum_b0_i2, 4, pGIn+0*inDim+i+2, 1) ;
+      _vel_vstu_vssl(vrsum_b1_i2, 4, pGIn+1*inDim+i+2, 1) ;
 
     }
     i+=3 ;
@@ -273,59 +252,56 @@ static inline void b2(
   }
   for(; i<inDim; i+=4)
   {
-    _ve_lvl(VLEN) ;
-    __vr vrsum_b0_i0 = _ve_vbrdu_vs_f32(0.f) ;
-    __vr vrsum_b1_i0 = _ve_vbrdu_vs_f32(0.f) ;
-    __vr vrsum_b0_i1 = _ve_vbrdu_vs_f32(0.f) ;
-    __vr vrsum_b1_i1 = _ve_vbrdu_vs_f32(0.f) ;
-    __vr vrsum_b0_i2 = _ve_vbrdu_vs_f32(0.f) ;
-    __vr vrsum_b1_i2 = _ve_vbrdu_vs_f32(0.f) ;
-    __vr vrsum_b0_i3 = _ve_vbrdu_vs_f32(0.f) ;
-    __vr vrsum_b1_i3 = _ve_vbrdu_vs_f32(0.f) ;
+    __vr vrsum_b0_i0 = _vel_vbrds_vsl(0.f, VLEN) ;
+    __vr vrsum_b1_i0 = _vel_vbrds_vsl(0.f, VLEN) ;
+    __vr vrsum_b0_i1 = _vel_vbrds_vsl(0.f, VLEN) ;
+    __vr vrsum_b1_i1 = _vel_vbrds_vsl(0.f, VLEN) ;
+    __vr vrsum_b0_i2 = _vel_vbrds_vsl(0.f, VLEN) ;
+    __vr vrsum_b1_i2 = _vel_vbrds_vsl(0.f, VLEN) ;
+    __vr vrsum_b0_i3 = _vel_vbrds_vsl(0.f, VLEN) ;
+    __vr vrsum_b1_i3 = _vel_vbrds_vsl(0.f, VLEN) ;
 
     for(int64_t o=0; o<outDim; o+=VLEN) {
       const int64_t vl = outDim-o < VLEN ? outDim - o : VLEN ;
-      _ve_lvl(vl) ;
-      __vr vrw_i0 = _ve_vldu_vss(4, pWeight+(i  )*outDim+o) ;
-      __vr vrw_i1 = _ve_vldu_vss(4, pWeight+(i+1)*outDim+o) ;
-      __vr vrw_i2 = _ve_vldu_vss(4, pWeight+(i+2)*outDim+o) ;
-      __vr vrw_i3 = _ve_vldu_vss(4, pWeight+(i+3)*outDim+o) ;
 
-      __vr vro_b0 = _ve_vldu_vss(4, pGOut+0*outDim+o) ;
-      __vr vro_b1 = _ve_vldu_vss(4, pGOut+1*outDim+o) ;
+      __vr vrw_i0 = _vel_vldu_vssl(4, pWeight+(i  )*outDim+o, vl) ;
+      __vr vrw_i1 = _vel_vldu_vssl(4, pWeight+(i+1)*outDim+o, vl) ;
+      __vr vrw_i2 = _vel_vldu_vssl(4, pWeight+(i+2)*outDim+o, vl) ;
+      __vr vrw_i3 = _vel_vldu_vssl(4, pWeight+(i+3)*outDim+o, vl) ;
 
-      vrsum_b0_i0 = _ve_vfmads_vvvv(vrsum_b0_i0, vrw_i0, vro_b0) ;
-      vrsum_b1_i0 = _ve_vfmads_vvvv(vrsum_b1_i0, vrw_i0, vro_b1) ;
+      __vr vro_b0 = _vel_vldu_vssl(4, pGOut+0*outDim+o, vl) ;
+      __vr vro_b1 = _vel_vldu_vssl(4, pGOut+1*outDim+o, vl) ;
 
-      vrsum_b0_i1 = _ve_vfmads_vvvv(vrsum_b0_i1, vrw_i1, vro_b0) ;
-      vrsum_b1_i1 = _ve_vfmads_vvvv(vrsum_b1_i1, vrw_i1, vro_b1) ;
+      vrsum_b0_i0 = _vel_vfmads_vvvvvl(vrsum_b0_i0, vrw_i0, vro_b0, vrsum_b0_i0, vl) ;
+      vrsum_b1_i0 = _vel_vfmads_vvvvvl(vrsum_b1_i0, vrw_i0, vro_b1, vrsum_b1_i0, vl) ;
 
-      vrsum_b0_i2 = _ve_vfmads_vvvv(vrsum_b0_i2, vrw_i2, vro_b0) ;
-      vrsum_b1_i2 = _ve_vfmads_vvvv(vrsum_b1_i2, vrw_i2, vro_b1) ;
+      vrsum_b0_i1 = _vel_vfmads_vvvvvl(vrsum_b0_i1, vrw_i1, vro_b0, vrsum_b0_i1, vl) ;
+      vrsum_b1_i1 = _vel_vfmads_vvvvvl(vrsum_b1_i1, vrw_i1, vro_b1, vrsum_b1_i1, vl) ;
 
-      vrsum_b0_i3 = _ve_vfmads_vvvv(vrsum_b0_i3, vrw_i3, vro_b0) ;
-      vrsum_b1_i3 = _ve_vfmads_vvvv(vrsum_b1_i3, vrw_i3, vro_b1) ;
+      vrsum_b0_i2 = _vel_vfmads_vvvvvl(vrsum_b0_i2, vrw_i2, vro_b0, vrsum_b0_i2, vl) ;
+      vrsum_b1_i2 = _vel_vfmads_vvvvvl(vrsum_b1_i2, vrw_i2, vro_b1, vrsum_b1_i2, vl) ;
+
+      vrsum_b0_i3 = _vel_vfmads_vvvvvl(vrsum_b0_i3, vrw_i3, vro_b0, vrsum_b0_i3, vl) ;
+      vrsum_b1_i3 = _vel_vfmads_vvvvvl(vrsum_b1_i3, vrw_i3, vro_b1, vrsum_b1_i3, vl) ;
     }
 
-    _ve_lvl(VLEN) ;
-    vrsum_b0_i0 = _ve_vfsums_vv(vrsum_b0_i0);
-    vrsum_b1_i0 = _ve_vfsums_vv(vrsum_b1_i0);
-    vrsum_b0_i1 = _ve_vfsums_vv(vrsum_b0_i1);
-    vrsum_b1_i1 = _ve_vfsums_vv(vrsum_b1_i1);
-    vrsum_b0_i2 = _ve_vfsums_vv(vrsum_b0_i2);
-    vrsum_b1_i2 = _ve_vfsums_vv(vrsum_b1_i2);
-    vrsum_b0_i3 = _ve_vfsums_vv(vrsum_b0_i3);
-    vrsum_b1_i3 = _ve_vfsums_vv(vrsum_b1_i3);
+    vrsum_b0_i0 = _vel_vfsums_vvl(vrsum_b0_i0, VLEN);
+    vrsum_b1_i0 = _vel_vfsums_vvl(vrsum_b1_i0, VLEN);
+    vrsum_b0_i1 = _vel_vfsums_vvl(vrsum_b0_i1, VLEN);
+    vrsum_b1_i1 = _vel_vfsums_vvl(vrsum_b1_i1, VLEN);
+    vrsum_b0_i2 = _vel_vfsums_vvl(vrsum_b0_i2, VLEN);
+    vrsum_b1_i2 = _vel_vfsums_vvl(vrsum_b1_i2, VLEN);
+    vrsum_b0_i3 = _vel_vfsums_vvl(vrsum_b0_i3, VLEN);
+    vrsum_b1_i3 = _vel_vfsums_vvl(vrsum_b1_i3, VLEN);
 
-    _ve_lvl(1) ;
-    _ve_vstu_vss(vrsum_b0_i0, 4, pGIn+0*inDim+i) ;
-    _ve_vstu_vss(vrsum_b1_i0, 4, pGIn+1*inDim+i) ;
-    _ve_vstu_vss(vrsum_b0_i1, 4, pGIn+0*inDim+i+1) ;
-    _ve_vstu_vss(vrsum_b1_i1, 4, pGIn+1*inDim+i+1) ;
-    _ve_vstu_vss(vrsum_b0_i2, 4, pGIn+0*inDim+i+2) ;
-    _ve_vstu_vss(vrsum_b1_i2, 4, pGIn+1*inDim+i+2) ;
-    _ve_vstu_vss(vrsum_b0_i3, 4, pGIn+0*inDim+i+3) ;
-    _ve_vstu_vss(vrsum_b1_i3, 4, pGIn+1*inDim+i+3) ;
+    _vel_vstu_vssl(vrsum_b0_i0, 4, pGIn+0*inDim+i,   1) ;
+    _vel_vstu_vssl(vrsum_b1_i0, 4, pGIn+1*inDim+i,   1) ;
+    _vel_vstu_vssl(vrsum_b0_i1, 4, pGIn+0*inDim+i+1, 1) ;
+    _vel_vstu_vssl(vrsum_b1_i1, 4, pGIn+1*inDim+i+1, 1) ;
+    _vel_vstu_vssl(vrsum_b0_i2, 4, pGIn+0*inDim+i+2, 1) ;
+    _vel_vstu_vssl(vrsum_b1_i2, 4, pGIn+1*inDim+i+2, 1) ;
+    _vel_vstu_vssl(vrsum_b0_i3, 4, pGIn+0*inDim+i+3, 1) ;
+    _vel_vstu_vssl(vrsum_b1_i3, 4, pGIn+1*inDim+i+3, 1) ;
   }
 }
 
@@ -342,142 +318,133 @@ static inline void b3(
   switch(inDim&0x3) {
   case 1:
     {
-      _ve_lvl(VLEN) ;
-      __vr vrsum_b0 = _ve_vbrdu_vs_f32(0.f) ;
-      __vr vrsum_b1 = _ve_vbrdu_vs_f32(0.f) ;
-      __vr vrsum_b2 = _ve_vbrdu_vs_f32(0.f) ;
+      __vr vrsum_b0 = _vel_vbrds_vsl(0.f, VLEN) ;
+      __vr vrsum_b1 = _vel_vbrds_vsl(0.f, VLEN) ;
+      __vr vrsum_b2 = _vel_vbrds_vsl(0.f, VLEN) ;
 
       for(int64_t o=0; o<outDim; o+=VLEN) {
 	const int64_t vl = outDim-o < VLEN ? outDim - o : VLEN ;
-	_ve_lvl(vl) ;
-	__vr vrw    = _ve_vldu_vss(4, pWeight+i*outDim+o) ;
-	__vr vro_b0 = _ve_vldu_vss(4, pGOut+0*outDim+o) ;
-	__vr vro_b1 = _ve_vldu_vss(4, pGOut+1*outDim+o) ;
-	__vr vro_b2 = _ve_vldu_vss(4, pGOut+2*outDim+o) ;
 
-	vrsum_b0 = _ve_vfmads_vvvv(vrsum_b0, vrw, vro_b0) ;
-	vrsum_b1 = _ve_vfmads_vvvv(vrsum_b1, vrw, vro_b1) ;
-	vrsum_b2 = _ve_vfmads_vvvv(vrsum_b2, vrw, vro_b2) ;
+	__vr vrw    = _vel_vldu_vssl(4, pWeight+i*outDim+o, vl) ;
+	__vr vro_b0 = _vel_vldu_vssl(4, pGOut+0*outDim+o, vl) ;
+	__vr vro_b1 = _vel_vldu_vssl(4, pGOut+1*outDim+o, vl) ;
+	__vr vro_b2 = _vel_vldu_vssl(4, pGOut+2*outDim+o, vl) ;
+
+	vrsum_b0 = _vel_vfmads_vvvvvl(vrsum_b0, vrw, vro_b0, vrsum_b0, vl) ;
+	vrsum_b1 = _vel_vfmads_vvvvvl(vrsum_b1, vrw, vro_b1, vrsum_b1, vl) ;
+	vrsum_b2 = _vel_vfmads_vvvvvl(vrsum_b2, vrw, vro_b2, vrsum_b2, vl) ;
       }
 
-      _ve_lvl(VLEN) ;
-      vrsum_b0 = _ve_vfsums_vv(vrsum_b0);
-      vrsum_b1 = _ve_vfsums_vv(vrsum_b1);
-      vrsum_b2 = _ve_vfsums_vv(vrsum_b2);
+      vrsum_b0 = _vel_vfsums_vvl(vrsum_b0, VLEN);
+      vrsum_b1 = _vel_vfsums_vvl(vrsum_b1, VLEN);
+      vrsum_b2 = _vel_vfsums_vvl(vrsum_b2, VLEN);
 
-      _ve_lvl(1) ;
-      _ve_vstu_vss(vrsum_b0, 4, pGIn+0*inDim+i) ;
-      _ve_vstu_vss(vrsum_b1, 4, pGIn+1*inDim+i) ;
-      _ve_vstu_vss(vrsum_b2, 4, pGIn+2*inDim+i) ;
+      _vel_vstu_vssl(vrsum_b0, 4, pGIn+0*inDim+i, 1) ;
+      _vel_vstu_vssl(vrsum_b1, 4, pGIn+1*inDim+i, 1) ;
+      _vel_vstu_vssl(vrsum_b2, 4, pGIn+2*inDim+i, 1) ;
     }
     i+=1;
     break ;
   case 2 :
     {
-      _ve_lvl(VLEN) ;
-      __vr vrsum_b0_i0 = _ve_vbrdu_vs_f32(0.f) ;
-      __vr vrsum_b1_i0 = _ve_vbrdu_vs_f32(0.f) ;
-      __vr vrsum_b2_i0 = _ve_vbrdu_vs_f32(0.f) ;
-      __vr vrsum_b0_i1 = _ve_vbrdu_vs_f32(0.f) ;
-      __vr vrsum_b1_i1 = _ve_vbrdu_vs_f32(0.f) ;
-      __vr vrsum_b2_i1 = _ve_vbrdu_vs_f32(0.f) ;
+      __vr vrsum_b0_i0 = _vel_vbrds_vsl(0.f, VLEN) ;
+      __vr vrsum_b1_i0 = _vel_vbrds_vsl(0.f, VLEN) ;
+      __vr vrsum_b2_i0 = _vel_vbrds_vsl(0.f, VLEN) ;
+      __vr vrsum_b0_i1 = _vel_vbrds_vsl(0.f, VLEN) ;
+      __vr vrsum_b1_i1 = _vel_vbrds_vsl(0.f, VLEN) ;
+      __vr vrsum_b2_i1 = _vel_vbrds_vsl(0.f, VLEN) ;
 
       for(int64_t o=0; o<outDim; o+=VLEN) {
 	const int64_t vl = outDim-o < VLEN ? outDim - o : VLEN ;
-	_ve_lvl(vl) ;
-	__vr vrw_i0 = _ve_vldu_vss(4, pWeight+(i  )*outDim+o) ;
-	__vr vrw_i1 = _ve_vldu_vss(4, pWeight+(i+1)*outDim+o) ;
 
-	__vr vro_b0 = _ve_vldu_vss(4, pGOut+0*outDim+o) ;
-	__vr vro_b1 = _ve_vldu_vss(4, pGOut+1*outDim+o) ;
-	__vr vro_b2 = _ve_vldu_vss(4, pGOut+2*outDim+o) ;
+	__vr vrw_i0 = _vel_vldu_vssl(4, pWeight+(i  )*outDim+o, vl) ;
+	__vr vrw_i1 = _vel_vldu_vssl(4, pWeight+(i+1)*outDim+o, vl) ;
 
-	vrsum_b0_i0 = _ve_vfmads_vvvv(vrsum_b0_i0, vrw_i0, vro_b0) ;
-	vrsum_b1_i0 = _ve_vfmads_vvvv(vrsum_b1_i0, vrw_i0, vro_b1) ;
-	vrsum_b2_i0 = _ve_vfmads_vvvv(vrsum_b2_i0, vrw_i0, vro_b2) ;
+	__vr vro_b0 = _vel_vldu_vssl(4, pGOut+0*outDim+o, vl) ;
+	__vr vro_b1 = _vel_vldu_vssl(4, pGOut+1*outDim+o, vl) ;
+	__vr vro_b2 = _vel_vldu_vssl(4, pGOut+2*outDim+o, vl) ;
 
-	vrsum_b0_i1 = _ve_vfmads_vvvv(vrsum_b0_i1, vrw_i1, vro_b0) ;
-	vrsum_b1_i1 = _ve_vfmads_vvvv(vrsum_b1_i1, vrw_i1, vro_b1) ;
-	vrsum_b2_i1 = _ve_vfmads_vvvv(vrsum_b2_i1, vrw_i1, vro_b2) ;
+	vrsum_b0_i0 = _vel_vfmads_vvvvvl(vrsum_b0_i0, vrw_i0, vro_b0, vrsum_b0_i0, vl) ;
+	vrsum_b1_i0 = _vel_vfmads_vvvvvl(vrsum_b1_i0, vrw_i0, vro_b1, vrsum_b1_i0, vl) ;
+	vrsum_b2_i0 = _vel_vfmads_vvvvvl(vrsum_b2_i0, vrw_i0, vro_b2, vrsum_b2_i0, vl) ;
+
+	vrsum_b0_i1 = _vel_vfmads_vvvvvl(vrsum_b0_i1, vrw_i1, vro_b0, vrsum_b0_i1, vl) ;
+	vrsum_b1_i1 = _vel_vfmads_vvvvvl(vrsum_b1_i1, vrw_i1, vro_b1, vrsum_b1_i1, vl) ;
+	vrsum_b2_i1 = _vel_vfmads_vvvvvl(vrsum_b2_i1, vrw_i1, vro_b2, vrsum_b2_i1, vl) ;
       }
 
-      _ve_lvl(VLEN) ;
-      vrsum_b0_i0 = _ve_vfsums_vv(vrsum_b0_i0);
-      vrsum_b1_i0 = _ve_vfsums_vv(vrsum_b1_i0);
-      vrsum_b2_i0 = _ve_vfsums_vv(vrsum_b2_i0);
-      vrsum_b0_i1 = _ve_vfsums_vv(vrsum_b0_i1);
-      vrsum_b1_i1 = _ve_vfsums_vv(vrsum_b1_i1);
-      vrsum_b2_i1 = _ve_vfsums_vv(vrsum_b2_i1);
+      vrsum_b0_i0 = _vel_vfsums_vvl(vrsum_b0_i0, VLEN);
+      vrsum_b1_i0 = _vel_vfsums_vvl(vrsum_b1_i0, VLEN);
+      vrsum_b2_i0 = _vel_vfsums_vvl(vrsum_b2_i0, VLEN);
+      vrsum_b0_i1 = _vel_vfsums_vvl(vrsum_b0_i1, VLEN);
+      vrsum_b1_i1 = _vel_vfsums_vvl(vrsum_b1_i1, VLEN);
+      vrsum_b2_i1 = _vel_vfsums_vvl(vrsum_b2_i1, VLEN);
 
-      _ve_lvl(1) ;
-      _ve_vstu_vss(vrsum_b0_i0, 4, pGIn+0*inDim+i) ;
-      _ve_vstu_vss(vrsum_b1_i0, 4, pGIn+1*inDim+i) ;
-      _ve_vstu_vss(vrsum_b2_i0, 4, pGIn+2*inDim+i) ;
-      _ve_vstu_vss(vrsum_b0_i1, 4, pGIn+0*inDim+i+1) ;
-      _ve_vstu_vss(vrsum_b1_i1, 4, pGIn+1*inDim+i+1) ;
-      _ve_vstu_vss(vrsum_b2_i1, 4, pGIn+2*inDim+i+1) ;
+      _vel_vstu_vssl(vrsum_b0_i0, 4, pGIn+0*inDim+i,   1) ;
+      _vel_vstu_vssl(vrsum_b1_i0, 4, pGIn+1*inDim+i,   1) ;
+      _vel_vstu_vssl(vrsum_b2_i0, 4, pGIn+2*inDim+i,   1) ;
+      _vel_vstu_vssl(vrsum_b0_i1, 4, pGIn+0*inDim+i+1, 1) ;
+      _vel_vstu_vssl(vrsum_b1_i1, 4, pGIn+1*inDim+i+1, 1) ;
+      _vel_vstu_vssl(vrsum_b2_i1, 4, pGIn+2*inDim+i+1, 1) ;
     }
 
     i+=2 ;
     break ;
   case 3:
     {
-      _ve_lvl(VLEN) ;
-      __vr vrsum_b0_i0 = _ve_vbrdu_vs_f32(0.f) ;
-      __vr vrsum_b1_i0 = _ve_vbrdu_vs_f32(0.f) ;
-      __vr vrsum_b2_i0 = _ve_vbrdu_vs_f32(0.f) ;
-      __vr vrsum_b0_i1 = _ve_vbrdu_vs_f32(0.f) ;
-      __vr vrsum_b1_i1 = _ve_vbrdu_vs_f32(0.f) ;
-      __vr vrsum_b2_i1 = _ve_vbrdu_vs_f32(0.f) ;
-      __vr vrsum_b0_i2 = _ve_vbrdu_vs_f32(0.f) ;
-      __vr vrsum_b1_i2 = _ve_vbrdu_vs_f32(0.f) ;
-      __vr vrsum_b2_i2 = _ve_vbrdu_vs_f32(0.f) ;
+      __vr vrsum_b0_i0 = _vel_vbrds_vsl(0.f, VLEN) ;
+      __vr vrsum_b1_i0 = _vel_vbrds_vsl(0.f, VLEN) ;
+      __vr vrsum_b2_i0 = _vel_vbrds_vsl(0.f, VLEN) ;
+      __vr vrsum_b0_i1 = _vel_vbrds_vsl(0.f, VLEN) ;
+      __vr vrsum_b1_i1 = _vel_vbrds_vsl(0.f, VLEN) ;
+      __vr vrsum_b2_i1 = _vel_vbrds_vsl(0.f, VLEN) ;
+      __vr vrsum_b0_i2 = _vel_vbrds_vsl(0.f, VLEN) ;
+      __vr vrsum_b1_i2 = _vel_vbrds_vsl(0.f, VLEN) ;
+      __vr vrsum_b2_i2 = _vel_vbrds_vsl(0.f, VLEN) ;
 
       for(int64_t o=0; o<outDim; o+=VLEN) {
 	const int64_t vl = outDim-o < VLEN ? outDim - o : VLEN ;
-	_ve_lvl(vl) ;
-	__vr vrw_i0 = _ve_vldu_vss(4, pWeight+(i  )*outDim+o) ;
-	__vr vrw_i1 = _ve_vldu_vss(4, pWeight+(i+1)*outDim+o) ;
-	__vr vrw_i2 = _ve_vldu_vss(4, pWeight+(i+2)*outDim+o) ;
 
-	__vr vro_b0 = _ve_vldu_vss(4, pGOut+0*outDim+o) ;
-	__vr vro_b1 = _ve_vldu_vss(4, pGOut+1*outDim+o) ;
-	__vr vro_b2 = _ve_vldu_vss(4, pGOut+2*outDim+o) ;
+	__vr vrw_i0 = _vel_vldu_vssl(4, pWeight+(i  )*outDim+o, vl) ;
+	__vr vrw_i1 = _vel_vldu_vssl(4, pWeight+(i+1)*outDim+o, vl) ;
+	__vr vrw_i2 = _vel_vldu_vssl(4, pWeight+(i+2)*outDim+o, vl) ;
 
-	vrsum_b0_i0 = _ve_vfmads_vvvv(vrsum_b0_i0, vrw_i0, vro_b0) ;
-	vrsum_b1_i0 = _ve_vfmads_vvvv(vrsum_b1_i0, vrw_i0, vro_b1) ;
-	vrsum_b2_i0 = _ve_vfmads_vvvv(vrsum_b2_i0, vrw_i0, vro_b2) ;
+	__vr vro_b0 = _vel_vldu_vssl(4, pGOut+0*outDim+o, vl) ;
+	__vr vro_b1 = _vel_vldu_vssl(4, pGOut+1*outDim+o, vl) ;
+	__vr vro_b2 = _vel_vldu_vssl(4, pGOut+2*outDim+o, vl) ;
 
-	vrsum_b0_i1 = _ve_vfmads_vvvv(vrsum_b0_i1, vrw_i1, vro_b0) ;
-	vrsum_b1_i1 = _ve_vfmads_vvvv(vrsum_b1_i1, vrw_i1, vro_b1) ;
-	vrsum_b2_i1 = _ve_vfmads_vvvv(vrsum_b2_i1, vrw_i1, vro_b2) ;
+	vrsum_b0_i0 = _vel_vfmads_vvvvvl(vrsum_b0_i0, vrw_i0, vro_b0, vrsum_b0_i0, vl) ;
+	vrsum_b1_i0 = _vel_vfmads_vvvvvl(vrsum_b1_i0, vrw_i0, vro_b1, vrsum_b1_i0, vl) ;
+	vrsum_b2_i0 = _vel_vfmads_vvvvvl(vrsum_b2_i0, vrw_i0, vro_b2, vrsum_b2_i0, vl) ;
 
-	vrsum_b0_i2 = _ve_vfmads_vvvv(vrsum_b0_i2, vrw_i2, vro_b0) ;
-	vrsum_b1_i2 = _ve_vfmads_vvvv(vrsum_b1_i2, vrw_i2, vro_b1) ;
-	vrsum_b2_i2 = _ve_vfmads_vvvv(vrsum_b2_i2, vrw_i2, vro_b2) ;
+	vrsum_b0_i1 = _vel_vfmads_vvvvvl(vrsum_b0_i1, vrw_i1, vro_b0, vrsum_b0_i1, vl) ;
+	vrsum_b1_i1 = _vel_vfmads_vvvvvl(vrsum_b1_i1, vrw_i1, vro_b1, vrsum_b1_i1, vl) ;
+	vrsum_b2_i1 = _vel_vfmads_vvvvvl(vrsum_b2_i1, vrw_i1, vro_b2, vrsum_b2_i1, vl) ;
+
+	vrsum_b0_i2 = _vel_vfmads_vvvvvl(vrsum_b0_i2, vrw_i2, vro_b0, vrsum_b0_i2, vl) ;
+	vrsum_b1_i2 = _vel_vfmads_vvvvvl(vrsum_b1_i2, vrw_i2, vro_b1, vrsum_b1_i2, vl) ;
+	vrsum_b2_i2 = _vel_vfmads_vvvvvl(vrsum_b2_i2, vrw_i2, vro_b2, vrsum_b2_i2, vl) ;
       }
 
-      _ve_lvl(VLEN) ;
-      vrsum_b0_i0 = _ve_vfsums_vv(vrsum_b0_i0);
-      vrsum_b1_i0 = _ve_vfsums_vv(vrsum_b1_i0);
-      vrsum_b2_i0 = _ve_vfsums_vv(vrsum_b2_i0);
-      vrsum_b0_i1 = _ve_vfsums_vv(vrsum_b0_i1);
-      vrsum_b1_i1 = _ve_vfsums_vv(vrsum_b1_i1);
-      vrsum_b2_i1 = _ve_vfsums_vv(vrsum_b2_i1);
-      vrsum_b0_i2 = _ve_vfsums_vv(vrsum_b0_i2);
-      vrsum_b1_i2 = _ve_vfsums_vv(vrsum_b1_i2);
-      vrsum_b2_i2 = _ve_vfsums_vv(vrsum_b2_i2);
+      vrsum_b0_i0 = _vel_vfsums_vvl(vrsum_b0_i0, VLEN);
+      vrsum_b1_i0 = _vel_vfsums_vvl(vrsum_b1_i0, VLEN);
+      vrsum_b2_i0 = _vel_vfsums_vvl(vrsum_b2_i0, VLEN);
+      vrsum_b0_i1 = _vel_vfsums_vvl(vrsum_b0_i1, VLEN);
+      vrsum_b1_i1 = _vel_vfsums_vvl(vrsum_b1_i1, VLEN);
+      vrsum_b2_i1 = _vel_vfsums_vvl(vrsum_b2_i1, VLEN);
+      vrsum_b0_i2 = _vel_vfsums_vvl(vrsum_b0_i2, VLEN);
+      vrsum_b1_i2 = _vel_vfsums_vvl(vrsum_b1_i2, VLEN);
+      vrsum_b2_i2 = _vel_vfsums_vvl(vrsum_b2_i2, VLEN);
 
-      _ve_lvl(1) ;
-      _ve_vstu_vss(vrsum_b0_i0, 4, pGIn+0*inDim+i) ;
-      _ve_vstu_vss(vrsum_b1_i0, 4, pGIn+1*inDim+i) ;
-      _ve_vstu_vss(vrsum_b2_i0, 4, pGIn+2*inDim+i) ;
-      _ve_vstu_vss(vrsum_b0_i1, 4, pGIn+0*inDim+i+1) ;
-      _ve_vstu_vss(vrsum_b1_i1, 4, pGIn+1*inDim+i+1) ;
-      _ve_vstu_vss(vrsum_b2_i1, 4, pGIn+2*inDim+i+1) ;
-      _ve_vstu_vss(vrsum_b0_i2, 4, pGIn+0*inDim+i+2) ;
-      _ve_vstu_vss(vrsum_b1_i2, 4, pGIn+1*inDim+i+2) ;
-      _ve_vstu_vss(vrsum_b2_i2, 4, pGIn+2*inDim+i+2) ;
+      _vel_vstu_vssl(vrsum_b0_i0, 4, pGIn+0*inDim+i,   1) ;
+      _vel_vstu_vssl(vrsum_b1_i0, 4, pGIn+1*inDim+i,   1) ;
+      _vel_vstu_vssl(vrsum_b2_i0, 4, pGIn+2*inDim+i,   1) ;
+      _vel_vstu_vssl(vrsum_b0_i1, 4, pGIn+0*inDim+i+1, 1) ;
+      _vel_vstu_vssl(vrsum_b1_i1, 4, pGIn+1*inDim+i+1, 1) ;
+      _vel_vstu_vssl(vrsum_b2_i1, 4, pGIn+2*inDim+i+1, 1) ;
+      _vel_vstu_vssl(vrsum_b0_i2, 4, pGIn+0*inDim+i+2, 1) ;
+      _vel_vstu_vssl(vrsum_b1_i2, 4, pGIn+1*inDim+i+2, 1) ;
+      _vel_vstu_vssl(vrsum_b2_i2, 4, pGIn+2*inDim+i+2, 1) ;
 
     }
     i+=3 ;
@@ -486,76 +453,73 @@ static inline void b3(
   }
   for(; i<inDim; i+=4)
   {
-    _ve_lvl(VLEN) ;
-    __vr vrsum_b0_i0 = _ve_vbrdu_vs_f32(0.f) ;
-    __vr vrsum_b1_i0 = _ve_vbrdu_vs_f32(0.f) ;
-    __vr vrsum_b2_i0 = _ve_vbrdu_vs_f32(0.f) ;
-    __vr vrsum_b0_i1 = _ve_vbrdu_vs_f32(0.f) ;
-    __vr vrsum_b1_i1 = _ve_vbrdu_vs_f32(0.f) ;
-    __vr vrsum_b2_i1 = _ve_vbrdu_vs_f32(0.f) ;
-    __vr vrsum_b0_i2 = _ve_vbrdu_vs_f32(0.f) ;
-    __vr vrsum_b1_i2 = _ve_vbrdu_vs_f32(0.f) ;
-    __vr vrsum_b2_i2 = _ve_vbrdu_vs_f32(0.f) ;
-    __vr vrsum_b0_i3 = _ve_vbrdu_vs_f32(0.f) ;
-    __vr vrsum_b1_i3 = _ve_vbrdu_vs_f32(0.f) ;
-    __vr vrsum_b2_i3 = _ve_vbrdu_vs_f32(0.f) ;
+    __vr vrsum_b0_i0 = _vel_vbrds_vsl(0.f, VLEN) ;
+    __vr vrsum_b1_i0 = _vel_vbrds_vsl(0.f, VLEN) ;
+    __vr vrsum_b2_i0 = _vel_vbrds_vsl(0.f, VLEN) ;
+    __vr vrsum_b0_i1 = _vel_vbrds_vsl(0.f, VLEN) ;
+    __vr vrsum_b1_i1 = _vel_vbrds_vsl(0.f, VLEN) ;
+    __vr vrsum_b2_i1 = _vel_vbrds_vsl(0.f, VLEN) ;
+    __vr vrsum_b0_i2 = _vel_vbrds_vsl(0.f, VLEN) ;
+    __vr vrsum_b1_i2 = _vel_vbrds_vsl(0.f, VLEN) ;
+    __vr vrsum_b2_i2 = _vel_vbrds_vsl(0.f, VLEN) ;
+    __vr vrsum_b0_i3 = _vel_vbrds_vsl(0.f, VLEN) ;
+    __vr vrsum_b1_i3 = _vel_vbrds_vsl(0.f, VLEN) ;
+    __vr vrsum_b2_i3 = _vel_vbrds_vsl(0.f, VLEN) ;
 
     for(int64_t o=0; o<outDim; o+=VLEN) {
       const int64_t vl = outDim-o < VLEN ? outDim - o : VLEN ;
-      _ve_lvl(vl) ;
-      __vr vrw_i0 = _ve_vldu_vss(4, pWeight+(i  )*outDim+o) ;
-      __vr vrw_i1 = _ve_vldu_vss(4, pWeight+(i+1)*outDim+o) ;
-      __vr vrw_i2 = _ve_vldu_vss(4, pWeight+(i+2)*outDim+o) ;
-      __vr vrw_i3 = _ve_vldu_vss(4, pWeight+(i+3)*outDim+o) ;
 
-      __vr vro_b0 = _ve_vldu_vss(4, pGOut+0*outDim+o) ;
-      __vr vro_b1 = _ve_vldu_vss(4, pGOut+1*outDim+o) ;
-      __vr vro_b2 = _ve_vldu_vss(4, pGOut+2*outDim+o) ;
+      __vr vrw_i0 = _vel_vldu_vssl(4, pWeight+(i  )*outDim+o, vl) ;
+      __vr vrw_i1 = _vel_vldu_vssl(4, pWeight+(i+1)*outDim+o, vl) ;
+      __vr vrw_i2 = _vel_vldu_vssl(4, pWeight+(i+2)*outDim+o, vl) ;
+      __vr vrw_i3 = _vel_vldu_vssl(4, pWeight+(i+3)*outDim+o, vl) ;
 
-      vrsum_b0_i0 = _ve_vfmads_vvvv(vrsum_b0_i0, vrw_i0, vro_b0) ;
-      vrsum_b1_i0 = _ve_vfmads_vvvv(vrsum_b1_i0, vrw_i0, vro_b1) ;
-      vrsum_b2_i0 = _ve_vfmads_vvvv(vrsum_b2_i0, vrw_i0, vro_b2) ;
+      __vr vro_b0 = _vel_vldu_vssl(4, pGOut+0*outDim+o, vl) ;
+      __vr vro_b1 = _vel_vldu_vssl(4, pGOut+1*outDim+o, vl) ;
+      __vr vro_b2 = _vel_vldu_vssl(4, pGOut+2*outDim+o, vl) ;
 
-      vrsum_b0_i1 = _ve_vfmads_vvvv(vrsum_b0_i1, vrw_i1, vro_b0) ;
-      vrsum_b1_i1 = _ve_vfmads_vvvv(vrsum_b1_i1, vrw_i1, vro_b1) ;
-      vrsum_b2_i1 = _ve_vfmads_vvvv(vrsum_b2_i1, vrw_i1, vro_b2) ;
+      vrsum_b0_i0 = _vel_vfmads_vvvvvl(vrsum_b0_i0, vrw_i0, vro_b0, vrsum_b0_i0, vl) ;
+      vrsum_b1_i0 = _vel_vfmads_vvvvvl(vrsum_b1_i0, vrw_i0, vro_b1, vrsum_b1_i0, vl) ;
+      vrsum_b2_i0 = _vel_vfmads_vvvvvl(vrsum_b2_i0, vrw_i0, vro_b2, vrsum_b2_i0, vl) ;
 
-      vrsum_b0_i2 = _ve_vfmads_vvvv(vrsum_b0_i2, vrw_i2, vro_b0) ;
-      vrsum_b1_i2 = _ve_vfmads_vvvv(vrsum_b1_i2, vrw_i2, vro_b1) ;
-      vrsum_b2_i2 = _ve_vfmads_vvvv(vrsum_b2_i2, vrw_i2, vro_b2) ;
+      vrsum_b0_i1 = _vel_vfmads_vvvvvl(vrsum_b0_i1, vrw_i1, vro_b0, vrsum_b0_i1, vl) ;
+      vrsum_b1_i1 = _vel_vfmads_vvvvvl(vrsum_b1_i1, vrw_i1, vro_b1, vrsum_b1_i1, vl) ;
+      vrsum_b2_i1 = _vel_vfmads_vvvvvl(vrsum_b2_i1, vrw_i1, vro_b2, vrsum_b2_i1, vl) ;
 
-      vrsum_b0_i3 = _ve_vfmads_vvvv(vrsum_b0_i3, vrw_i3, vro_b0) ;
-      vrsum_b1_i3 = _ve_vfmads_vvvv(vrsum_b1_i3, vrw_i3, vro_b1) ;
-      vrsum_b2_i3 = _ve_vfmads_vvvv(vrsum_b2_i3, vrw_i3, vro_b2) ;
+      vrsum_b0_i2 = _vel_vfmads_vvvvvl(vrsum_b0_i2, vrw_i2, vro_b0, vrsum_b0_i2, vl) ;
+      vrsum_b1_i2 = _vel_vfmads_vvvvvl(vrsum_b1_i2, vrw_i2, vro_b1, vrsum_b1_i2, vl) ;
+      vrsum_b2_i2 = _vel_vfmads_vvvvvl(vrsum_b2_i2, vrw_i2, vro_b2, vrsum_b2_i2, vl) ;
+
+      vrsum_b0_i3 = _vel_vfmads_vvvvvl(vrsum_b0_i3, vrw_i3, vro_b0, vrsum_b0_i3, vl) ;
+      vrsum_b1_i3 = _vel_vfmads_vvvvvl(vrsum_b1_i3, vrw_i3, vro_b1, vrsum_b1_i3, vl) ;
+      vrsum_b2_i3 = _vel_vfmads_vvvvvl(vrsum_b2_i3, vrw_i3, vro_b2, vrsum_b2_i3, vl) ;
     }
 
-    _ve_lvl(VLEN) ;
-    vrsum_b0_i0 = _ve_vfsums_vv(vrsum_b0_i0);
-    vrsum_b1_i0 = _ve_vfsums_vv(vrsum_b1_i0);
-    vrsum_b2_i0 = _ve_vfsums_vv(vrsum_b2_i0);
-    vrsum_b0_i1 = _ve_vfsums_vv(vrsum_b0_i1);
-    vrsum_b1_i1 = _ve_vfsums_vv(vrsum_b1_i1);
-    vrsum_b2_i1 = _ve_vfsums_vv(vrsum_b2_i1);
-    vrsum_b0_i2 = _ve_vfsums_vv(vrsum_b0_i2);
-    vrsum_b1_i2 = _ve_vfsums_vv(vrsum_b1_i2);
-    vrsum_b2_i2 = _ve_vfsums_vv(vrsum_b2_i2);
-    vrsum_b0_i3 = _ve_vfsums_vv(vrsum_b0_i3);
-    vrsum_b1_i3 = _ve_vfsums_vv(vrsum_b1_i3);
-    vrsum_b2_i3 = _ve_vfsums_vv(vrsum_b2_i3);
+    vrsum_b0_i0 = _vel_vfsums_vvl(vrsum_b0_i0, VLEN);
+    vrsum_b1_i0 = _vel_vfsums_vvl(vrsum_b1_i0, VLEN);
+    vrsum_b2_i0 = _vel_vfsums_vvl(vrsum_b2_i0, VLEN);
+    vrsum_b0_i1 = _vel_vfsums_vvl(vrsum_b0_i1, VLEN);
+    vrsum_b1_i1 = _vel_vfsums_vvl(vrsum_b1_i1, VLEN);
+    vrsum_b2_i1 = _vel_vfsums_vvl(vrsum_b2_i1, VLEN);
+    vrsum_b0_i2 = _vel_vfsums_vvl(vrsum_b0_i2, VLEN);
+    vrsum_b1_i2 = _vel_vfsums_vvl(vrsum_b1_i2, VLEN);
+    vrsum_b2_i2 = _vel_vfsums_vvl(vrsum_b2_i2, VLEN);
+    vrsum_b0_i3 = _vel_vfsums_vvl(vrsum_b0_i3, VLEN);
+    vrsum_b1_i3 = _vel_vfsums_vvl(vrsum_b1_i3, VLEN);
+    vrsum_b2_i3 = _vel_vfsums_vvl(vrsum_b2_i3, VLEN);
 
-    _ve_lvl(1) ;
-    _ve_vstu_vss(vrsum_b0_i0, 4, pGIn+0*inDim+i) ;
-    _ve_vstu_vss(vrsum_b1_i0, 4, pGIn+1*inDim+i) ;
-    _ve_vstu_vss(vrsum_b2_i0, 4, pGIn+2*inDim+i) ;
-    _ve_vstu_vss(vrsum_b0_i1, 4, pGIn+0*inDim+i+1) ;
-    _ve_vstu_vss(vrsum_b1_i1, 4, pGIn+1*inDim+i+1) ;
-    _ve_vstu_vss(vrsum_b2_i1, 4, pGIn+2*inDim+i+1) ;
-    _ve_vstu_vss(vrsum_b0_i2, 4, pGIn+0*inDim+i+2) ;
-    _ve_vstu_vss(vrsum_b1_i2, 4, pGIn+1*inDim+i+2) ;
-    _ve_vstu_vss(vrsum_b2_i2, 4, pGIn+2*inDim+i+2) ;
-    _ve_vstu_vss(vrsum_b0_i3, 4, pGIn+0*inDim+i+3) ;
-    _ve_vstu_vss(vrsum_b1_i3, 4, pGIn+1*inDim+i+3) ;
-    _ve_vstu_vss(vrsum_b2_i3, 4, pGIn+2*inDim+i+3) ;
+    _vel_vstu_vssl(vrsum_b0_i0, 4, pGIn+0*inDim+i,   1) ;
+    _vel_vstu_vssl(vrsum_b1_i0, 4, pGIn+1*inDim+i,   1) ;
+    _vel_vstu_vssl(vrsum_b2_i0, 4, pGIn+2*inDim+i,   1) ;
+    _vel_vstu_vssl(vrsum_b0_i1, 4, pGIn+0*inDim+i+1, 1) ;
+    _vel_vstu_vssl(vrsum_b1_i1, 4, pGIn+1*inDim+i+1, 1) ;
+    _vel_vstu_vssl(vrsum_b2_i1, 4, pGIn+2*inDim+i+1, 1) ;
+    _vel_vstu_vssl(vrsum_b0_i2, 4, pGIn+0*inDim+i+2, 1) ;
+    _vel_vstu_vssl(vrsum_b1_i2, 4, pGIn+1*inDim+i+2, 1) ;
+    _vel_vstu_vssl(vrsum_b2_i2, 4, pGIn+2*inDim+i+2, 1) ;
+    _vel_vstu_vssl(vrsum_b0_i3, 4, pGIn+0*inDim+i+3, 1) ;
+    _vel_vstu_vssl(vrsum_b1_i3, 4, pGIn+1*inDim+i+3, 1) ;
+    _vel_vstu_vssl(vrsum_b2_i3, 4, pGIn+2*inDim+i+3, 1) ;
   }
 }
 
@@ -572,170 +536,160 @@ static inline void b4(
   switch(inDim&0x3) {
   case 1:
     {
-      _ve_lvl(VLEN) ;
-      __vr vrsum_b0 = _ve_vbrdu_vs_f32(0.f) ;
-      __vr vrsum_b1 = _ve_vbrdu_vs_f32(0.f) ;
-      __vr vrsum_b2 = _ve_vbrdu_vs_f32(0.f) ;
-      __vr vrsum_b3 = _ve_vbrdu_vs_f32(0.f) ;
+      __vr vrsum_b0 = _vel_vbrds_vsl(0.f, VLEN) ;
+      __vr vrsum_b1 = _vel_vbrds_vsl(0.f, VLEN) ;
+      __vr vrsum_b2 = _vel_vbrds_vsl(0.f, VLEN) ;
+      __vr vrsum_b3 = _vel_vbrds_vsl(0.f, VLEN) ;
 
       for(int64_t o=0; o<outDim; o+=VLEN) {
 	const int64_t vl = outDim-o < VLEN ? outDim - o : VLEN ;
-	_ve_lvl(vl) ;
-	__vr vrw    = _ve_vldu_vss(4, pWeight+i*outDim+o) ;
-	__vr vro_b0 = _ve_vldu_vss(4, pGOut+0*outDim+o) ;
-	__vr vro_b1 = _ve_vldu_vss(4, pGOut+1*outDim+o) ;
-	__vr vro_b2 = _ve_vldu_vss(4, pGOut+2*outDim+o) ;
-	__vr vro_b3 = _ve_vldu_vss(4, pGOut+3*outDim+o) ;
 
-	vrsum_b0 = _ve_vfmads_vvvv(vrsum_b0, vrw, vro_b0) ;
-	vrsum_b1 = _ve_vfmads_vvvv(vrsum_b1, vrw, vro_b1) ;
-	vrsum_b2 = _ve_vfmads_vvvv(vrsum_b2, vrw, vro_b2) ;
-	vrsum_b3 = _ve_vfmads_vvvv(vrsum_b3, vrw, vro_b3) ;
+	__vr vrw    = _vel_vldu_vssl(4, pWeight+i*outDim+o, vl) ;
+	__vr vro_b0 = _vel_vldu_vssl(4, pGOut+0*outDim+o, vl) ;
+	__vr vro_b1 = _vel_vldu_vssl(4, pGOut+1*outDim+o, vl) ;
+	__vr vro_b2 = _vel_vldu_vssl(4, pGOut+2*outDim+o, vl) ;
+	__vr vro_b3 = _vel_vldu_vssl(4, pGOut+3*outDim+o, vl) ;
+
+	vrsum_b0 = _vel_vfmads_vvvvvl(vrsum_b0, vrw, vro_b0, vrsum_b0, vl) ;
+	vrsum_b1 = _vel_vfmads_vvvvvl(vrsum_b1, vrw, vro_b1, vrsum_b1, vl) ;
+	vrsum_b2 = _vel_vfmads_vvvvvl(vrsum_b2, vrw, vro_b2, vrsum_b2, vl) ;
+	vrsum_b3 = _vel_vfmads_vvvvvl(vrsum_b3, vrw, vro_b3, vrsum_b3, vl) ;
       }
 
-      _ve_lvl(VLEN) ;
-      vrsum_b0 = _ve_vfsums_vv(vrsum_b0);
-      vrsum_b1 = _ve_vfsums_vv(vrsum_b1);
-      vrsum_b2 = _ve_vfsums_vv(vrsum_b2);
-      vrsum_b3 = _ve_vfsums_vv(vrsum_b3);
+      vrsum_b0 = _vel_vfsums_vvl(vrsum_b0, VLEN);
+      vrsum_b1 = _vel_vfsums_vvl(vrsum_b1, VLEN);
+      vrsum_b2 = _vel_vfsums_vvl(vrsum_b2, VLEN);
+      vrsum_b3 = _vel_vfsums_vvl(vrsum_b3, VLEN);
 
-      _ve_lvl(1) ;
-      _ve_vstu_vss(vrsum_b0, 4, pGIn+0*inDim+i) ;
-      _ve_vstu_vss(vrsum_b1, 4, pGIn+1*inDim+i) ;
-      _ve_vstu_vss(vrsum_b2, 4, pGIn+2*inDim+i) ;
-      _ve_vstu_vss(vrsum_b3, 4, pGIn+3*inDim+i) ;
+      _vel_vstu_vssl(vrsum_b0, 4, pGIn+0*inDim+i, 1) ;
+      _vel_vstu_vssl(vrsum_b1, 4, pGIn+1*inDim+i, 1) ;
+      _vel_vstu_vssl(vrsum_b2, 4, pGIn+2*inDim+i, 1) ;
+      _vel_vstu_vssl(vrsum_b3, 4, pGIn+3*inDim+i, 1) ;
     }
     i+=1;
     break ;
   case 2 :
     {
-      _ve_lvl(VLEN) ;
-      __vr vrsum_b0_i0 = _ve_vbrdu_vs_f32(0.f) ;
-      __vr vrsum_b1_i0 = _ve_vbrdu_vs_f32(0.f) ;
-      __vr vrsum_b2_i0 = _ve_vbrdu_vs_f32(0.f) ;
-      __vr vrsum_b3_i0 = _ve_vbrdu_vs_f32(0.f) ;
-      __vr vrsum_b0_i1 = _ve_vbrdu_vs_f32(0.f) ;
-      __vr vrsum_b1_i1 = _ve_vbrdu_vs_f32(0.f) ;
-      __vr vrsum_b2_i1 = _ve_vbrdu_vs_f32(0.f) ;
-      __vr vrsum_b3_i1 = _ve_vbrdu_vs_f32(0.f) ;
+      __vr vrsum_b0_i0 = _vel_vbrds_vsl(0.f, VLEN) ;
+      __vr vrsum_b1_i0 = _vel_vbrds_vsl(0.f, VLEN) ;
+      __vr vrsum_b2_i0 = _vel_vbrds_vsl(0.f, VLEN) ;
+      __vr vrsum_b3_i0 = _vel_vbrds_vsl(0.f, VLEN) ;
+      __vr vrsum_b0_i1 = _vel_vbrds_vsl(0.f, VLEN) ;
+      __vr vrsum_b1_i1 = _vel_vbrds_vsl(0.f, VLEN) ;
+      __vr vrsum_b2_i1 = _vel_vbrds_vsl(0.f, VLEN) ;
+      __vr vrsum_b3_i1 = _vel_vbrds_vsl(0.f, VLEN) ;
 
       for(int64_t o=0; o<outDim; o+=VLEN) {
 	const int64_t vl = outDim-o < VLEN ? outDim - o : VLEN ;
-	_ve_lvl(vl) ;
-	__vr vrw_i0 = _ve_vldu_vss(4, pWeight+(i  )*outDim+o) ;
-	__vr vrw_i1 = _ve_vldu_vss(4, pWeight+(i+1)*outDim+o) ;
 
-	__vr vro_b0 = _ve_vldu_vss(4, pGOut+0*outDim+o) ;
-	__vr vro_b1 = _ve_vldu_vss(4, pGOut+1*outDim+o) ;
-	__vr vro_b2 = _ve_vldu_vss(4, pGOut+2*outDim+o) ;
-	__vr vro_b3 = _ve_vldu_vss(4, pGOut+3*outDim+o) ;
+	__vr vrw_i0 = _vel_vldu_vssl(4, pWeight+(i  )*outDim+o, vl) ;
+	__vr vrw_i1 = _vel_vldu_vssl(4, pWeight+(i+1)*outDim+o, vl) ;
 
-	vrsum_b0_i0 = _ve_vfmads_vvvv(vrsum_b0_i0, vrw_i0, vro_b0) ;
-	vrsum_b1_i0 = _ve_vfmads_vvvv(vrsum_b1_i0, vrw_i0, vro_b1) ;
-	vrsum_b2_i0 = _ve_vfmads_vvvv(vrsum_b2_i0, vrw_i0, vro_b2) ;
-	vrsum_b3_i0 = _ve_vfmads_vvvv(vrsum_b3_i0, vrw_i0, vro_b3) ;
+	__vr vro_b0 = _vel_vldu_vssl(4, pGOut+0*outDim+o, vl) ;
+	__vr vro_b1 = _vel_vldu_vssl(4, pGOut+1*outDim+o, vl) ;
+	__vr vro_b2 = _vel_vldu_vssl(4, pGOut+2*outDim+o, vl) ;
+	__vr vro_b3 = _vel_vldu_vssl(4, pGOut+3*outDim+o, vl) ;
 
-	vrsum_b0_i1 = _ve_vfmads_vvvv(vrsum_b0_i1, vrw_i1, vro_b0) ;
-	vrsum_b1_i1 = _ve_vfmads_vvvv(vrsum_b1_i1, vrw_i1, vro_b1) ;
-	vrsum_b2_i1 = _ve_vfmads_vvvv(vrsum_b2_i1, vrw_i1, vro_b2) ;
-	vrsum_b3_i1 = _ve_vfmads_vvvv(vrsum_b3_i1, vrw_i1, vro_b3) ;
+	vrsum_b0_i0 = _vel_vfmads_vvvvvl(vrsum_b0_i0, vrw_i0, vro_b0, vrsum_b0_i0, vl) ;
+	vrsum_b1_i0 = _vel_vfmads_vvvvvl(vrsum_b1_i0, vrw_i0, vro_b1, vrsum_b1_i0, vl) ;
+	vrsum_b2_i0 = _vel_vfmads_vvvvvl(vrsum_b2_i0, vrw_i0, vro_b2, vrsum_b2_i0, vl) ;
+	vrsum_b3_i0 = _vel_vfmads_vvvvvl(vrsum_b3_i0, vrw_i0, vro_b3, vrsum_b3_i0, vl) ;
+
+	vrsum_b0_i1 = _vel_vfmads_vvvvvl(vrsum_b0_i1, vrw_i1, vro_b0, vrsum_b0_i1, vl) ;
+	vrsum_b1_i1 = _vel_vfmads_vvvvvl(vrsum_b1_i1, vrw_i1, vro_b1, vrsum_b1_i1, vl) ;
+	vrsum_b2_i1 = _vel_vfmads_vvvvvl(vrsum_b2_i1, vrw_i1, vro_b2, vrsum_b2_i1, vl) ;
+	vrsum_b3_i1 = _vel_vfmads_vvvvvl(vrsum_b3_i1, vrw_i1, vro_b3, vrsum_b3_i1, vl) ;
       }
 
-      _ve_lvl(VLEN) ;
-      vrsum_b0_i0 = _ve_vfsums_vv(vrsum_b0_i0);
-      vrsum_b1_i0 = _ve_vfsums_vv(vrsum_b1_i0);
-      vrsum_b2_i0 = _ve_vfsums_vv(vrsum_b2_i0);
-      vrsum_b3_i0 = _ve_vfsums_vv(vrsum_b3_i0);
-      vrsum_b0_i1 = _ve_vfsums_vv(vrsum_b0_i1);
-      vrsum_b1_i1 = _ve_vfsums_vv(vrsum_b1_i1);
-      vrsum_b2_i1 = _ve_vfsums_vv(vrsum_b2_i1);
-      vrsum_b3_i1 = _ve_vfsums_vv(vrsum_b3_i1);
+      vrsum_b0_i0 = _vel_vfsums_vvl(vrsum_b0_i0, VLEN);
+      vrsum_b1_i0 = _vel_vfsums_vvl(vrsum_b1_i0, VLEN);
+      vrsum_b2_i0 = _vel_vfsums_vvl(vrsum_b2_i0, VLEN);
+      vrsum_b3_i0 = _vel_vfsums_vvl(vrsum_b3_i0, VLEN);
+      vrsum_b0_i1 = _vel_vfsums_vvl(vrsum_b0_i1, VLEN);
+      vrsum_b1_i1 = _vel_vfsums_vvl(vrsum_b1_i1, VLEN);
+      vrsum_b2_i1 = _vel_vfsums_vvl(vrsum_b2_i1, VLEN);
+      vrsum_b3_i1 = _vel_vfsums_vvl(vrsum_b3_i1, VLEN);
 
-
-      _ve_lvl(1) ;
-      _ve_vstu_vss(vrsum_b0_i0, 4, pGIn+0*inDim+i) ;
-      _ve_vstu_vss(vrsum_b1_i0, 4, pGIn+1*inDim+i) ;
-      _ve_vstu_vss(vrsum_b2_i0, 4, pGIn+2*inDim+i) ;
-      _ve_vstu_vss(vrsum_b3_i0, 4, pGIn+3*inDim+i) ;
-      _ve_vstu_vss(vrsum_b0_i1, 4, pGIn+0*inDim+i+1) ;
-      _ve_vstu_vss(vrsum_b1_i1, 4, pGIn+1*inDim+i+1) ;
-      _ve_vstu_vss(vrsum_b2_i1, 4, pGIn+2*inDim+i+1) ;
-      _ve_vstu_vss(vrsum_b3_i1, 4, pGIn+3*inDim+i+1) ;
+      _vel_vstu_vssl(vrsum_b0_i0, 4, pGIn+0*inDim+i,   1) ;
+      _vel_vstu_vssl(vrsum_b1_i0, 4, pGIn+1*inDim+i,   1) ;
+      _vel_vstu_vssl(vrsum_b2_i0, 4, pGIn+2*inDim+i,   1) ;
+      _vel_vstu_vssl(vrsum_b3_i0, 4, pGIn+3*inDim+i,   1) ;
+      _vel_vstu_vssl(vrsum_b0_i1, 4, pGIn+0*inDim+i+1, 1) ;
+      _vel_vstu_vssl(vrsum_b1_i1, 4, pGIn+1*inDim+i+1, 1) ;
+      _vel_vstu_vssl(vrsum_b2_i1, 4, pGIn+2*inDim+i+1, 1) ;
+      _vel_vstu_vssl(vrsum_b3_i1, 4, pGIn+3*inDim+i+1, 1) ;
     }
 
     i+=2 ;
     break ;
   case 3:
     {
-      _ve_lvl(VLEN) ;
-      __vr vrsum_b0_i0 = _ve_vbrdu_vs_f32(0.f) ;
-      __vr vrsum_b1_i0 = _ve_vbrdu_vs_f32(0.f) ;
-      __vr vrsum_b2_i0 = _ve_vbrdu_vs_f32(0.f) ;
-      __vr vrsum_b3_i0 = _ve_vbrdu_vs_f32(0.f) ;
-      __vr vrsum_b0_i1 = _ve_vbrdu_vs_f32(0.f) ;
-      __vr vrsum_b1_i1 = _ve_vbrdu_vs_f32(0.f) ;
-      __vr vrsum_b2_i1 = _ve_vbrdu_vs_f32(0.f) ;
-      __vr vrsum_b3_i1 = _ve_vbrdu_vs_f32(0.f) ;
-      __vr vrsum_b0_i2 = _ve_vbrdu_vs_f32(0.f) ;
-      __vr vrsum_b1_i2 = _ve_vbrdu_vs_f32(0.f) ;
-      __vr vrsum_b2_i2 = _ve_vbrdu_vs_f32(0.f) ;
-      __vr vrsum_b3_i2 = _ve_vbrdu_vs_f32(0.f) ;
+      __vr vrsum_b0_i0 = _vel_vbrds_vsl(0.f, VLEN) ;
+      __vr vrsum_b1_i0 = _vel_vbrds_vsl(0.f, VLEN) ;
+      __vr vrsum_b2_i0 = _vel_vbrds_vsl(0.f, VLEN) ;
+      __vr vrsum_b3_i0 = _vel_vbrds_vsl(0.f, VLEN) ;
+      __vr vrsum_b0_i1 = _vel_vbrds_vsl(0.f, VLEN) ;
+      __vr vrsum_b1_i1 = _vel_vbrds_vsl(0.f, VLEN) ;
+      __vr vrsum_b2_i1 = _vel_vbrds_vsl(0.f, VLEN) ;
+      __vr vrsum_b3_i1 = _vel_vbrds_vsl(0.f, VLEN) ;
+      __vr vrsum_b0_i2 = _vel_vbrds_vsl(0.f, VLEN) ;
+      __vr vrsum_b1_i2 = _vel_vbrds_vsl(0.f, VLEN) ;
+      __vr vrsum_b2_i2 = _vel_vbrds_vsl(0.f, VLEN) ;
+      __vr vrsum_b3_i2 = _vel_vbrds_vsl(0.f, VLEN) ;
 
       for(int64_t o=0; o<outDim; o+=VLEN) {
 	const int64_t vl = outDim-o < VLEN ? outDim - o : VLEN ;
-	_ve_lvl(vl) ;
-	__vr vrw_i0 = _ve_vldu_vss(4, pWeight+(i  )*outDim+o) ;
-	__vr vrw_i1 = _ve_vldu_vss(4, pWeight+(i+1)*outDim+o) ;
-	__vr vrw_i2 = _ve_vldu_vss(4, pWeight+(i+2)*outDim+o) ;
 
-	__vr vro_b0 = _ve_vldu_vss(4, pGOut+0*outDim+o) ;
-	__vr vro_b1 = _ve_vldu_vss(4, pGOut+1*outDim+o) ;
-	__vr vro_b2 = _ve_vldu_vss(4, pGOut+2*outDim+o) ;
-	__vr vro_b3 = _ve_vldu_vss(4, pGOut+3*outDim+o) ;
+	__vr vrw_i0 = _vel_vldu_vssl(4, pWeight+(i  )*outDim+o, vl) ;
+	__vr vrw_i1 = _vel_vldu_vssl(4, pWeight+(i+1)*outDim+o, vl) ;
+	__vr vrw_i2 = _vel_vldu_vssl(4, pWeight+(i+2)*outDim+o, vl) ;
 
-	vrsum_b0_i0 = _ve_vfmads_vvvv(vrsum_b0_i0, vrw_i0, vro_b0) ;
-	vrsum_b1_i0 = _ve_vfmads_vvvv(vrsum_b1_i0, vrw_i0, vro_b1) ;
-	vrsum_b2_i0 = _ve_vfmads_vvvv(vrsum_b2_i0, vrw_i0, vro_b2) ;
-	vrsum_b3_i0 = _ve_vfmads_vvvv(vrsum_b3_i0, vrw_i0, vro_b3) ;
+	__vr vro_b0 = _vel_vldu_vssl(4, pGOut+0*outDim+o, vl) ;
+	__vr vro_b1 = _vel_vldu_vssl(4, pGOut+1*outDim+o, vl) ;
+	__vr vro_b2 = _vel_vldu_vssl(4, pGOut+2*outDim+o, vl) ;
+	__vr vro_b3 = _vel_vldu_vssl(4, pGOut+3*outDim+o, vl) ;
 
-	vrsum_b0_i1 = _ve_vfmads_vvvv(vrsum_b0_i1, vrw_i1, vro_b0) ;
-	vrsum_b1_i1 = _ve_vfmads_vvvv(vrsum_b1_i1, vrw_i1, vro_b1) ;
-	vrsum_b2_i1 = _ve_vfmads_vvvv(vrsum_b2_i1, vrw_i1, vro_b2) ;
-	vrsum_b3_i1 = _ve_vfmads_vvvv(vrsum_b3_i1, vrw_i1, vro_b3) ;
+	vrsum_b0_i0 = _vel_vfmads_vvvvvl(vrsum_b0_i0, vrw_i0, vro_b0, vrsum_b0_i0, vl) ;
+	vrsum_b1_i0 = _vel_vfmads_vvvvvl(vrsum_b1_i0, vrw_i0, vro_b1, vrsum_b1_i0, vl) ;
+	vrsum_b2_i0 = _vel_vfmads_vvvvvl(vrsum_b2_i0, vrw_i0, vro_b2, vrsum_b2_i0, vl) ;
+	vrsum_b3_i0 = _vel_vfmads_vvvvvl(vrsum_b3_i0, vrw_i0, vro_b3, vrsum_b3_i0, vl) ;
 
-	vrsum_b0_i2 = _ve_vfmads_vvvv(vrsum_b0_i2, vrw_i2, vro_b0) ;
-	vrsum_b1_i2 = _ve_vfmads_vvvv(vrsum_b1_i2, vrw_i2, vro_b1) ;
-	vrsum_b2_i2 = _ve_vfmads_vvvv(vrsum_b2_i2, vrw_i2, vro_b2) ;
-	vrsum_b3_i2 = _ve_vfmads_vvvv(vrsum_b3_i2, vrw_i2, vro_b3) ;
+	vrsum_b0_i1 = _vel_vfmads_vvvvvl(vrsum_b0_i1, vrw_i1, vro_b0, vrsum_b0_i1, vl) ;
+	vrsum_b1_i1 = _vel_vfmads_vvvvvl(vrsum_b1_i1, vrw_i1, vro_b1, vrsum_b1_i1, vl) ;
+	vrsum_b2_i1 = _vel_vfmads_vvvvvl(vrsum_b2_i1, vrw_i1, vro_b2, vrsum_b2_i1, vl) ;
+	vrsum_b3_i1 = _vel_vfmads_vvvvvl(vrsum_b3_i1, vrw_i1, vro_b3, vrsum_b3_i1, vl) ;
+
+	vrsum_b0_i2 = _vel_vfmads_vvvvvl(vrsum_b0_i2, vrw_i2, vro_b0, vrsum_b0_i2, vl) ;
+	vrsum_b1_i2 = _vel_vfmads_vvvvvl(vrsum_b1_i2, vrw_i2, vro_b1, vrsum_b1_i2, vl) ;
+	vrsum_b2_i2 = _vel_vfmads_vvvvvl(vrsum_b2_i2, vrw_i2, vro_b2, vrsum_b2_i2, vl) ;
+	vrsum_b3_i2 = _vel_vfmads_vvvvvl(vrsum_b3_i2, vrw_i2, vro_b3, vrsum_b3_i2, vl) ;
       }
 
-      _ve_lvl(VLEN) ;
-      vrsum_b0_i0 = _ve_vfsums_vv(vrsum_b0_i0);
-      vrsum_b1_i0 = _ve_vfsums_vv(vrsum_b1_i0);
-      vrsum_b2_i0 = _ve_vfsums_vv(vrsum_b2_i0);
-      vrsum_b3_i0 = _ve_vfsums_vv(vrsum_b3_i0);
-      vrsum_b0_i1 = _ve_vfsums_vv(vrsum_b0_i1);
-      vrsum_b1_i1 = _ve_vfsums_vv(vrsum_b1_i1);
-      vrsum_b2_i1 = _ve_vfsums_vv(vrsum_b2_i1);
-      vrsum_b3_i1 = _ve_vfsums_vv(vrsum_b3_i1);
-      vrsum_b0_i2 = _ve_vfsums_vv(vrsum_b0_i2);
-      vrsum_b1_i2 = _ve_vfsums_vv(vrsum_b1_i2);
-      vrsum_b2_i2 = _ve_vfsums_vv(vrsum_b2_i2);
-      vrsum_b3_i2 = _ve_vfsums_vv(vrsum_b3_i2);
+      vrsum_b0_i0 = _vel_vfsums_vvl(vrsum_b0_i0, VLEN);
+      vrsum_b1_i0 = _vel_vfsums_vvl(vrsum_b1_i0, VLEN);
+      vrsum_b2_i0 = _vel_vfsums_vvl(vrsum_b2_i0, VLEN);
+      vrsum_b3_i0 = _vel_vfsums_vvl(vrsum_b3_i0, VLEN);
+      vrsum_b0_i1 = _vel_vfsums_vvl(vrsum_b0_i1, VLEN);
+      vrsum_b1_i1 = _vel_vfsums_vvl(vrsum_b1_i1, VLEN);
+      vrsum_b2_i1 = _vel_vfsums_vvl(vrsum_b2_i1, VLEN);
+      vrsum_b3_i1 = _vel_vfsums_vvl(vrsum_b3_i1, VLEN);
+      vrsum_b0_i2 = _vel_vfsums_vvl(vrsum_b0_i2, VLEN);
+      vrsum_b1_i2 = _vel_vfsums_vvl(vrsum_b1_i2, VLEN);
+      vrsum_b2_i2 = _vel_vfsums_vvl(vrsum_b2_i2, VLEN);
+      vrsum_b3_i2 = _vel_vfsums_vvl(vrsum_b3_i2, VLEN);
 
-      _ve_lvl(1) ;
-      _ve_vstu_vss(vrsum_b0_i0, 4, pGIn+0*inDim+i) ;
-      _ve_vstu_vss(vrsum_b1_i0, 4, pGIn+1*inDim+i) ;
-      _ve_vstu_vss(vrsum_b2_i0, 4, pGIn+2*inDim+i) ;
-      _ve_vstu_vss(vrsum_b3_i0, 4, pGIn+3*inDim+i) ;
-      _ve_vstu_vss(vrsum_b0_i1, 4, pGIn+0*inDim+i+1) ;
-      _ve_vstu_vss(vrsum_b1_i1, 4, pGIn+1*inDim+i+1) ;
-      _ve_vstu_vss(vrsum_b2_i1, 4, pGIn+2*inDim+i+1) ;
-      _ve_vstu_vss(vrsum_b3_i1, 4, pGIn+3*inDim+i+1) ;
-      _ve_vstu_vss(vrsum_b0_i2, 4, pGIn+0*inDim+i+2) ;
-      _ve_vstu_vss(vrsum_b1_i2, 4, pGIn+1*inDim+i+2) ;
-      _ve_vstu_vss(vrsum_b2_i2, 4, pGIn+2*inDim+i+2) ;
-      _ve_vstu_vss(vrsum_b3_i2, 4, pGIn+3*inDim+i+2) ;
+      _vel_vstu_vssl(vrsum_b0_i0, 4, pGIn+0*inDim+i,   1) ;
+      _vel_vstu_vssl(vrsum_b1_i0, 4, pGIn+1*inDim+i,   1) ;
+      _vel_vstu_vssl(vrsum_b2_i0, 4, pGIn+2*inDim+i,   1) ;
+      _vel_vstu_vssl(vrsum_b3_i0, 4, pGIn+3*inDim+i,   1) ;
+      _vel_vstu_vssl(vrsum_b0_i1, 4, pGIn+0*inDim+i+1, 1) ;
+      _vel_vstu_vssl(vrsum_b1_i1, 4, pGIn+1*inDim+i+1, 1) ;
+      _vel_vstu_vssl(vrsum_b2_i1, 4, pGIn+2*inDim+i+1, 1) ;
+      _vel_vstu_vssl(vrsum_b3_i1, 4, pGIn+3*inDim+i+1, 1) ;
+      _vel_vstu_vssl(vrsum_b0_i2, 4, pGIn+0*inDim+i+2, 1) ;
+      _vel_vstu_vssl(vrsum_b1_i2, 4, pGIn+1*inDim+i+2, 1) ;
+      _vel_vstu_vssl(vrsum_b2_i2, 4, pGIn+2*inDim+i+2, 1) ;
+      _vel_vstu_vssl(vrsum_b3_i2, 4, pGIn+3*inDim+i+2, 1) ;
 
     }
     i+=3 ;
@@ -744,93 +698,90 @@ static inline void b4(
   }
   for(; i<inDim; i+=4)
   {
-    _ve_lvl(VLEN) ;
-    __vr vrsum_b0_i0 = _ve_vbrdu_vs_f32(0.f) ;
-    __vr vrsum_b1_i0 = _ve_vbrdu_vs_f32(0.f) ;
-    __vr vrsum_b2_i0 = _ve_vbrdu_vs_f32(0.f) ;
-    __vr vrsum_b3_i0 = _ve_vbrdu_vs_f32(0.f) ;
-    __vr vrsum_b0_i1 = _ve_vbrdu_vs_f32(0.f) ;
-    __vr vrsum_b1_i1 = _ve_vbrdu_vs_f32(0.f) ;
-    __vr vrsum_b2_i1 = _ve_vbrdu_vs_f32(0.f) ;
-    __vr vrsum_b3_i1 = _ve_vbrdu_vs_f32(0.f) ;
-    __vr vrsum_b0_i2 = _ve_vbrdu_vs_f32(0.f) ;
-    __vr vrsum_b1_i2 = _ve_vbrdu_vs_f32(0.f) ;
-    __vr vrsum_b2_i2 = _ve_vbrdu_vs_f32(0.f) ;
-    __vr vrsum_b3_i2 = _ve_vbrdu_vs_f32(0.f) ;
-    __vr vrsum_b0_i3 = _ve_vbrdu_vs_f32(0.f) ;
-    __vr vrsum_b1_i3 = _ve_vbrdu_vs_f32(0.f) ;
-    __vr vrsum_b2_i3 = _ve_vbrdu_vs_f32(0.f) ;
-    __vr vrsum_b3_i3 = _ve_vbrdu_vs_f32(0.f) ;
+    __vr vrsum_b0_i0 = _vel_vbrds_vsl(0.f, VLEN) ;
+    __vr vrsum_b1_i0 = _vel_vbrds_vsl(0.f, VLEN) ;
+    __vr vrsum_b2_i0 = _vel_vbrds_vsl(0.f, VLEN) ;
+    __vr vrsum_b3_i0 = _vel_vbrds_vsl(0.f, VLEN) ;
+    __vr vrsum_b0_i1 = _vel_vbrds_vsl(0.f, VLEN) ;
+    __vr vrsum_b1_i1 = _vel_vbrds_vsl(0.f, VLEN) ;
+    __vr vrsum_b2_i1 = _vel_vbrds_vsl(0.f, VLEN) ;
+    __vr vrsum_b3_i1 = _vel_vbrds_vsl(0.f, VLEN) ;
+    __vr vrsum_b0_i2 = _vel_vbrds_vsl(0.f, VLEN) ;
+    __vr vrsum_b1_i2 = _vel_vbrds_vsl(0.f, VLEN) ;
+    __vr vrsum_b2_i2 = _vel_vbrds_vsl(0.f, VLEN) ;
+    __vr vrsum_b3_i2 = _vel_vbrds_vsl(0.f, VLEN) ;
+    __vr vrsum_b0_i3 = _vel_vbrds_vsl(0.f, VLEN) ;
+    __vr vrsum_b1_i3 = _vel_vbrds_vsl(0.f, VLEN) ;
+    __vr vrsum_b2_i3 = _vel_vbrds_vsl(0.f, VLEN) ;
+    __vr vrsum_b3_i3 = _vel_vbrds_vsl(0.f, VLEN) ;
 
     for(int64_t o=0; o<outDim; o+=VLEN) {
       const int64_t vl = outDim-o < VLEN ? outDim - o : VLEN ;
-      _ve_lvl(vl) ;
-      __vr vrw_i0 = _ve_vldu_vss(4, pWeight+(i  )*outDim+o) ;
-      __vr vrw_i1 = _ve_vldu_vss(4, pWeight+(i+1)*outDim+o) ;
-      __vr vrw_i2 = _ve_vldu_vss(4, pWeight+(i+2)*outDim+o) ;
-      __vr vrw_i3 = _ve_vldu_vss(4, pWeight+(i+3)*outDim+o) ;
 
-      __vr vro_b0 = _ve_vldu_vss(4, pGOut+0*outDim+o) ;
-      __vr vro_b1 = _ve_vldu_vss(4, pGOut+1*outDim+o) ;
-      __vr vro_b2 = _ve_vldu_vss(4, pGOut+2*outDim+o) ;
-      __vr vro_b3 = _ve_vldu_vss(4, pGOut+3*outDim+o) ;
+      __vr vrw_i0 = _vel_vldu_vssl(4, pWeight+(i  )*outDim+o, vl) ;
+      __vr vrw_i1 = _vel_vldu_vssl(4, pWeight+(i+1)*outDim+o, vl) ;
+      __vr vrw_i2 = _vel_vldu_vssl(4, pWeight+(i+2)*outDim+o, vl) ;
+      __vr vrw_i3 = _vel_vldu_vssl(4, pWeight+(i+3)*outDim+o, vl) ;
 
-      vrsum_b0_i0 = _ve_vfmads_vvvv(vrsum_b0_i0, vrw_i0, vro_b0) ;
-      vrsum_b1_i0 = _ve_vfmads_vvvv(vrsum_b1_i0, vrw_i0, vro_b1) ;
-      vrsum_b2_i0 = _ve_vfmads_vvvv(vrsum_b2_i0, vrw_i0, vro_b2) ;
-      vrsum_b3_i0 = _ve_vfmads_vvvv(vrsum_b3_i0, vrw_i0, vro_b3) ;
+      __vr vro_b0 = _vel_vldu_vssl(4, pGOut+0*outDim+o, vl) ;
+      __vr vro_b1 = _vel_vldu_vssl(4, pGOut+1*outDim+o, vl) ;
+      __vr vro_b2 = _vel_vldu_vssl(4, pGOut+2*outDim+o, vl) ;
+      __vr vro_b3 = _vel_vldu_vssl(4, pGOut+3*outDim+o, vl) ;
 
-      vrsum_b0_i1 = _ve_vfmads_vvvv(vrsum_b0_i1, vrw_i1, vro_b0) ;
-      vrsum_b1_i1 = _ve_vfmads_vvvv(vrsum_b1_i1, vrw_i1, vro_b1) ;
-      vrsum_b2_i1 = _ve_vfmads_vvvv(vrsum_b2_i1, vrw_i1, vro_b2) ;
-      vrsum_b3_i1 = _ve_vfmads_vvvv(vrsum_b3_i1, vrw_i1, vro_b3) ;
+      vrsum_b0_i0 = _vel_vfmads_vvvvvl(vrsum_b0_i0, vrw_i0, vro_b0, vrsum_b0_i0, vl) ;
+      vrsum_b1_i0 = _vel_vfmads_vvvvvl(vrsum_b1_i0, vrw_i0, vro_b1, vrsum_b1_i0, vl) ;
+      vrsum_b2_i0 = _vel_vfmads_vvvvvl(vrsum_b2_i0, vrw_i0, vro_b2, vrsum_b2_i0, vl) ;
+      vrsum_b3_i0 = _vel_vfmads_vvvvvl(vrsum_b3_i0, vrw_i0, vro_b3, vrsum_b3_i0, vl) ;
 
-      vrsum_b0_i2 = _ve_vfmads_vvvv(vrsum_b0_i2, vrw_i2, vro_b0) ;
-      vrsum_b1_i2 = _ve_vfmads_vvvv(vrsum_b1_i2, vrw_i2, vro_b1) ;
-      vrsum_b2_i2 = _ve_vfmads_vvvv(vrsum_b2_i2, vrw_i2, vro_b2) ;
-      vrsum_b3_i2 = _ve_vfmads_vvvv(vrsum_b3_i2, vrw_i2, vro_b3) ;
+      vrsum_b0_i1 = _vel_vfmads_vvvvvl(vrsum_b0_i1, vrw_i1, vro_b0, vrsum_b0_i1, vl) ;
+      vrsum_b1_i1 = _vel_vfmads_vvvvvl(vrsum_b1_i1, vrw_i1, vro_b1, vrsum_b1_i1, vl) ;
+      vrsum_b2_i1 = _vel_vfmads_vvvvvl(vrsum_b2_i1, vrw_i1, vro_b2, vrsum_b2_i1, vl) ;
+      vrsum_b3_i1 = _vel_vfmads_vvvvvl(vrsum_b3_i1, vrw_i1, vro_b3, vrsum_b3_i1, vl) ;
 
-      vrsum_b0_i3 = _ve_vfmads_vvvv(vrsum_b0_i3, vrw_i3, vro_b0) ;
-      vrsum_b1_i3 = _ve_vfmads_vvvv(vrsum_b1_i3, vrw_i3, vro_b1) ;
-      vrsum_b2_i3 = _ve_vfmads_vvvv(vrsum_b2_i3, vrw_i3, vro_b2) ;
-      vrsum_b3_i3 = _ve_vfmads_vvvv(vrsum_b3_i3, vrw_i3, vro_b3) ;
+      vrsum_b0_i2 = _vel_vfmads_vvvvvl(vrsum_b0_i2, vrw_i2, vro_b0, vrsum_b0_i2, vl) ;
+      vrsum_b1_i2 = _vel_vfmads_vvvvvl(vrsum_b1_i2, vrw_i2, vro_b1, vrsum_b1_i2, vl) ;
+      vrsum_b2_i2 = _vel_vfmads_vvvvvl(vrsum_b2_i2, vrw_i2, vro_b2, vrsum_b2_i2, vl) ;
+      vrsum_b3_i2 = _vel_vfmads_vvvvvl(vrsum_b3_i2, vrw_i2, vro_b3, vrsum_b3_i2, vl) ;
+
+      vrsum_b0_i3 = _vel_vfmads_vvvvvl(vrsum_b0_i3, vrw_i3, vro_b0, vrsum_b0_i3, vl) ;
+      vrsum_b1_i3 = _vel_vfmads_vvvvvl(vrsum_b1_i3, vrw_i3, vro_b1, vrsum_b1_i3, vl) ;
+      vrsum_b2_i3 = _vel_vfmads_vvvvvl(vrsum_b2_i3, vrw_i3, vro_b2, vrsum_b2_i3, vl) ;
+      vrsum_b3_i3 = _vel_vfmads_vvvvvl(vrsum_b3_i3, vrw_i3, vro_b3, vrsum_b3_i3, vl) ;
     }
 
-    _ve_lvl(VLEN) ;
-    vrsum_b0_i0 = _ve_vfsums_vv(vrsum_b0_i0);
-    vrsum_b1_i0 = _ve_vfsums_vv(vrsum_b1_i0);
-    vrsum_b2_i0 = _ve_vfsums_vv(vrsum_b2_i0);
-    vrsum_b3_i0 = _ve_vfsums_vv(vrsum_b3_i0);
-    vrsum_b0_i1 = _ve_vfsums_vv(vrsum_b0_i1);
-    vrsum_b1_i1 = _ve_vfsums_vv(vrsum_b1_i1);
-    vrsum_b2_i1 = _ve_vfsums_vv(vrsum_b2_i1);
-    vrsum_b3_i1 = _ve_vfsums_vv(vrsum_b3_i1);
-    vrsum_b0_i2 = _ve_vfsums_vv(vrsum_b0_i2);
-    vrsum_b1_i2 = _ve_vfsums_vv(vrsum_b1_i2);
-    vrsum_b2_i2 = _ve_vfsums_vv(vrsum_b2_i2);
-    vrsum_b3_i2 = _ve_vfsums_vv(vrsum_b3_i2);
-    vrsum_b0_i3 = _ve_vfsums_vv(vrsum_b0_i3);
-    vrsum_b1_i3 = _ve_vfsums_vv(vrsum_b1_i3);
-    vrsum_b2_i3 = _ve_vfsums_vv(vrsum_b2_i3);
-    vrsum_b3_i3 = _ve_vfsums_vv(vrsum_b3_i3);
+    vrsum_b0_i0 = _vel_vfsums_vvl(vrsum_b0_i0, VLEN);
+    vrsum_b1_i0 = _vel_vfsums_vvl(vrsum_b1_i0, VLEN);
+    vrsum_b2_i0 = _vel_vfsums_vvl(vrsum_b2_i0, VLEN);
+    vrsum_b3_i0 = _vel_vfsums_vvl(vrsum_b3_i0, VLEN);
+    vrsum_b0_i1 = _vel_vfsums_vvl(vrsum_b0_i1, VLEN);
+    vrsum_b1_i1 = _vel_vfsums_vvl(vrsum_b1_i1, VLEN);
+    vrsum_b2_i1 = _vel_vfsums_vvl(vrsum_b2_i1, VLEN);
+    vrsum_b3_i1 = _vel_vfsums_vvl(vrsum_b3_i1, VLEN);
+    vrsum_b0_i2 = _vel_vfsums_vvl(vrsum_b0_i2, VLEN);
+    vrsum_b1_i2 = _vel_vfsums_vvl(vrsum_b1_i2, VLEN);
+    vrsum_b2_i2 = _vel_vfsums_vvl(vrsum_b2_i2, VLEN);
+    vrsum_b3_i2 = _vel_vfsums_vvl(vrsum_b3_i2, VLEN);
+    vrsum_b0_i3 = _vel_vfsums_vvl(vrsum_b0_i3, VLEN);
+    vrsum_b1_i3 = _vel_vfsums_vvl(vrsum_b1_i3, VLEN);
+    vrsum_b2_i3 = _vel_vfsums_vvl(vrsum_b2_i3, VLEN);
+    vrsum_b3_i3 = _vel_vfsums_vvl(vrsum_b3_i3, VLEN);
 
-    _ve_lvl(1) ;
-    _ve_vstu_vss(vrsum_b0_i0, 4, pGIn+0*inDim+i) ;
-    _ve_vstu_vss(vrsum_b1_i0, 4, pGIn+1*inDim+i) ;
-    _ve_vstu_vss(vrsum_b2_i0, 4, pGIn+2*inDim+i) ;
-    _ve_vstu_vss(vrsum_b3_i0, 4, pGIn+3*inDim+i) ;
-    _ve_vstu_vss(vrsum_b0_i1, 4, pGIn+0*inDim+i+1) ;
-    _ve_vstu_vss(vrsum_b1_i1, 4, pGIn+1*inDim+i+1) ;
-    _ve_vstu_vss(vrsum_b2_i1, 4, pGIn+2*inDim+i+1) ;
-    _ve_vstu_vss(vrsum_b3_i1, 4, pGIn+3*inDim+i+1) ;
-    _ve_vstu_vss(vrsum_b0_i2, 4, pGIn+0*inDim+i+2) ;
-    _ve_vstu_vss(vrsum_b1_i2, 4, pGIn+1*inDim+i+2) ;
-    _ve_vstu_vss(vrsum_b2_i2, 4, pGIn+2*inDim+i+2) ;
-    _ve_vstu_vss(vrsum_b3_i2, 4, pGIn+3*inDim+i+2) ;
-    _ve_vstu_vss(vrsum_b0_i3, 4, pGIn+0*inDim+i+3) ;
-    _ve_vstu_vss(vrsum_b1_i3, 4, pGIn+1*inDim+i+3) ;
-    _ve_vstu_vss(vrsum_b2_i3, 4, pGIn+2*inDim+i+3) ;
-    _ve_vstu_vss(vrsum_b3_i3, 4, pGIn+3*inDim+i+3) ;
+    _vel_vstu_vssl(vrsum_b0_i0, 4, pGIn+0*inDim+i,   1) ;
+    _vel_vstu_vssl(vrsum_b1_i0, 4, pGIn+1*inDim+i,   1) ;
+    _vel_vstu_vssl(vrsum_b2_i0, 4, pGIn+2*inDim+i,   1) ;
+    _vel_vstu_vssl(vrsum_b3_i0, 4, pGIn+3*inDim+i,   1) ;
+    _vel_vstu_vssl(vrsum_b0_i1, 4, pGIn+0*inDim+i+1, 1) ;
+    _vel_vstu_vssl(vrsum_b1_i1, 4, pGIn+1*inDim+i+1, 1) ;
+    _vel_vstu_vssl(vrsum_b2_i1, 4, pGIn+2*inDim+i+1, 1) ;
+    _vel_vstu_vssl(vrsum_b3_i1, 4, pGIn+3*inDim+i+1, 1) ;
+    _vel_vstu_vssl(vrsum_b0_i2, 4, pGIn+0*inDim+i+2, 1) ;
+    _vel_vstu_vssl(vrsum_b1_i2, 4, pGIn+1*inDim+i+2, 1) ;
+    _vel_vstu_vssl(vrsum_b2_i2, 4, pGIn+2*inDim+i+2, 1) ;
+    _vel_vstu_vssl(vrsum_b3_i2, 4, pGIn+3*inDim+i+2, 1) ;
+    _vel_vstu_vssl(vrsum_b0_i3, 4, pGIn+0*inDim+i+3, 1) ;
+    _vel_vstu_vssl(vrsum_b1_i3, 4, pGIn+1*inDim+i+3, 1) ;
+    _vel_vstu_vssl(vrsum_b2_i3, 4, pGIn+2*inDim+i+3, 1) ;
+    _vel_vstu_vssl(vrsum_b3_i3, 4, pGIn+3*inDim+i+3, 1) ;
   }
 }
 
