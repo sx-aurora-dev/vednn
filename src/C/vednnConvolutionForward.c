@@ -142,6 +142,13 @@ vednnError_t vednnConvolutionForward(
 	      pParamConv, pParamOut, pDataOut );
 	}
       }
+      else if (pParamKernel->height == 2 && pParamKernel->width == 2)
+      {
+	return vednnConvolutionForward_wrapper(
+	    vednnConvolutionForward_direct_dil1_str1_padsame_ker2,
+	    pParamIn, pDataIn, pParamKernel, pDataKernel,
+	    pParamConv, pParamOut, pDataOut );
+      }
       else
       {
 	return vednnConvolutionForward_wrapper(
