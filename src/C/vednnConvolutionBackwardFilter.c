@@ -140,7 +140,9 @@ vednnError_t vednnConvolutionBackwardFilter(
       }
     }
     else if (pParamConv->dilationHeight == 1 && pParamConv->dilationWidth == 1
-	  && pParamConv->padHeight == 0 && pParamConv->padWidth == 0 )
+	  && pParamConv->padHeight == 0 && pParamConv->padWidth == 0
+	  && pParamGradOut->height == (pParamIn->height - pParamGradKernel->height) / pParamConv->strideHeight + 1
+	  && pParamGradOut->width == (pParamIn->width - pParamGradKernel->width) / pParamConv->strideWidth + 1 )
     {
       if ( pParamGradKernel->height == 3 && pParamGradKernel->width == 3
 	   && pParamConv->strideHeight == 1 && pParamConv->strideWidth == 1

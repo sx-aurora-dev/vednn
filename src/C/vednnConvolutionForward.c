@@ -154,7 +154,9 @@ vednnError_t vednnConvolutionForward(
       }
     }
     if ( pParamConv->dilationHeight == 1 && pParamConv->dilationWidth == 1
-	&& pParamConv->padHeight == 0  && pParamConv->padWidth == 0 )
+	&& pParamConv->padHeight == 0  && pParamConv->padWidth == 0
+	&& pParamOut->height == (pParamIn->height - pParamKernel->height) / pParamConv->strideHeight + 1
+	&& pParamOut->width == (pParamIn->width - pParamKernel->width) / pParamConv->strideWidth + 1 )
     {
       if (pParamConv->strideHeight == 1 && pParamConv->strideWidth == 1 )
       {
