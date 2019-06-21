@@ -75,8 +75,8 @@ vednnError_t vednnConvolutionForward(
     // [todo] add variations
     if (pParamConv->strideHeight == 1 && pParamConv->strideWidth == 1
 	&& pParamConv->dilationHeight == 1 && pParamConv->dilationWidth == 1
-	&& 2 * pParamConv->padHeight + 1 == pParamKernel->height
-	&& 2 * pParamConv->padWidth + 1 == pParamKernel->width)
+	&& pParamIn->height == pParamOut->height
+	&& pParamIn->width == pParamOut->width )
     {
       if (pParamKernel->width == 1 && pParamKernel->height == 1)
       {
@@ -94,66 +94,63 @@ vednnError_t vednnConvolutionForward(
 	      pParamConv, pParamOut, pDataOut);
 	}
       }
-      else
+      else if (pParamKernel->height == 3 && pParamKernel->width == 3)
       {
-	if (pParamKernel->height == 3 && pParamKernel->width == 3)
+	if (pParamKernel->inChannel == pParamConv->group)
 	{
-	  if (pParamKernel->inChannel == pParamConv->group)
-	  {
-	    if (pParamOut->width <= 128)
-	    {
-	      return vednnConvolutionForward_wrapper(
-		  vednnConvolutionForward_direct_dil1_str1_padsame_ker3_c1_owU128,
-		  pParamIn, pDataIn, pParamKernel, pDataKernel,
-		  pParamConv, pParamOut, pDataOut );
-	    }
-	    else {
-	      return vednnConvolutionForward_wrapper(
-		  vednnConvolutionForward_direct_dil1_str1_padsame_ker3_c1,
-		  pParamIn, pDataIn, pParamKernel, pDataKernel,
-		  pParamConv, pParamOut, pDataOut );
-	    }
-	  }
-	  else if (pParamKernel->inChannel % 1024 == 0)
+	  if (pParamOut->width <= 128)
 	  {
 	    return vednnConvolutionForward_wrapper(
-		vednnConvolutionForward_direct_dil1_str1_padsame_ker3_c1024x,
-		pParamIn, pDataIn, pParamKernel, pDataKernel,
-		pParamConv, pParamOut, pDataOut );
-	  }
-	  else
-	  {
-	    return vednnConvolutionForward_wrapper(
-		vednnConvolutionForward_direct_dil1_str1_padsame_ker3,
-		pParamIn, pDataIn, pParamKernel, pDataKernel,
-		pParamConv, pParamOut, pDataOut );
-	  }
-	}
-	else if (pParamKernel->height == 5 && pParamKernel->width == 5)
-	{
-	  if( pParamOut->width <= 128 ) {
-	    return vednnConvolutionForward_wrapper(
-		vednnConvolutionForward_direct_dil1_str1_padsame_ker5_owU128,
+		vednnConvolutionForward_direct_dil1_str1_padsame_ker3_c1_owU128,
 		pParamIn, pDataIn, pParamKernel, pDataKernel,
 		pParamConv, pParamOut, pDataOut );
 	  }
 	  else {
 	    return vednnConvolutionForward_wrapper(
-		vednnConvolutionForward_direct_dil1_str1_padsame_ker5,
+		vednnConvolutionForward_direct_dil1_str1_padsame_ker3_c1,
 		pParamIn, pDataIn, pParamKernel, pDataKernel,
 		pParamConv, pParamOut, pDataOut );
 	  }
 	}
+	else if (pParamKernel->inChannel % 1024 == 0)
+	{
+	  return vednnConvolutionForward_wrapper(
+	      vednnConvolutionForward_direct_dil1_str1_padsame_ker3_c1024x,
+	      pParamIn, pDataIn, pParamKernel, pDataKernel,
+	      pParamConv, pParamOut, pDataOut );
+	}
 	else
 	{
 	  return vednnConvolutionForward_wrapper(
-	      vednnConvolutionForward_direct_dil1_str1_padsame,
+	      vednnConvolutionForward_direct_dil1_str1_padsame_ker3,
 	      pParamIn, pDataIn, pParamKernel, pDataKernel,
 	      pParamConv, pParamOut, pDataOut );
 	}
       }
+      else if (pParamKernel->height == 5 && pParamKernel->width == 5)
+      {
+	if( pParamOut->width <= 128 ) {
+	  return vednnConvolutionForward_wrapper(
+	      vednnConvolutionForward_direct_dil1_str1_padsame_ker5_owU128,
+	      pParamIn, pDataIn, pParamKernel, pDataKernel,
+	      pParamConv, pParamOut, pDataOut );
+	}
+	else {
+	  return vednnConvolutionForward_wrapper(
+	      vednnConvolutionForward_direct_dil1_str1_padsame_ker5,
+	      pParamIn, pDataIn, pParamKernel, pDataKernel,
+	      pParamConv, pParamOut, pDataOut );
+	}
+      }
+      else
+      {
+	return vednnConvolutionForward_wrapper(
+	    vednnConvolutionForward_direct_dil1_str1_padsame,
+	    pParamIn, pDataIn, pParamKernel, pDataKernel,
+	    pParamConv, pParamOut, pDataOut );
+      }
     }
-    if ( pParamConv->dilationHeight == 1 && pParamConv->dilationWidth == 1
+    else if ( pParamConv->dilationHeight == 1 && pParamConv->dilationWidth == 1
 	&& pParamConv->padHeight == 0  && pParamConv->padWidth == 0
 	&& pParamOut->height == (pParamIn->height - pParamKernel->height) / pParamConv->strideHeight + 1
 	&& pParamOut->width == (pParamIn->width - pParamKernel->width) / pParamConv->strideWidth + 1 )
