@@ -99,12 +99,12 @@ vednnError_t vednnConvolutionForwardAddBias(
 ) ;
 
 vednnError_t vednnConvolutionBackwardData(
-    const vednnTensorParam_t 		*pParamGradIn,
-    const void 				*pDataGradIn,
+    const vednnTensorParam_t 		*pParamGradOut,
+    const void 				*pDataGradOut,
     const vednnFilterParam_t		*pParamKernel,
     const void 				*pDataKernel,
-    const vednnTensorParam_t 		*pParamGradOut,
-    void 				*pDataGradOut,
+    const vednnTensorParam_t 		*pParamGradIn,
+    void 				*pDataGradIn,
     const vednnConvolutionParam_t	*pParamConv,
     vednnConvolutionAlgorithm_t 	algo
 ) ;
