@@ -75,11 +75,11 @@ vednnError_t vednnMaxPoolingForward(
   if( pParamPool->padHeight == 0 && pParamPool->padWidth == 0
       && pParamPool->strideHeight == pParamPool->windowHeight
       && pParamPool->strideWidth == pParamPool->windowWidth
-      && pParamOut->height*pParamPool->strideHeight == pParamIn->height
+      && pParamOut->height*pParamPool->strideHeight <= pParamIn->height
       && pParamOut->width*pParamPool->strideWidth == pParamIn->width )
   {
 
-    if( pParamOut->width <= 128 )
+    if( pParamOut->width <= 128   )
     {
       if( (pParamPool->windowWidth & 0x01) == 0
 	  && (((uint64_t)pDataIn) & 0x07) == 0 )
