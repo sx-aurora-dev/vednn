@@ -81,8 +81,8 @@ vednnError_t vednnConvolutionBackwardFilter(
     // [todo] add variations
     if (pParamConv->strideHeight == 1 && pParamConv->strideWidth == 1
 	&& pParamConv->dilationHeight == 1 && pParamConv->dilationWidth == 1
-	&& 2 * pParamConv->padHeight + 1 == pParamGradKernel->height
-	&& 2 * pParamConv->padWidth + 1 == pParamGradKernel->width)
+	&& pParamIn->height == pParamGradOut->height
+	&& pParamIn->width == pParamGradOut->width )
     {
       if (pParamGradKernel->height == 1 && pParamGradKernel->width == 1)
       {
@@ -130,6 +130,13 @@ vednnError_t vednnConvolutionBackwardFilter(
 	      pParamIn, pDataIn, pParamGradOut, pDataGradOut,
 	      pParamConv, pParamGradKernel, pDataGradKernel );
 	}
+      }
+      else if (pParamGradKernel->height == 2 && pParamGradKernel->width == 2)
+      {
+	return vednnConvolutionBackwardFilter_wrapper(
+	    vednnConvolutionBackwardFilter_direct_dil1_str1_padsame_ker2,
+	    pParamIn, pDataIn, pParamGradOut, pDataGradOut,
+	    pParamConv, pParamGradKernel, pDataGradKernel );
       }
       else
       {
