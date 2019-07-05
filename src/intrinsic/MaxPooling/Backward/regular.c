@@ -79,6 +79,17 @@ vednnError_t vednnMaxPoolingBackward_regular(
 	    } // windowHeight
 	  } // outWidth
 	} // outHeight
+	{
+	  const int64_t y = outHeight*strideHeight ;
+	  if( y < inHeight ) {
+	    const int64_t inIndex = NCHW_IDX(n,c,y,0,inChannel,inHeight,inWidth) ;
+	    for(int64_t xy=0; xy<(inHeight-y)*inWidth; xy+=VLEN) {
+	      const int vl = (inHeight-y)*inWidth - xy <= VLEN ? (inHeight-y)*inWidth - xy : VLEN ;
+	      _ve_lvl(vl) ;
+	      _ve_vstu_vss(_ve_vbrdu_vs_f32(0.f), 4, pGIn+inIndex+xy) ;
+	    }
+	  }
+	}
       } // channel
     } // batch
   }

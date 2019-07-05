@@ -109,6 +109,17 @@ vednnError_t vednnMaxPoolingBackward_regular_ww2X_owU128_ialigned(
 	    } // windowWidth
 	  } // windowHeight
 	} // outHeight
+	{
+	  const int64_t y = outHeight*strideHeight ;
+	  if( y < inHeight ) {
+	    const int64_t inIndex = NCHW_IDX(n,c,y,0,inChannel,inHeight,inWidth) ;
+	    for(int64_t xy=0; xy<(inHeight-y)*inWidth; xy+=VLEN*2) {
+	      const int vl = ((inHeight-y)*inWidth - xy <= 2*VLEN ? (inHeight-y)*inWidth - xy : 2*VLEN) >> 1 ;
+	      _ve_lvl(vl) ;
+	      _ve_vst_vss(_ve_vbrd_vs_i64(0UL), 8, pGIn+inIndex+xy) ;
+	    }
+	  }
+	}
       } // channel
     } // batch
   }
