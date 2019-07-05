@@ -133,10 +133,18 @@ vednnError_t vednnConvolutionBackwardFilter(
       }
       else if (pParamGradKernel->height == 2 && pParamGradKernel->width == 2)
       {
-	return vednnConvolutionBackwardFilter_wrapper(
-	    vednnConvolutionBackwardFilter_direct_dil1_str1_padsame_ker2,
-	    pParamIn, pDataIn, pParamGradOut, pDataGradOut,
-	    pParamConv, pParamGradKernel, pDataGradKernel );
+	if( pParamGradOut->width <= 128 ) {
+	  return vednnConvolutionBackwardFilter_wrapper(
+	      vednnConvolutionBackwardFilter_direct_dil1_str1_padsame_ker2_owU128,
+	      pParamIn, pDataIn, pParamGradOut, pDataGradOut,
+	      pParamConv, pParamGradKernel, pDataGradKernel );
+	}
+	else {
+	  return vednnConvolutionBackwardFilter_wrapper(
+	      vednnConvolutionBackwardFilter_direct_dil1_str1_padsame_ker2,
+	      pParamIn, pDataIn, pParamGradOut, pDataGradOut,
+	      pParamConv, pParamGradKernel, pDataGradKernel );
+	}
       }
       else
       {
