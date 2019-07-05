@@ -126,4 +126,15 @@ vednnConvolutionBackwardData_direct_dil1_str1_padsame_ker5(
     void * restrict 				pDataGradIn
 ) ;
 
+vednnError_t
+vednnConvolutionBackwardData_direct_dil1_str1_padsame_ker2(
+    const vednnTensorParam_t * restrict 	pParamGradOut,
+    const void * restrict 			pDataGradOut,
+    const vednnFilterParam_t * restrict 	pParamKernel,
+    const void * restrict 			pDataKernel,
+    const vednnConvolutionParam_t * restrict 	pParamConv,
+    const vednnTensorParam_t * restrict 	pParamGradIn,
+    void * restrict 				pDataGradIn
+) ;
+
 #endif /* SRC_VEDNNCONVOLUTION_H_ */
