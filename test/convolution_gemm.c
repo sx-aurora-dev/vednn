@@ -26,13 +26,16 @@ static inline int is_a_ge_zero_and_a_lt_b(int a, int b) {
 static void
 im2col_cpu(const float * restrict data_im, const int channels,
            const int height, const int width, const int kernel_h, const int kernel_w,
+           const int output_h, const int output_w,
            const int pad_h, const int pad_w,
            const int stride_h, const int stride_w,
            const int dilation_h, const int dilation_w,
            float * restrict data_col)
 {
+#if 0
     const int output_h = (height + 2 * pad_h - (dilation_h * (kernel_h - 1) + 1)) / stride_h + 1;
     const int output_w = (width + 2 * pad_w -  (dilation_w * (kernel_w - 1) + 1)) / stride_w + 1;
+#endif
     const int channel_size = height * width;
 
     int channel;
@@ -76,6 +79,7 @@ static void
 col2im_cpu(
     const float* data_col, const int channels,
     const int height, const int width, const int kernel_h, const int kernel_w,
+    const int output_h, const int output_w,
     const int pad_h, const int pad_w,
     const int stride_h, const int stride_w,
     const int dilation_h, const int dilation_w,
@@ -83,8 +87,10 @@ col2im_cpu(
 
   memset(data_im, 0, sizeof(float)*height*width*channels) ;
 
+#if 0
   const int output_h = (height + 2 * pad_h - (dilation_h * (kernel_h - 1) + 1)) / stride_h + 1;
   const int output_w = (width + 2 * pad_w -  (dilation_w * (kernel_w - 1) + 1)) / stride_w + 1;
+#endif
   const int channel_size = height * width;
 
   int channel;
@@ -201,7 +207,7 @@ convolution_forward_gemm(
                 int K = inChannelGroup * kernWidth * kernHeight;
 
                 im2col_cpu(&pIn[inOffset],
-                           inChannelGroup, inHeight, inWidth, kernHeight, kernWidth,
+                           inChannelGroup, inHeight, inWidth, kernHeight, kernWidth, outHeight, outWidth,
                            padHeight, padWidth, strideHeight, strideWidth, dilationHeight, dilationWidth,
                            pColBuff);
 
@@ -290,7 +296,7 @@ convolution_backward_data_gemm(
 		    &FZERO, pColBuff, &N);
 
 	      col2im_cpu(pColBuff,
-			 gInChannelGroup, gInHeight, gInWidth, kernHeight, kernWidth,
+			 gInChannelGroup, gInHeight, gInWidth, kernHeight, kernWidth, gOutHeight, gOutWidth,
 			 padHeight, padWidth, strideHeight, strideWidth, dilationHeight, dilationWidth,
 			 &pGradIn[gInOffset]);
             }
@@ -361,7 +367,7 @@ convolution_backward_filter_gemm(
             }
             else {
 	      im2col_cpu(&pIn[inOffset],
-			 inChannelGroup, inHeight, inWidth, kernHeight, kernWidth,
+			 inChannelGroup, inHeight, inWidth, kernHeight, kernWidth, outHeight, outWidth,
 			 padHeight, padWidth, strideHeight, strideWidth, dilationHeight, dilationWidth,
 			 pColBuff);
 

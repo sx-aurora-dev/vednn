@@ -937,7 +937,9 @@ int main(int argc, char **argv)
     int testtype     = 0 ;
     int flagCSV	     = 0 ;
 
-    while ((opt = getopt(argc, argv, "p:CH:T:")) != -1) {
+    int flagNoMkConsistent = 0 ; 
+
+    while ((opt = getopt(argc, argv, "p:CH:T:n")) != -1) {
         switch (opt) {
         case 'p':
           pParamPath = optarg;
@@ -960,6 +962,7 @@ int main(int argc, char **argv)
 	    }
 	  }
         break;
+        case 'n':	flagNoMkConsistent = 1;		break;
         default: /* '?' */
             fprintf(stderr, "Unknown option.\n");
             exit(1);
@@ -998,7 +1001,7 @@ int main(int argc, char **argv)
         // at least avoid segfaults/bus errors/GEMM illegal value messages.
         // (exact output height width can be tricky to guess correctly).
         //
-        mkConsistent( &pParams[i] );
+        if(!flagNoMkConsistent) mkConsistent( &pParams[i] );
     }
 
     switch(testtype) {

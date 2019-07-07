@@ -23,10 +23,10 @@ vednnConvolutionForward_direct_dil1_str1_padsame(
   const int64_t inWidth    = pParamIn->width;
   const int64_t inHeight   = pParamIn->height;
   const int64_t outChannel = pParamOut->channel;
-  const int64_t outWidth   = pParamOut->width;
-  const int64_t outHeight  = pParamOut->height;
-  const int64_t kernWidth  = pParamKernel->width;		/* must be 2*padWidth  + 1 */
-  const int64_t kernHeight = pParamKernel->height;		/* must be 2*padHeight + 1 */
+  const int64_t outWidth   = pParamOut->width;		/* must be equal to inWidth */
+  const int64_t outHeight  = pParamOut->height;		/* must be equal to inHeight */
+  const int64_t kernWidth  = pParamKernel->width;
+  const int64_t kernHeight = pParamKernel->height;
 
   const int64_t group          = pParamConv->group;
 //  const int64_t strideWidth    = pParamConv->strideWidth;	/* must be 1 */

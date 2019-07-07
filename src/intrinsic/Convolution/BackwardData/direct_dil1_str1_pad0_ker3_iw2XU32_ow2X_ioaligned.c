@@ -124,9 +124,9 @@ vednnConvolutionBackwardData_direct_dil1_str1_pad0_ker3_iw2XU32_ow2X_ioaligned(
 
 	      const float *pKerValue = pKernel + kernGroupOffset + ((c * gInChannelGroup + k) * kernHeight + 2) * kernWidth + 2;
 
-	      __vr vrgout_ptr_r2s2 = _ve_vsfa_vvss(vrhw, 2, (unsigned long)(pGOut+gOutIndex+(h-2)*gOutHeight-2)) ;
-	      __vr vrgout_ptr_r1s2 = _ve_vsfa_vvss(vrhw, 2, (unsigned long)(pGOut+gOutIndex+(h-1)*gOutHeight-2)) ;
-	      __vr vrgout_ptr_r0s2 = _ve_vsfa_vvss(vrhw, 2, (unsigned long)(pGOut+gOutIndex+(h-0)*gOutHeight-2)) ;
+	      __vr vrgout_ptr_r2s2 = _ve_vsfa_vvss(vrhw, 2, (unsigned long)(pGOut+gOutIndex+(h-2)*gOutWidth-2)) ;
+	      __vr vrgout_ptr_r1s2 = _ve_vsfa_vvss(vrhw, 2, (unsigned long)(pGOut+gOutIndex+(h-1)*gOutWidth-2)) ;
+	      __vr vrgout_ptr_r0s2 = _ve_vsfa_vvss(vrhw, 2, (unsigned long)(pGOut+gOutIndex+(h-0)*gOutWidth-2)) ;
 
 	      __vr vrgout_r2s2 = _ve_vgt_vvm(vrgout_ptr_r2s2, vmall_r2s2) ;
 	      __vr vrgout_r1s2 = _ve_vgt_vvm(vrgout_ptr_r1s2, vmall_r1s2) ;
@@ -206,9 +206,9 @@ vednnConvolutionBackwardData_direct_dil1_str1_pad0_ker3_iw2XU32_ow2X_ioaligned(
 
 	      const float *pKerValue = pKernel + kernGroupOffset + ((c * gInChannelGroup + k) * kernHeight + 2) * kernWidth + 2;
 
-	      __vr vrgout_ptr_r2s2 = _ve_vsfa_vvss(vrhw, 2, (unsigned long)(pGOut+gOutIndex+(h-2)*gOutHeight-2)) ;
-	      __vr vrgout_ptr_r1s2 = _ve_vsfa_vvss(vrhw, 2, (unsigned long)(pGOut+gOutIndex+(h-1)*gOutHeight-2)) ;
-	      __vr vrgout_ptr_r0s2 = _ve_vsfa_vvss(vrhw, 2, (unsigned long)(pGOut+gOutIndex+(h-0)*gOutHeight-2)) ;
+	      __vr vrgout_ptr_r2s2 = _ve_vsfa_vvss(vrhw, 2, (unsigned long)(pGOut+gOutIndex+(h-2)*gOutWidth-2)) ;
+	      __vr vrgout_ptr_r1s2 = _ve_vsfa_vvss(vrhw, 2, (unsigned long)(pGOut+gOutIndex+(h-1)*gOutWidth-2)) ;
+	      __vr vrgout_ptr_r0s2 = _ve_vsfa_vvss(vrhw, 2, (unsigned long)(pGOut+gOutIndex+(h-0)*gOutWidth-2)) ;
 
 	      __vr vrgout_r2s2 = _ve_vgt_vvm(vrgout_ptr_r2s2, vmall_r2s2) ;
 	      __vr vrgout_r1s2 = _ve_vgt_vvm(vrgout_ptr_r1s2, vmall_r1s2) ;
@@ -297,9 +297,9 @@ vednnConvolutionBackwardData_direct_dil1_str1_pad0_ker3_iw2XU32_ow2X_ioaligned(
 	      const float *pKerValue = pKernel + kernGroupOffset + ((c * gInChannelGroup + k) * kernHeight + 2) * kernWidth + 2;
 
 	      _ve_lvl(vl0) ;
-	      __vr vrgout_r2 = _ve_vld2d_vss((gOutWidthHalf<<(3+16))+8, pGOut+gOutIndex+(h-2)*gOutHeight-2) ;
-	      __vr vrgout_r1 = _ve_vld2d_vss((gOutWidthHalf<<(3+16))+8, pGOut+gOutIndex+(h-1)*gOutHeight-2) ;
-	      __vr vrgout_r0 = _ve_vld2d_vss((gOutWidthHalf<<(3+16))+8, pGOut+gOutIndex+(h-0)*gOutHeight-2) ;
+	      __vr vrgout_r2 = _ve_vld2d_vss((gOutWidthHalf<<(3+16))+8, pGOut+gOutIndex+(h-2)*gOutWidth-2) ;
+	      __vr vrgout_r1 = _ve_vld2d_vss((gOutWidthHalf<<(3+16))+8, pGOut+gOutIndex+(h-1)*gOutWidth-2) ;
+	      __vr vrgout_r0 = _ve_vld2d_vss((gOutWidthHalf<<(3+16))+8, pGOut+gOutIndex+(h-0)*gOutWidth-2) ;
 
 	      __vr vrgout_r2s2 = _ve_vcp_vvmv(vrgout_r2, vm_s2, _ve_vbrd_vs_i64(0UL)) ;
 	      __vr vrgout_r2s0 = _ve_vcp_vvmv(vrgout_r2, vm_s0, _ve_vbrd_vs_i64(0UL)) ;
@@ -398,9 +398,9 @@ vednnConvolutionBackwardData_direct_dil1_str1_pad0_ker3_iw2XU32_ow2X_ioaligned(
 	      const float *pKerValue = pKernel + kernGroupOffset + ((c * gInChannelGroup + k) * kernHeight + 2) * kernWidth + 2;
 
 	      _ve_lvl(vl0) ;
-	      __vr vrgout_r2 = _ve_vld2d_vss((gOutWidthHalf<<(3+16))+8, pGOut+gOutIndex+(h-2)*gOutHeight-2) ;
-	      __vr vrgout_r1 = _ve_vld2d_vss((gOutWidthHalf<<(3+16))+8, pGOut+gOutIndex+(h-1)*gOutHeight-2) ;
-	      __vr vrgout_r0 = _ve_vld2d_vss((gOutWidthHalf<<(3+16))+8, pGOut+gOutIndex+(h-0)*gOutHeight-2) ;
+	      __vr vrgout_r2 = _ve_vld2d_vss((gOutWidthHalf<<(3+16))+8, pGOut+gOutIndex+(h-2)*gOutWidth-2) ;
+	      __vr vrgout_r1 = _ve_vld2d_vss((gOutWidthHalf<<(3+16))+8, pGOut+gOutIndex+(h-1)*gOutWidth-2) ;
+	      __vr vrgout_r0 = _ve_vld2d_vss((gOutWidthHalf<<(3+16))+8, pGOut+gOutIndex+(h-0)*gOutWidth-2) ;
 
 	      __vr vrgout_r2s2 = _ve_vcp_vvmv(vrgout_r2, vm_s2, _ve_vbrd_vs_i64(0UL)) ;
 	      __vr vrgout_r2s0 = _ve_vcp_vvmv(vrgout_r2, vm_s0, _ve_vbrd_vs_i64(0UL)) ;
@@ -515,9 +515,9 @@ vednnConvolutionBackwardData_direct_dil1_str1_pad0_ker3_iw2XU32_ow2X_ioaligned(
 	      const float *pKerValue = pKernel + kernGroupOffset + ((c * gInChannelGroup + k) * kernHeight + 2) * kernWidth + 2;
 
 	      _ve_lvl(vl0) ;
-	      __vr vrgout_r2 = _ve_vld2d_vss((gOutWidthHalf<<(3+16))+8, pGOut+gOutIndex+(h-2)*gOutHeight-2) ;
-	      __vr vrgout_r1 = _ve_vld2d_vss((gOutWidthHalf<<(3+16))+8, pGOut+gOutIndex+(h-1)*gOutHeight-2) ;
-	      __vr vrgout_r0 = _ve_vld2d_vss((gOutWidthHalf<<(3+16))+8, pGOut+gOutIndex+(h-0)*gOutHeight-2) ;
+	      __vr vrgout_r2 = _ve_vld2d_vss((gOutWidthHalf<<(3+16))+8, pGOut+gOutIndex+(h-2)*gOutWidth-2) ;
+	      __vr vrgout_r1 = _ve_vld2d_vss((gOutWidthHalf<<(3+16))+8, pGOut+gOutIndex+(h-1)*gOutWidth-2) ;
+	      __vr vrgout_r0 = _ve_vld2d_vss((gOutWidthHalf<<(3+16))+8, pGOut+gOutIndex+(h-0)*gOutWidth-2) ;
 
 	      __vr vrgout_r2s2 = _ve_vcp_vvmv(vrgout_r2, vm_s2, _ve_vbrd_vs_i64(0UL)) ;
 	      __vr vrgout_r2s0 = _ve_vcp_vvmv(vrgout_r2, vm_s0, _ve_vbrd_vs_i64(0UL)) ;

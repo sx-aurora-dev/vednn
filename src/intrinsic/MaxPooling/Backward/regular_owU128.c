@@ -59,42 +59,53 @@ vednnError_t vednnMaxPoolingBackward_regular_owU128(
 
     for(int64_t n=0; n<batch; n++) {
       for(int64_t c=0; c<outChannel; c++) {
-	  for (int64_t h0=0; h0<outHeight; h0+=nH) {
-	    const int64_t w0 = 0 ;
-	    const int64_t vlen = outWidth * (outHeight - h0 < nH ? outHeight - h0 : nH) ;
+	for (int64_t h0=0; h0<outHeight; h0+=nH) {
+	  const int64_t w0 = 0 ;
+	  const int64_t vlen = outWidth * (outHeight - h0 < nH ? outHeight - h0 : nH) ;
 
-	    const int64_t outIndex  = NCHW_IDX(n,c,h0,w0,outChannel,outHeight,outWidth) ;
+	  const int64_t outIndex  = NCHW_IDX(n,c,h0,w0,outChannel,outHeight,outWidth) ;
 
-	    _ve_lvl(vlen) ;
+	  _ve_lvl(vlen) ;
 
-	    __vr vrout  = _ve_vldu_vss(4, pOut+outIndex) ;
-	    __vr vrgout = _ve_vldu_vss(4, pGOut+outIndex) ;
+	  __vr vrout  = _ve_vldu_vss(4, pOut+outIndex) ;
+	  __vr vrgout = _ve_vldu_vss(4, pGOut+outIndex) ;
 
-	    __vm256 vm_not_found = _ve_vfmkat_m() ;
+	  __vm256 vm_not_found = _ve_vfmkat_m() ;
 
-	    for(int64_t ph=0; ph<windowHeight; ph++) {
-	      const int64_t y0 = h0*strideHeight + ph ;
+	  for(int64_t ph=0; ph<windowHeight; ph++) {
+	    const int64_t y0 = h0*strideHeight + ph ;
 
-	      for(int64_t pw=0; pw<windowWidth; pw++) {
-		const int64_t x0 = w0*strideWidth + pw ;
-		const int64_t inIndex = NCHW_IDX(n,c,y0,x0,inChannel,inHeight,inWidth) ;
+	    for(int64_t pw=0; pw<windowWidth; pw++) {
+	      const int64_t x0 = w0*strideWidth + pw ;
+	      const int64_t inIndex = NCHW_IDX(n,c,y0,x0,inChannel,inHeight,inWidth) ;
 
-		__vr vrin_addr  = _ve_vsfa_vvss(vri_idx, 2, (unsigned long)&pIn[inIndex]) ;
-		__vr vrin = _ve_vgtu_vv(vrin_addr) ;
+	      __vr vrin_addr  = _ve_vsfa_vvss(vri_idx, 2, (unsigned long)&pIn[inIndex]) ;
+	      __vr vrin = _ve_vgtu_vv(vrin_addr) ;
 
-		__vr vrgin_addr = _ve_vsfa_vvss(vri_idx, 2, (unsigned long)&pGIn[inIndex]) ;
+	      __vr vrgin_addr = _ve_vsfa_vvss(vri_idx, 2, (unsigned long)&pGIn[inIndex]) ;
 
-		__vm256 vm_equal = _ve_vfmks_mcv(VECC_EQ, _ve_vfcmps_vvv(vrout,vrin)) ;
-		__vm256 vm_and   = _ve_andm_mmm(vm_equal, vm_not_found) ;
-		vm_not_found = _ve_nndm_mmm(vm_equal, vm_not_found) ;
+	      __vm256 vm_equal = _ve_vfmks_mcv(VECC_EQ, _ve_vfcmps_vvv(vrout,vrin)) ;
+	      __vm256 vm_and   = _ve_andm_mmm(vm_equal, vm_not_found) ;
+	      vm_not_found = _ve_nndm_mmm(vm_equal, vm_not_found) ;
 
-		__vr vrgin = _ve_vmrg_vvvm(_ve_vbrdu_vs_f32(0.f), vrgout, vm_and) ;
+	      __vr vrgin = _ve_vmrg_vvvm(_ve_vbrdu_vs_f32(0.f), vrgout, vm_and) ;
 
-		_ve_vscu_vv(vrgin, vrgin_addr) ;
+	      _ve_vscu_vv(vrgin, vrgin_addr) ;
 
-	      } // windowWidth
-	    } // windowHeight
+	    } // windowWidth
+	  } // windowHeight
 	} // outHeight
+	{
+	  const int64_t y = outHeight*strideHeight ;
+	  if( y < inHeight ) {
+	    const int64_t inIndex = NCHW_IDX(n,c,y,0,inChannel,inHeight,inWidth) ;
+	    for(int64_t xy=0; xy<(inHeight-y)*inWidth; xy+=VLEN) {
+	      const int vl = (inHeight-y)*inWidth - xy <= VLEN ? (inHeight-y)*inWidth - xy : VLEN ;
+	      _ve_lvl(vl) ;
+	      _ve_vstu_vss(_ve_vbrdu_vs_f32(0.f), 4, pGIn+inIndex+xy) ;
+	    }
+	  }
+	}
       } // channel
     } // batch
   }

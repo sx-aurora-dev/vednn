@@ -98,7 +98,7 @@ vednnError_t vednnMaxPoolingBackward(
   if( pParamPool->padHeight == 0 && pParamPool->padWidth == 0
       && pParamPool->strideHeight == pParamPool->windowHeight
       && pParamPool->strideWidth == pParamPool->windowWidth
-      && pParamOut->height*pParamPool->strideHeight == pParamIn->height
+      && pParamOut->height*pParamPool->strideHeight <= pParamIn->height
       && pParamOut->width*pParamPool->strideWidth == pParamIn->width )
   {
 
