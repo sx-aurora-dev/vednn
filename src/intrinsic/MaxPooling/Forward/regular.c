@@ -5,7 +5,7 @@
 
 #include "vednn.h"
 
-#include "veintrin.h"
+#include "velintrin.h"
 #define VLEN	(256)
 
 #define NCHW_IDX(n,c,h,w,cl,hl,wl) ((((n)*(cl)+(c))*(hl)+(h))*(wl)+(w))
@@ -45,9 +45,7 @@ vednnError_t vednnMaxPoolingForward_regular(
 
 	    const int64_t outIndex  = NCHW_IDX(n,c,h,w,outChannel,outHeight,outWidth) ;
 
-	    _ve_lvl(vlen) ;
-
-	    __vr vrout = _ve_vbrdu_vs_f32(-FLT_MAX) ;
+	    __vr vrout = _vel_vbrds_vsl(-FLT_MAX, vlen) ;
 
 	    for(int64_t ph=0; ph<windowHeight; ph++) {
 	      const int64_t y = h*strideHeight + ph ;
@@ -56,15 +54,14 @@ vednnError_t vednnMaxPoolingForward_regular(
 		const int64_t x = w*strideWidth + pw ;
 		const int64_t inIndex = NCHW_IDX(n,c,y,x,inChannel,inHeight,inWidth) ;
 
-		__vr vrin = _ve_vldu_vss(4*strideWidth,pIn+inIndex) ;
+		__vr vrin = _vel_vldu_vssl(4*strideWidth,pIn+inIndex, vlen) ;
 
-		vrout = _ve_vfmaxs_vvv(vrin,vrout) ;
-
+		vrout = _vel_vfmaxs_vvvl(vrin,vrout, vlen) ;
 
 	      } // windowWidth
 	    } // windowHeight
 
-	    _ve_vstu_vss(vrout, 4, pOut+outIndex) ;
+	    _vel_vstu_vssl(vrout, 4, pOut+outIndex, vlen) ;
 	  } // outWidth
 	} // outHeight
       } // channel
