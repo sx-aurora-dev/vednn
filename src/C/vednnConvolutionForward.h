@@ -103,17 +103,6 @@ vednnConvolutionForward_direct_dil1_str1_pad0_ker1(
 ) ;
 
 vednnError_t
-vednnConvolutionForward_direct_dil1_str1_pad0_ker1_c1024x(
-    const vednnTensorParam_t * restrict 	pParamIn,
-    const void * restrict 			pDataIn,
-    const vednnFilterParam_t * restrict 	pParamKernel,
-    const void * restrict 			pDataKernel,
-    const vednnConvolutionParam_t * restrict 	pParamConv,
-    const vednnTensorParam_t * restrict 	pParamOut,
-    void * restrict 				pDataOut
-) ;
-
-vednnError_t
 vednnConvolutionForward_direct_dil1_str1_padsame(
     const vednnTensorParam_t * restrict 	pParamIn,
     const void * restrict 			pDataIn,

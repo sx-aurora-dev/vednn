@@ -80,19 +80,10 @@ vednnError_t vednnConvolutionForward(
     {
       if (pParamKernel->width == 1 && pParamKernel->height == 1)
       {
-	if (pParamKernel->inChannel % 1024 == 0)
-	{
-	  return vednnConvolutionForward_wrapper(
-	      vednnConvolutionForward_direct_dil1_str1_pad0_ker1_c1024x,
-	      pParamIn, pDataIn, pParamKernel, pDataKernel,
-	      pParamConv, pParamOut, pDataOut);
-	}
-	else {
-	  return vednnConvolutionForward_wrapper(
-	      vednnConvolutionForward_direct_dil1_str1_pad0_ker1,
-	      pParamIn, pDataIn, pParamKernel, pDataKernel,
-	      pParamConv, pParamOut, pDataOut);
-	}
+	return vednnConvolutionForward_wrapper(
+	    vednnConvolutionForward_direct_dil1_str1_pad0_ker1,
+	    pParamIn, pDataIn, pParamKernel, pDataKernel,
+	    pParamConv, pParamOut, pDataOut);
       }
       else if (pParamKernel->height == 3 && pParamKernel->width == 3)
       {
