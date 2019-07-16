@@ -178,7 +178,13 @@ vednnError_t vednnConvolutionBackwardFilter(
 	      pParamConv, pParamGradKernel, pDataGradKernel );
       }
       else if (pParamGradKernel->height == 1 && pParamGradKernel->width == 1) {
-	if (pParamGradOut->width <= 32 ) {
+	if (pParamGradOut->height * pParamGradOut->width <= 128 ) {
+	  return vednnConvolutionBackwardFilter_wrapper(
+	      vednnConvolutionBackwardFilter_direct_dil1_pad0_ker1_ohwU128,
+	      pParamIn, pDataIn, pParamGradOut, pDataGradOut,
+	      pParamConv, pParamGradKernel, pDataGradKernel );
+	}
+	else if (pParamGradOut->width <= 32 ) {
 	  return vednnConvolutionBackwardFilter_wrapper(
 	      vednnConvolutionBackwardFilter_direct_dil1_pad0_ker1_owU32,
 	      pParamIn, pDataIn, pParamGradOut, pDataGradOut,
