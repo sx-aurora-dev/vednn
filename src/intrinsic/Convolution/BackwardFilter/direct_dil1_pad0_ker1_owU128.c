@@ -45,7 +45,6 @@ static inline void f1(
 	const int64_t gOutIndex0  = outGroupOffset + ((n * gOutChannel + k  ) * gOutHeight ) * gOutWidth + gop;
 
 	__vr vrpin_c0 = _ve_vsfa_vvss(vrhw, 2, (uint64_t)pInChannel) ;
-
 	__vr vrin_c0 = _ve_vgtu_vv(vrpin_c0) ;
 
 	__vr vrgout0 = _ve_vldu_vss(4, pGOut+gOutIndex0) ;
@@ -93,9 +92,8 @@ static inline void f1(
 	const int64_t gOutIndex0  = outGroupOffset + ((n * gOutChannel + k  ) * gOutHeight ) * gOutWidth + gop;
 
 	__vr vrpin_c0 = _ve_vsfa_vvss(vrhw, 2, (uint64_t)pInChannel) ;
-	__vr vrpin_c1 = _ve_vaddul_vsv(1*4*inHeight*inWidth, vrpin_c0) ;
-
 	__vr vrin_c0 = _ve_vgtu_vv(vrpin_c0) ;
+	__vr vrpin_c1 = _ve_vaddul_vsv(1*4*inHeight*inWidth, vrpin_c0) ;
 	__vr vrin_c1 = _ve_vgtu_vv(vrpin_c1) ;
 
 	__vr vrgout0 = _ve_vldu_vss(4, pGOut+gOutIndex0) ;
@@ -136,13 +134,12 @@ static inline void f1(
 	const int64_t gOutIndex0  = outGroupOffset + ((n * gOutChannel + k  ) * gOutHeight ) * gOutWidth + gop;
 
 	__vr vrpin_c0 = _ve_vsfa_vvss(vrhw, 2, (uint64_t)pInChannel) ;
-	__vr vrpin_c1 = _ve_vaddul_vsv(1*4*inHeight*inWidth, vrpin_c0) ;
-	__vr vrpin_c2 = _ve_vaddul_vsv(2*4*inHeight*inWidth, vrpin_c0) ;
-	__vr vrpin_c3 = _ve_vaddul_vsv(3*4*inHeight*inWidth, vrpin_c0) ;
-
 	__vr vrin_c0 = _ve_vgtu_vv(vrpin_c0) ;
+	__vr vrpin_c1 = _ve_vaddul_vsv(1*4*inHeight*inWidth, vrpin_c0) ;
 	__vr vrin_c1 = _ve_vgtu_vv(vrpin_c1) ;
+	__vr vrpin_c2 = _ve_vaddul_vsv(2*4*inHeight*inWidth, vrpin_c0) ;
 	__vr vrin_c2 = _ve_vgtu_vv(vrpin_c2) ;
+	__vr vrpin_c3 = _ve_vaddul_vsv(3*4*inHeight*inWidth, vrpin_c0) ;
 	__vr vrin_c3 = _ve_vgtu_vv(vrpin_c3) ;
 
 	__vr vrgout0 = _ve_vldu_vss(4, pGOut+gOutIndex0) ;
@@ -194,21 +191,20 @@ static inline void f1(
 	const int64_t gOutIndex0  = outGroupOffset + ((n * gOutChannel + k  ) * gOutHeight ) * gOutWidth + gop;
 
 	__vr vrpin_c0 = _ve_vsfa_vvss(vrhw, 2, (uint64_t)pInChannel) ;
-	__vr vrpin_c1 = _ve_vaddul_vsv(1*4*inHeight*inWidth, vrpin_c0) ;
-	__vr vrpin_c2 = _ve_vaddul_vsv(2*4*inHeight*inWidth, vrpin_c0) ;
-	__vr vrpin_c3 = _ve_vaddul_vsv(3*4*inHeight*inWidth, vrpin_c0) ;
-	__vr vrpin_c4 = _ve_vaddul_vsv(4*4*inHeight*inWidth, vrpin_c0) ;
-	__vr vrpin_c5 = _ve_vaddul_vsv(5*4*inHeight*inWidth, vrpin_c0) ;
-	__vr vrpin_c6 = _ve_vaddul_vsv(6*4*inHeight*inWidth, vrpin_c0) ;
-	__vr vrpin_c7 = _ve_vaddul_vsv(7*4*inHeight*inWidth, vrpin_c0) ;
-
 	__vr vrin_c0 = _ve_vgtu_vv(vrpin_c0) ;
+	__vr vrpin_c1 = _ve_vaddul_vsv(1*4*inHeight*inWidth, vrpin_c0) ;
 	__vr vrin_c1 = _ve_vgtu_vv(vrpin_c1) ;
+	__vr vrpin_c2 = _ve_vaddul_vsv(2*4*inHeight*inWidth, vrpin_c0) ;
 	__vr vrin_c2 = _ve_vgtu_vv(vrpin_c2) ;
+	__vr vrpin_c3 = _ve_vaddul_vsv(3*4*inHeight*inWidth, vrpin_c0) ;
 	__vr vrin_c3 = _ve_vgtu_vv(vrpin_c3) ;
+	__vr vrpin_c4 = _ve_vaddul_vsv(4*4*inHeight*inWidth, vrpin_c0) ;
 	__vr vrin_c4 = _ve_vgtu_vv(vrpin_c4) ;
+	__vr vrpin_c5 = _ve_vaddul_vsv(5*4*inHeight*inWidth, vrpin_c0) ;
 	__vr vrin_c5 = _ve_vgtu_vv(vrpin_c5) ;
+	__vr vrpin_c6 = _ve_vaddul_vsv(6*4*inHeight*inWidth, vrpin_c0) ;
 	__vr vrin_c6 = _ve_vgtu_vv(vrpin_c6) ;
+	__vr vrpin_c7 = _ve_vaddul_vsv(7*4*inHeight*inWidth, vrpin_c0) ;
 	__vr vrin_c7 = _ve_vgtu_vv(vrpin_c7) ;
 
 	__vr vrgout0 = _ve_vldu_vss(4, pGOut+gOutIndex0) ;
@@ -279,7 +275,6 @@ static inline void f2(
 	const int64_t gOutIndex1  = outGroupOffset + ((n * gOutChannel + k+1) * gOutHeight ) * gOutWidth + gop;
 
 	__vr vrpin_c0 = _ve_vsfa_vvss(vrhw, 2, (uint64_t)pInChannel) ;
-
 	__vr vrin_c0 = _ve_vgtu_vv(vrpin_c0) ;
 
 	__vr vrgout0 = _ve_vldu_vss(4, pGOut+gOutIndex0) ;
@@ -335,9 +330,8 @@ static inline void f2(
 	const int64_t gOutIndex1  = outGroupOffset + ((n * gOutChannel + k+1) * gOutHeight ) * gOutWidth + gop;
 
 	__vr vrpin_c0 = _ve_vsfa_vvss(vrhw, 2, (uint64_t)pInChannel) ;
-	__vr vrpin_c1 = _ve_vaddul_vsv(1*4*inHeight*inWidth, vrpin_c0) ;
-
 	__vr vrin_c0 = _ve_vgtu_vv(vrpin_c0) ;
+	__vr vrpin_c1 = _ve_vaddul_vsv(1*4*inHeight*inWidth, vrpin_c0) ;
 	__vr vrin_c1 = _ve_vgtu_vv(vrpin_c1) ;
 
 	__vr vrgout0 = _ve_vldu_vss(4, pGOut+gOutIndex0) ;
@@ -383,13 +377,12 @@ static inline void f2(
 	const int64_t gOutIndex1  = outGroupOffset + ((n * gOutChannel + k+1) * gOutHeight ) * gOutWidth + gop;
 
 	__vr vrpin_c0 = _ve_vsfa_vvss(vrhw, 2, (uint64_t)pInChannel) ;
-	__vr vrpin_c1 = _ve_vaddul_vsv(1*4*inHeight*inWidth, vrpin_c0) ;
-	__vr vrpin_c2 = _ve_vaddul_vsv(2*4*inHeight*inWidth, vrpin_c0) ;
-	__vr vrpin_c3 = _ve_vaddul_vsv(3*4*inHeight*inWidth, vrpin_c0) ;
-
 	__vr vrin_c0 = _ve_vgtu_vv(vrpin_c0) ;
+	__vr vrpin_c1 = _ve_vaddul_vsv(1*4*inHeight*inWidth, vrpin_c0) ;
 	__vr vrin_c1 = _ve_vgtu_vv(vrpin_c1) ;
+	__vr vrpin_c2 = _ve_vaddul_vsv(2*4*inHeight*inWidth, vrpin_c0) ;
 	__vr vrin_c2 = _ve_vgtu_vv(vrpin_c2) ;
+	__vr vrpin_c3 = _ve_vaddul_vsv(3*4*inHeight*inWidth, vrpin_c0) ;
 	__vr vrin_c3 = _ve_vgtu_vv(vrpin_c3) ;
 
 	__vr vrgout0 = _ve_vldu_vss(4, pGOut+gOutIndex0) ;
@@ -446,21 +439,20 @@ static inline void f2(
 	const int64_t gOutIndex1  = outGroupOffset + ((n * gOutChannel + k+1) * gOutHeight ) * gOutWidth + gop;
 
 	__vr vrpin_c0 = _ve_vsfa_vvss(vrhw, 2, (uint64_t)pInChannel) ;
-	__vr vrpin_c1 = _ve_vaddul_vsv(1*4*inHeight*inWidth, vrpin_c0) ;
-	__vr vrpin_c2 = _ve_vaddul_vsv(2*4*inHeight*inWidth, vrpin_c0) ;
-	__vr vrpin_c3 = _ve_vaddul_vsv(3*4*inHeight*inWidth, vrpin_c0) ;
-	__vr vrpin_c4 = _ve_vaddul_vsv(4*4*inHeight*inWidth, vrpin_c0) ;
-	__vr vrpin_c5 = _ve_vaddul_vsv(5*4*inHeight*inWidth, vrpin_c0) ;
-	__vr vrpin_c6 = _ve_vaddul_vsv(6*4*inHeight*inWidth, vrpin_c0) ;
-	__vr vrpin_c7 = _ve_vaddul_vsv(7*4*inHeight*inWidth, vrpin_c0) ;
-
 	__vr vrin_c0 = _ve_vgtu_vv(vrpin_c0) ;
+	__vr vrpin_c1 = _ve_vaddul_vsv(1*4*inHeight*inWidth, vrpin_c0) ;
 	__vr vrin_c1 = _ve_vgtu_vv(vrpin_c1) ;
+	__vr vrpin_c2 = _ve_vaddul_vsv(2*4*inHeight*inWidth, vrpin_c0) ;
 	__vr vrin_c2 = _ve_vgtu_vv(vrpin_c2) ;
+	__vr vrpin_c3 = _ve_vaddul_vsv(3*4*inHeight*inWidth, vrpin_c0) ;
 	__vr vrin_c3 = _ve_vgtu_vv(vrpin_c3) ;
+	__vr vrpin_c4 = _ve_vaddul_vsv(4*4*inHeight*inWidth, vrpin_c0) ;
 	__vr vrin_c4 = _ve_vgtu_vv(vrpin_c4) ;
+	__vr vrpin_c5 = _ve_vaddul_vsv(5*4*inHeight*inWidth, vrpin_c0) ;
 	__vr vrin_c5 = _ve_vgtu_vv(vrpin_c5) ;
+	__vr vrpin_c6 = _ve_vaddul_vsv(6*4*inHeight*inWidth, vrpin_c0) ;
 	__vr vrin_c6 = _ve_vgtu_vv(vrpin_c6) ;
+	__vr vrpin_c7 = _ve_vaddul_vsv(7*4*inHeight*inWidth, vrpin_c0) ;
 	__vr vrin_c7 = _ve_vgtu_vv(vrpin_c7) ;
 
 	__vr vrgout0 = _ve_vldu_vss(4, pGOut+gOutIndex0) ;
@@ -538,7 +530,6 @@ static inline void f4(
 	const int64_t gOutIndex3  = outGroupOffset + ((n * gOutChannel + k+3) * gOutHeight ) * gOutWidth + gop;
 
 	__vr vrpin_c0 = _ve_vsfa_vvss(vrhw, 2, (uint64_t)pInChannel) ;
-
 	__vr vrin_c0 = _ve_vgtu_vv(vrpin_c0) ;
 
 	__vr vrgout0 = _ve_vldu_vss(4, pGOut+gOutIndex0) ;
@@ -606,9 +597,8 @@ static inline void f4(
 	const int64_t gOutIndex3  = outGroupOffset + ((n * gOutChannel + k+3) * gOutHeight ) * gOutWidth + gop;
 
 	__vr vrpin_c0 = _ve_vsfa_vvss(vrhw, 2, (uint64_t)pInChannel) ;
-	__vr vrpin_c1 = _ve_vaddul_vsv(1*4*inHeight*inWidth, vrpin_c0) ;
-
 	__vr vrin_c0 = _ve_vgtu_vv(vrpin_c0) ;
+	__vr vrpin_c1 = _ve_vaddul_vsv(1*4*inHeight*inWidth, vrpin_c0) ;
 	__vr vrin_c1 = _ve_vgtu_vv(vrpin_c1) ;
 
 	__vr vrgout0 = _ve_vldu_vss(4, pGOut+gOutIndex0) ;
@@ -661,13 +651,12 @@ static inline void f4(
 	const int64_t gOutIndex3  = outGroupOffset + ((n * gOutChannel + k+3) * gOutHeight ) * gOutWidth + gop;
 
 	__vr vrpin_c0 = _ve_vsfa_vvss(vrhw, 2, (uint64_t)pInChannel) ;
-	__vr vrpin_c1 = _ve_vaddul_vsv(1*4*inHeight*inWidth, vrpin_c0) ;
-	__vr vrpin_c2 = _ve_vaddul_vsv(2*4*inHeight*inWidth, vrpin_c0) ;
-	__vr vrpin_c3 = _ve_vaddul_vsv(3*4*inHeight*inWidth, vrpin_c0) ;
-
 	__vr vrin_c0 = _ve_vgtu_vv(vrpin_c0) ;
+	__vr vrpin_c1 = _ve_vaddul_vsv(1*4*inHeight*inWidth, vrpin_c0) ;
 	__vr vrin_c1 = _ve_vgtu_vv(vrpin_c1) ;
+	__vr vrpin_c2 = _ve_vaddul_vsv(2*4*inHeight*inWidth, vrpin_c0) ;
 	__vr vrin_c2 = _ve_vgtu_vv(vrpin_c2) ;
+	__vr vrpin_c3 = _ve_vaddul_vsv(3*4*inHeight*inWidth, vrpin_c0) ;
 	__vr vrin_c3 = _ve_vgtu_vv(vrpin_c3) ;
 
 	__vr vrgout0 = _ve_vldu_vss(4, pGOut+gOutIndex0) ;
@@ -731,21 +720,20 @@ static inline void f4(
 	const int64_t gOutIndex3  = outGroupOffset + ((n * gOutChannel + k+3) * gOutHeight ) * gOutWidth + gop;
 
 	__vr vrpin_c0 = _ve_vsfa_vvss(vrhw, 2, (uint64_t)pInChannel) ;
-	__vr vrpin_c1 = _ve_vaddul_vsv(1*4*inHeight*inWidth, vrpin_c0) ;
-	__vr vrpin_c2 = _ve_vaddul_vsv(2*4*inHeight*inWidth, vrpin_c0) ;
-	__vr vrpin_c3 = _ve_vaddul_vsv(3*4*inHeight*inWidth, vrpin_c0) ;
-	__vr vrpin_c4 = _ve_vaddul_vsv(4*4*inHeight*inWidth, vrpin_c0) ;
-	__vr vrpin_c5 = _ve_vaddul_vsv(5*4*inHeight*inWidth, vrpin_c0) ;
-	__vr vrpin_c6 = _ve_vaddul_vsv(6*4*inHeight*inWidth, vrpin_c0) ;
-	__vr vrpin_c7 = _ve_vaddul_vsv(7*4*inHeight*inWidth, vrpin_c0) ;
-
 	__vr vrin_c0 = _ve_vgtu_vv(vrpin_c0) ;
+	__vr vrpin_c1 = _ve_vaddul_vsv(1*4*inHeight*inWidth, vrpin_c0) ;
 	__vr vrin_c1 = _ve_vgtu_vv(vrpin_c1) ;
+	__vr vrpin_c2 = _ve_vaddul_vsv(2*4*inHeight*inWidth, vrpin_c0) ;
 	__vr vrin_c2 = _ve_vgtu_vv(vrpin_c2) ;
+	__vr vrpin_c3 = _ve_vaddul_vsv(3*4*inHeight*inWidth, vrpin_c0) ;
 	__vr vrin_c3 = _ve_vgtu_vv(vrpin_c3) ;
+	__vr vrpin_c4 = _ve_vaddul_vsv(4*4*inHeight*inWidth, vrpin_c0) ;
 	__vr vrin_c4 = _ve_vgtu_vv(vrpin_c4) ;
+	__vr vrpin_c5 = _ve_vaddul_vsv(5*4*inHeight*inWidth, vrpin_c0) ;
 	__vr vrin_c5 = _ve_vgtu_vv(vrpin_c5) ;
+	__vr vrpin_c6 = _ve_vaddul_vsv(6*4*inHeight*inWidth, vrpin_c0) ;
 	__vr vrin_c6 = _ve_vgtu_vv(vrpin_c6) ;
+	__vr vrpin_c7 = _ve_vaddul_vsv(7*4*inHeight*inWidth, vrpin_c0) ;
 	__vr vrin_c7 = _ve_vgtu_vv(vrpin_c7) ;
 
 	__vr vrgout0 = _ve_vldu_vss(4, pGOut+gOutIndex0) ;
@@ -837,7 +825,6 @@ static inline void f8(
 	const int64_t gOutIndex7  = outGroupOffset + ((n * gOutChannel + k+7) * gOutHeight ) * gOutWidth + gop;
 
 	__vr vrpin_c0 = _ve_vsfa_vvss(vrhw, 2, (uint64_t)pInChannel) ;
-
 	__vr vrin_c0 = _ve_vgtu_vv(vrpin_c0) ;
 
 	__vr vrgout0 = _ve_vldu_vss(4, pGOut+gOutIndex0) ;
@@ -886,7 +873,6 @@ static inline void f8(
     _ve_vstu_vss(vrsum6_##CTOKEN, 4, pGKernel+kernelIndex6+(C)) ; \
     _ve_vstu_vss(vrsum7_##CTOKEN, 4, pGKernel+kernelIndex7+(C)) ;
 
-
     VFSUM_STORE_R1S1(0,c0)
 
     c+=1;
@@ -930,9 +916,8 @@ static inline void f8(
 	const int64_t gOutIndex7  = outGroupOffset + ((n * gOutChannel + k+7) * gOutHeight ) * gOutWidth + gop;
 
 	__vr vrpin_c0 = _ve_vsfa_vvss(vrhw, 2, (uint64_t)pInChannel) ;
-	__vr vrpin_c1 = _ve_vaddul_vsv(1*4*inHeight*inWidth, vrpin_c0) ;
-
 	__vr vrin_c0 = _ve_vgtu_vv(vrpin_c0) ;
+	__vr vrpin_c1 = _ve_vaddul_vsv(1*4*inHeight*inWidth, vrpin_c0) ;
 	__vr vrin_c1 = _ve_vgtu_vv(vrpin_c1) ;
 
 	__vr vrgout0 = _ve_vldu_vss(4, pGOut+gOutIndex0) ;
@@ -999,13 +984,12 @@ static inline void f8(
 	const int64_t gOutIndex7  = outGroupOffset + ((n * gOutChannel + k+7) * gOutHeight ) * gOutWidth + gop;
 
 	__vr vrpin_c0 = _ve_vsfa_vvss(vrhw, 2, (uint64_t)pInChannel) ;
-	__vr vrpin_c1 = _ve_vaddul_vsv(1*4*inHeight*inWidth, vrpin_c0) ;
-	__vr vrpin_c2 = _ve_vaddul_vsv(2*4*inHeight*inWidth, vrpin_c0) ;
-	__vr vrpin_c3 = _ve_vaddul_vsv(3*4*inHeight*inWidth, vrpin_c0) ;
-
 	__vr vrin_c0 = _ve_vgtu_vv(vrpin_c0) ;
+	__vr vrpin_c1 = _ve_vaddul_vsv(1*4*inHeight*inWidth, vrpin_c0) ;
 	__vr vrin_c1 = _ve_vgtu_vv(vrpin_c1) ;
+	__vr vrpin_c2 = _ve_vaddul_vsv(2*4*inHeight*inWidth, vrpin_c0) ;
 	__vr vrin_c2 = _ve_vgtu_vv(vrpin_c2) ;
+	__vr vrpin_c3 = _ve_vaddul_vsv(3*4*inHeight*inWidth, vrpin_c0) ;
 	__vr vrin_c3 = _ve_vgtu_vv(vrpin_c3) ;
 
 	__vr vrgout0 = _ve_vldu_vss(4, pGOut+gOutIndex0) ;
@@ -1083,21 +1067,20 @@ static inline void f8(
 	const int64_t gOutIndex7  = outGroupOffset + ((n * gOutChannel + k+7) * gOutHeight ) * gOutWidth + gop;
 
 	__vr vrpin_c0 = _ve_vsfa_vvss(vrhw, 2, (uint64_t)pInChannel) ;
-	__vr vrpin_c1 = _ve_vaddul_vsv(1*4*inHeight*inWidth, vrpin_c0) ;
-	__vr vrpin_c2 = _ve_vaddul_vsv(2*4*inHeight*inWidth, vrpin_c0) ;
-	__vr vrpin_c3 = _ve_vaddul_vsv(3*4*inHeight*inWidth, vrpin_c0) ;
-	__vr vrpin_c4 = _ve_vaddul_vsv(4*4*inHeight*inWidth, vrpin_c0) ;
-	__vr vrpin_c5 = _ve_vaddul_vsv(5*4*inHeight*inWidth, vrpin_c0) ;
-	__vr vrpin_c6 = _ve_vaddul_vsv(6*4*inHeight*inWidth, vrpin_c0) ;
-	__vr vrpin_c7 = _ve_vaddul_vsv(7*4*inHeight*inWidth, vrpin_c0) ;
-
 	__vr vrin_c0 = _ve_vgtu_vv(vrpin_c0) ;
+	__vr vrpin_c1 = _ve_vaddul_vsv(1*4*inHeight*inWidth, vrpin_c0) ;
 	__vr vrin_c1 = _ve_vgtu_vv(vrpin_c1) ;
+	__vr vrpin_c2 = _ve_vaddul_vsv(2*4*inHeight*inWidth, vrpin_c0) ;
 	__vr vrin_c2 = _ve_vgtu_vv(vrpin_c2) ;
+	__vr vrpin_c3 = _ve_vaddul_vsv(3*4*inHeight*inWidth, vrpin_c0) ;
 	__vr vrin_c3 = _ve_vgtu_vv(vrpin_c3) ;
+	__vr vrpin_c4 = _ve_vaddul_vsv(4*4*inHeight*inWidth, vrpin_c0) ;
 	__vr vrin_c4 = _ve_vgtu_vv(vrpin_c4) ;
+	__vr vrpin_c5 = _ve_vaddul_vsv(5*4*inHeight*inWidth, vrpin_c0) ;
 	__vr vrin_c5 = _ve_vgtu_vv(vrpin_c5) ;
+	__vr vrpin_c6 = _ve_vaddul_vsv(6*4*inHeight*inWidth, vrpin_c0) ;
 	__vr vrin_c6 = _ve_vgtu_vv(vrpin_c6) ;
+	__vr vrpin_c7 = _ve_vaddul_vsv(7*4*inHeight*inWidth, vrpin_c0) ;
 	__vr vrin_c7 = _ve_vgtu_vv(vrpin_c7) ;
 
 	__vr vrgout0 = _ve_vldu_vss(4, pGOut+gOutIndex0) ;
@@ -1137,6 +1120,7 @@ static inline void f8(
 #undef VFSUM_STORE_R1S1
   }
 }
+
 
 vednnError_t
 vednnConvolutionBackwardFilter_direct_dil1_pad0_ker1_owU128(
