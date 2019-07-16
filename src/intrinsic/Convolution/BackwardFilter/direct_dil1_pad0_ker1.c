@@ -97,7 +97,7 @@ static inline void f1(
 
     c+=2 ;
   }
-  if ( ((inChannelGroup >> 1) & 0x01) == 1 ) {
+  if ( ((inChannelGroup >> 2) & 0x01) == 1 ) {
     const int64_t kernelIndex0 = kernGroupOffset + k     * inChannelGroup + c ;
 
     _ve_lvl(VLEN) ;
@@ -307,7 +307,7 @@ static inline void f2(
 
     c+=2 ;
   }
-  if ( ((inChannelGroup >> 1) & 0x01) == 1 ) {
+  if ( ((inChannelGroup >> 2) & 0x01) == 1 ) {
     const int64_t kernelIndex0 = kernGroupOffset + k     * inChannelGroup + c ;
     const int64_t kernelIndex1 = kernGroupOffset + (k+1) * inChannelGroup + c ;
 
@@ -548,7 +548,7 @@ static inline void f4(
 
     c+=2 ;
   }
-  if ( ((inChannelGroup >> 1) & 0x01) == 1 ) {
+  if ( ((inChannelGroup >> 2) & 0x01) == 1 ) {
     const int64_t kernelIndex0 = kernGroupOffset + k     * inChannelGroup + c ;
     const int64_t kernelIndex1 = kernGroupOffset + (k+1) * inChannelGroup + c ;
     const int64_t kernelIndex2 = kernGroupOffset + (k+2) * inChannelGroup + c ;
@@ -843,7 +843,7 @@ static inline void f8(
 
     c+=2 ;
   }
-  if ( ((inChannelGroup >> 1) & 0x01) == 1 ) {
+  if ( ((inChannelGroup >> 2) & 0x01) == 1 ) {
     const int64_t kernelIndex0 = kernGroupOffset + k     * inChannelGroup + c ;
     const int64_t kernelIndex1 = kernGroupOffset + (k+1) * inChannelGroup + c ;
     const int64_t kernelIndex2 = kernGroupOffset + (k+2) * inChannelGroup + c ;
