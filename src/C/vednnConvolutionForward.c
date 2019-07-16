@@ -180,17 +180,36 @@ vednnError_t vednnConvolutionForward(
 	      pParamConv, pParamOut, pDataOut );
 	}
       }
-      else if (pParamOut->width <= 128) {
-	return vednnConvolutionForward_wrapper(
-	    vednnConvolutionForward_direct_dil1_pad0_owU128,
-	    pParamIn, pDataIn, pParamKernel, pDataKernel,
-	    pParamConv, pParamOut, pDataOut );
-      }
       else {
-	return vednnConvolutionForward_wrapper(
-	    vednnConvolutionForward_direct_dil1_pad0,
-	    pParamIn, pDataIn, pParamKernel, pDataKernel,
-	    pParamConv, pParamOut, pDataOut );
+	if( pParamKernel->width == 1 && pParamKernel->height == 1 )
+	{
+	  if (pParamOut->width <= 128) {
+	    return vednnConvolutionForward_wrapper(
+		vednnConvolutionForward_direct_dil1_pad0_owU128_ker1,
+		pParamIn, pDataIn, pParamKernel, pDataKernel,
+		pParamConv, pParamOut, pDataOut );
+	  }
+	  else {
+	    return vednnConvolutionForward_wrapper(
+		vednnConvolutionForward_direct_dil1_pad0_ker1,
+		pParamIn, pDataIn, pParamKernel, pDataKernel,
+		pParamConv, pParamOut, pDataOut );
+	  }
+	}
+	else {
+	  if (pParamOut->width <= 128) {
+	    return vednnConvolutionForward_wrapper(
+		vednnConvolutionForward_direct_dil1_pad0_owU128,
+		pParamIn, pDataIn, pParamKernel, pDataKernel,
+		pParamConv, pParamOut, pDataOut );
+	  }
+	  else {
+	    return vednnConvolutionForward_wrapper(
+		vednnConvolutionForward_direct_dil1_pad0,
+		pParamIn, pDataIn, pParamKernel, pDataKernel,
+		pParamConv, pParamOut, pDataOut );
+	  }
+	}
       }
     }
     else {
