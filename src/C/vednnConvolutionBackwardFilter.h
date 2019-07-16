@@ -73,7 +73,7 @@ vednnConvolutionBackwardFilter_direct_dil1_pad0_ker1(
 ) ;
 
 vednnError_t
-vednnConvolutionBackwardFilter_direct_dil1_pad0_ker1_owU128(
+vednnConvolutionBackwardFilter_direct_dil1_pad0_ker1_owU32(
     const vednnTensorParam_t * restrict 	pParamIn,
     const void * restrict 			pDataIn,
     const vednnTensorParam_t * restrict 	pParamGradOut,

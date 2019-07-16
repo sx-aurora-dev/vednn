@@ -180,7 +180,7 @@ vednnError_t vednnConvolutionBackwardFilter(
       else if (pParamGradKernel->height == 1 && pParamGradKernel->width == 1) {
 	if (pParamGradOut->width <= 32 ) {
 	  return vednnConvolutionBackwardFilter_wrapper(
-	      vednnConvolutionBackwardFilter_direct_dil1_pad0_ker1_owU128,
+	      vednnConvolutionBackwardFilter_direct_dil1_pad0_ker1_owU32,
 	      pParamIn, pDataIn, pParamGradOut, pDataGradOut,
 	      pParamConv, pParamGradKernel, pDataGradKernel );
 	}
