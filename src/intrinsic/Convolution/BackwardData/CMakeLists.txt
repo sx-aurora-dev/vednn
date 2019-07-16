@@ -11,5 +11,6 @@ add_library(vednn_intrinsic_convolution_backward_data OBJECT
 	direct_dil1_str1_padsame_ker3.c
 	direct_dil1_str1_padsame_ker5.c
 	direct_dil1_str1_padsame_ker2.c
+	direct_dil1_str1_padsame_ker1.c
 	direct_iwU128.c
 )

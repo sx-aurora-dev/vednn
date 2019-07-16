@@ -98,6 +98,12 @@ vednnError_t vednnConvolutionBackwardData(
 	      pParamGradOut, pDataGradOut, pParamKernel, pDataKernel,
 	      pParamConv, pParamGradIn, pDataGradIn );
 	}
+	else if( pParamKernel->height == 1 && pParamKernel->width == 1) {
+	  return vednnConvolutionBackwardData_wrapper(
+	      vednnConvolutionBackwardData_direct_dil1_str1_padsame_ker1,
+	      pParamGradOut, pDataGradOut, pParamKernel, pDataKernel,
+	      pParamConv, pParamGradIn, pDataGradIn );
+	}
 	else {
 	  return vednnConvolutionBackwardData_wrapper(
 	      vednnConvolutionBackwardData_direct_dil1_str1_padsame,
