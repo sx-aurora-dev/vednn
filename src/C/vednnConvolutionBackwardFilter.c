@@ -172,11 +172,24 @@ vednnError_t vednnConvolutionBackwardFilter(
       }
       else if (pParamGradOut->width <= 128 && pParamGradKernel->height == 3 && pParamGradKernel->width == 3 )
       {
-
 	  return vednnConvolutionBackwardFilter_wrapper(
 	      vednnConvolutionBackwardFilter_direct_dil1_pad0_ker3_owU128,
 	      pParamIn, pDataIn, pParamGradOut, pDataGradOut,
 	      pParamConv, pParamGradKernel, pDataGradKernel );
+      }
+      else if (pParamGradKernel->height == 1 && pParamGradKernel->width == 1) {
+	if (pParamGradOut->width <= 32 ) {
+	  return vednnConvolutionBackwardFilter_wrapper(
+	      vednnConvolutionBackwardFilter_direct_dil1_pad0_ker1_owU128,
+	      pParamIn, pDataIn, pParamGradOut, pDataGradOut,
+	      pParamConv, pParamGradKernel, pDataGradKernel );
+	}
+	else {
+	  return vednnConvolutionBackwardFilter_wrapper(
+	      vednnConvolutionBackwardFilter_direct_dil1_pad0_ker1,
+	      pParamIn, pDataIn, pParamGradOut, pDataGradOut,
+	      pParamConv, pParamGradKernel, pDataGradKernel );
+	}
       }
       else if (pParamGradOut->width <= 32 ){
 	  return vednnConvolutionBackwardFilter_wrapper(
