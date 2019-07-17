@@ -6,6 +6,7 @@ add_library(vednn_intrinsic_convolution_backward_filter OBJECT
     direct_dil1_pad0_owU32.cc
 	direct_dil1_pad0_ker1.c
 	direct_dil1_pad0_ker1_owU32.c
+    direct_dil1_pad0_ker1_ohwU64.c
 	direct_dil1_pad0_ker1_ohwU128.c
 	direct_dil1_pad0_ker3_owU128.c
 	direct_dil1_str1_pad0_ker3_ow2X_iw2XU256_igoaligned.c
