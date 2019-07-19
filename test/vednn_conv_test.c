@@ -524,6 +524,7 @@ void testBackwardData(struct param *pNetwork, int nEntry, double HZ, int flagCSV
         // Generate Data
         generateRandomData(getTensorDataType(pConv->pParamGradOut), getTensorSize(pConv->pParamGradOut), pConv->pDataGradOut);
         generateRandomData(getKernelDataType(pConv->pParamKernel), getKernelSize(pConv->pParamKernel) * pNw->group, pConv->pDataKernel);
+        generateRandomData(getTensorDataType(pConv->pParamGradIn), getTensorSize(pConv->pParamGradIn), pConv->pDataGradIn);
     }
 
     // run test Convolution
