@@ -79,7 +79,9 @@ vednnError_t vednnConvolutionBackwardFilter(
   if (algo == VEDNN_CONV_ALGORITHM_DIRECT)
   {
     // [todo] add variations
-    if ( pParamGradOut->height * pParamGradOut->width <=16 ) {
+    if ( pParamGradOut->height * pParamGradOut->width <= 16 ||
+	( pParamGradOut->height * pParamGradOut->width < 64
+	  && pParamGradOut->height * pParamGradOut->width < pParamIn->channel)  ) {
       return vednnConvolutionBackwardFilter_wrapper(
 	  vednnConvolutionBackwardFilter_direct_vecC,
 	  pParamIn, pDataIn, pParamGradOut, pDataGradOut,
