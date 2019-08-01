@@ -33,11 +33,11 @@ static inline void k1(
     const int64_t k
 )
 {
-  for (int64_t p=0; p<outHeight; p++) {
-    int64_t i = p * strideHeight - padHeight;
-    for (int64_t q=0; q<outWidth; q++) {
-      int64_t j = q * strideWidth - padWidth;
-      int64_t outIndex  = outGroupOffset + ((n * outChannel + k) * outHeight + p) * outWidth + q;
+  for (int64_t y=0; y<outHeight; y++) {
+    int64_t i = y * strideHeight - padHeight;
+    for (int64_t x=0; x<outWidth; x++) {
+      int64_t j = x * strideWidth - padWidth;
+      int64_t outIndex  = outGroupOffset + ((n * outChannel + k) * outHeight + y) * outWidth + x;
 
       _ve_lvl(VLEN) ;
       __vr vrsum = _ve_vbrdu_vs_f32(0.f) ;
@@ -46,18 +46,18 @@ static inline void k1(
 	const int64_t vl = inChannelGroup - c < VLEN ? inChannelGroup - c : VLEN ;
 	_ve_lvl(vl) ;
 
-	for (int64_t h=0; h<kernHeight; h++) {
-	  for (int64_t w=0; w<kernWidth; w++) {
-	    int64_t y = i + h * dilationHeight;
-	    int64_t x = j + w * dilationWidth;
-	    if (y < 0 || inHeight <= y) {
+	for (int64_t r=0; r<kernHeight; r++) {
+	  for (int64_t s=0; s<kernWidth; s++) {
+	    int64_t h = i + r * dilationHeight;
+	    int64_t w = j + s * dilationWidth;
+	    if (h < 0 || inHeight <= h) {
 	      continue;
 	    }
-	    if (x < 0 || inWidth <= x) {
+	    if (w < 0 || inWidth <= w) {
 	      continue;
 	    }
-	    int64_t inputIndex  = inGroupOffset + ((n * inChannel + c) * inHeight + y) * inWidth + x;
-	    int64_t kernelIndex = kernGroupOffset + ((k * inChannelGroup + c) * kernHeight + h) * kernWidth + w;
+	    int64_t inputIndex  = inGroupOffset + ((n * inChannel + c) * inHeight + h) * inWidth + w;
+	    int64_t kernelIndex = kernGroupOffset + ((k * inChannelGroup + c) * kernHeight + r) * kernWidth + s;
 
 	    __vr vri = _ve_vldu_vss(4*inHeight*inWidth, &pIn[inputIndex]) ;
 	    __vr vrk = _ve_vldu_vss(4*kernHeight*kernWidth, &pKernel[kernelIndex]) ;
@@ -103,11 +103,11 @@ static inline void k2(
     const int64_t k
 )
 {
-  for (int64_t p=0; p<outHeight; p++) {
-    int64_t i = p * strideHeight - padHeight;
-    for (int64_t q=0; q<outWidth; q++) {
-      int64_t j = q * strideWidth - padWidth;
-      int64_t outIndex  = outGroupOffset + ((n * outChannel + k) * outHeight + p) * outWidth + q;
+  for (int64_t y=0; y<outHeight; y++) {
+    int64_t i = y * strideHeight - padHeight;
+    for (int64_t x=0; x<outWidth; x++) {
+      int64_t j = x * strideWidth - padWidth;
+      int64_t outIndex  = outGroupOffset + ((n * outChannel + k) * outHeight + y) * outWidth + x;
 
       _ve_lvl(VLEN) ;
       __vr vrsum01 = _ve_vbrd_vs_i64(0UL) ;
@@ -116,18 +116,18 @@ static inline void k2(
 	const int64_t vl = inChannelGroup - c < VLEN ? inChannelGroup - c : VLEN ;
 	_ve_lvl(vl) ;
 
-	for (int64_t h=0; h<kernHeight; h++) {
-	  for (int64_t w=0; w<kernWidth; w++) {
-	    int64_t y = i + h * dilationHeight;
-	    int64_t x = j + w * dilationWidth;
-	    if (y < 0 || inHeight <= y) {
+	for (int64_t r=0; r<kernHeight; r++) {
+	  for (int64_t s=0; s<kernWidth; s++) {
+	    int64_t h = i + r * dilationHeight;
+	    int64_t w = j + s * dilationWidth;
+	    if (h < 0 || inHeight <= h) {
 	      continue;
 	    }
-	    if (x < 0 || inWidth <= x) {
+	    if (w < 0 || inWidth <= w) {
 	      continue;
 	    }
-	    int64_t inputIndex  = inGroupOffset + ((n * inChannel + c) * inHeight + y) * inWidth + x;
-	    int64_t kernelIndex = kernGroupOffset + ((k * inChannelGroup + c) * kernHeight + h) * kernWidth + w;
+	    int64_t inputIndex  = inGroupOffset + ((n * inChannel + c) * inHeight + h) * inWidth + w;
+	    int64_t kernelIndex = kernGroupOffset + ((k * inChannelGroup + c) * kernHeight + r) * kernWidth + s;
 
 	    __vr vri = _ve_vldu_vss(4*inHeight*inWidth, &pIn[inputIndex]) ;
 
@@ -180,11 +180,11 @@ static inline void k4(
     const int64_t k
 )
 {
-  for (int64_t p=0; p<outHeight; p++) {
-    int64_t i = p * strideHeight - padHeight;
-    for (int64_t q=0; q<outWidth; q++) {
-      int64_t j = q * strideWidth - padWidth;
-      int64_t outIndex  = outGroupOffset + ((n * outChannel + k) * outHeight + p) * outWidth + q;
+  for (int64_t y=0; y<outHeight; y++) {
+    int64_t i = y * strideHeight - padHeight;
+    for (int64_t x=0; x<outWidth; x++) {
+      int64_t j = x * strideWidth - padWidth;
+      int64_t outIndex  = outGroupOffset + ((n * outChannel + k) * outHeight + y) * outWidth + x;
 
       _ve_lvl(VLEN) ;
       __vr vrsum01 = _ve_vbrd_vs_i64(0UL) ;
@@ -194,18 +194,18 @@ static inline void k4(
 	const int64_t vl = inChannelGroup - c < VLEN ? inChannelGroup - c : VLEN ;
 	_ve_lvl(vl) ;
 
-	for (int64_t h=0; h<kernHeight; h++) {
-	  for (int64_t w=0; w<kernWidth; w++) {
-	    int64_t y = i + h * dilationHeight;
-	    int64_t x = j + w * dilationWidth;
-	    if (y < 0 || inHeight <= y) {
+	for (int64_t r=0; r<kernHeight; r++) {
+	  for (int64_t s=0; s<kernWidth; s++) {
+	    int64_t h = i + r * dilationHeight;
+	    int64_t w = j + s * dilationWidth;
+	    if (h < 0 || inHeight <= h) {
 	      continue;
 	    }
-	    if (x < 0 || inWidth <= x) {
+	    if (w < 0 || inWidth <= w) {
 	      continue;
 	    }
-	    int64_t inputIndex  = inGroupOffset + ((n * inChannel + c) * inHeight + y) * inWidth + x;
-	    int64_t kernelIndex = kernGroupOffset + ((k * inChannelGroup + c) * kernHeight + h) * kernWidth + w;
+	    int64_t inputIndex  = inGroupOffset + ((n * inChannel + c) * inHeight + h) * inWidth + w;
+	    int64_t kernelIndex = kernGroupOffset + ((k * inChannelGroup + c) * kernHeight + r) * kernWidth + s;
 
 	    __vr vri = _ve_vldu_vss(4*inHeight*inWidth, &pIn[inputIndex]) ;
 
@@ -267,11 +267,11 @@ static inline void k8(
     const int64_t k
 )
 {
-  for (int64_t p=0; p<outHeight; p++) {
-    int64_t i = p * strideHeight - padHeight;
-    for (int64_t q=0; q<outWidth; q++) {
-      int64_t j = q * strideWidth - padWidth;
-      int64_t outIndex  = outGroupOffset + ((n * outChannel + k) * outHeight + p) * outWidth + q;
+  for (int64_t y=0; y<outHeight; y++) {
+    int64_t i = y * strideHeight - padHeight;
+    for (int64_t x=0; x<outWidth; x++) {
+      int64_t j = x * strideWidth - padWidth;
+      int64_t outIndex  = outGroupOffset + ((n * outChannel + k) * outHeight + y) * outWidth + x;
 
       _ve_lvl(VLEN) ;
       __vr vrsum01 = _ve_vbrd_vs_i64(0UL) ;
@@ -283,18 +283,18 @@ static inline void k8(
 	const int64_t vl = inChannelGroup - c < VLEN ? inChannelGroup - c : VLEN ;
 	_ve_lvl(vl) ;
 
-	for (int64_t h=0; h<kernHeight; h++) {
-	  for (int64_t w=0; w<kernWidth; w++) {
-	    int64_t y = i + h * dilationHeight;
-	    int64_t x = j + w * dilationWidth;
-	    if (y < 0 || inHeight <= y) {
+	for (int64_t r=0; r<kernHeight; r++) {
+	  for (int64_t s=0; s<kernWidth; s++) {
+	    int64_t h = i + r * dilationHeight;
+	    int64_t w = j + s * dilationWidth;
+	    if (h < 0 || inHeight <= h) {
 	      continue;
 	    }
-	    if (x < 0 || inWidth <= x) {
+	    if (w < 0 || inWidth <= w) {
 	      continue;
 	    }
-	    int64_t inputIndex  = inGroupOffset + ((n * inChannel + c) * inHeight + y) * inWidth + x;
-	    int64_t kernelIndex = kernGroupOffset + ((k * inChannelGroup + c) * kernHeight + h) * kernWidth + w;
+	    int64_t inputIndex  = inGroupOffset + ((n * inChannel + c) * inHeight + h) * inWidth + w;
+	    int64_t kernelIndex = kernGroupOffset + ((k * inChannelGroup + c) * kernHeight + r) * kernWidth + s;
 
 	    __vr vri = _ve_vldu_vss(4*inHeight*inWidth, &pIn[inputIndex]) ;
 
@@ -372,11 +372,11 @@ static inline void k16(
     const int64_t k
 )
 {
-  for (int64_t p=0; p<outHeight; p++) {
-    int64_t i = p * strideHeight - padHeight;
-    for (int64_t q=0; q<outWidth; q++) {
-      int64_t j = q * strideWidth - padWidth;
-      int64_t outIndex  = outGroupOffset + ((n * outChannel + k) * outHeight + p) * outWidth + q;
+  for (int64_t y=0; y<outHeight; y++) {
+    int64_t i = y * strideHeight - padHeight;
+    for (int64_t x=0; x<outWidth; x++) {
+      int64_t j = x * strideWidth - padWidth;
+      int64_t outIndex  = outGroupOffset + ((n * outChannel + k) * outHeight + y) * outWidth + x;
 
       _ve_lvl(VLEN) ;
       __vr vrsum01 = _ve_vbrd_vs_i64(0UL) ;
@@ -392,18 +392,18 @@ static inline void k16(
 	const int64_t vl = inChannelGroup - c < VLEN ? inChannelGroup - c : VLEN ;
 	_ve_lvl(vl) ;
 
-	for (int64_t h=0; h<kernHeight; h++) {
-	  for (int64_t w=0; w<kernWidth; w++) {
-	    int64_t y = i + h * dilationHeight;
-	    int64_t x = j + w * dilationWidth;
-	    if (y < 0 || inHeight <= y) {
+	for (int64_t r=0; r<kernHeight; r++) {
+	  for (int64_t s=0; s<kernWidth; s++) {
+	    int64_t h = i + r * dilationHeight;
+	    int64_t w = j + s * dilationWidth;
+	    if (h < 0 || inHeight <= h) {
 	      continue;
 	    }
-	    if (x < 0 || inWidth <= x) {
+	    if (w < 0 || inWidth <= w) {
 	      continue;
 	    }
-	    int64_t inputIndex  = inGroupOffset + ((n * inChannel + c) * inHeight + y) * inWidth + x;
-	    int64_t kernelIndex = kernGroupOffset + ((k * inChannelGroup + c) * kernHeight + h) * kernWidth + w;
+	    int64_t inputIndex  = inGroupOffset + ((n * inChannel + c) * inHeight + h) * inWidth + w;
+	    int64_t kernelIndex = kernGroupOffset + ((k * inChannelGroup + c) * kernHeight + r) * kernWidth + s;
 
 	    __vr vri = _ve_vldu_vss(4*inHeight*inWidth, &pIn[inputIndex]) ;
 
