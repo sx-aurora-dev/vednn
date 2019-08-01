@@ -75,7 +75,17 @@ vednnError_t vednnConvolutionBackwardData(
   if (algo == VEDNN_CONV_ALGORITHM_DIRECT)
   {
     // [todo] add variations
-    if (pParamConv->strideHeight == 1 && pParamConv->strideWidth == 1
+
+    if ( pParamGradIn->height * pParamGradIn->width <= 16 ||
+	( pParamGradIn->height * pParamGradIn->width < 64
+	  && pParamGradIn->height * pParamGradIn->width < pParamGradIn->channel ))
+    {
+	  return vednnConvolutionBackwardData_wrapper(
+	      vednnConvolutionBackwardData_direct_vecC,
+	      pParamGradOut, pDataGradOut, pParamKernel, pDataKernel,
+	      pParamConv, pParamGradIn, pDataGradIn );
+    }
+    else if (pParamConv->strideHeight == 1 && pParamConv->strideWidth == 1
 	&& pParamConv->dilationHeight == 1 && pParamConv->dilationWidth == 1 )
     {
       if( pParamGradIn->height == pParamGradOut->height
