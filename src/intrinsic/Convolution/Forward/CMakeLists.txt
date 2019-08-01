@@ -2,6 +2,7 @@ cmake_minimum_required(VERSION 3.0)
 
 add_library(vednn_intrinsic_convolution_forward OBJECT
 	direct_default.c
+	direct_vecC.c
 	direct_dil1_pad0.c
     direct_dil1_pad0_owU128.c
     direct_dil1_pad0_ker1.c

@@ -73,7 +73,13 @@ vednnError_t vednnConvolutionForward(
   if (algo == VEDNN_CONV_ALGORITHM_DIRECT)
   {
     // [todo] add variations
-    if (pParamConv->strideHeight == 1 && pParamConv->strideWidth == 1
+    if ( pParamOut->height * pParamOut->width <= 16  ) {
+	return vednnConvolutionForward_wrapper(
+	    vednnConvolutionForward_direct_vecC,
+	    pParamIn, pDataIn, pParamKernel, pDataKernel,
+	    pParamConv, pParamOut, pDataOut);
+    }
+    else if (pParamConv->strideHeight == 1 && pParamConv->strideWidth == 1
 	&& pParamConv->dilationHeight == 1 && pParamConv->dilationWidth == 1
 	&& pParamIn->height == pParamOut->height
 	&& pParamIn->width == pParamOut->width )
