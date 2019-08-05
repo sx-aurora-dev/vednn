@@ -181,10 +181,18 @@ vednnError_t vednnConvolutionBackwardData(
 
       if (pParamGradIn->width <= 128)
       {
-	return vednnConvolutionBackwardData_wrapper(
-	    vednnConvolutionBackwardData_direct_iwU128,
-	    pParamGradOut, pDataGradOut, pParamKernel, pDataKernel,
-	    pParamConv, pParamGradIn, pDataGradIn );
+	if( pParamKernel->height == 3 && pParamKernel->width == 3 ) {
+	  return vednnConvolutionBackwardData_wrapper(
+	      vednnConvolutionBackwardData_direct_ker3_iwU128,
+	      pParamGradOut, pDataGradOut, pParamKernel, pDataKernel,
+	      pParamConv, pParamGradIn, pDataGradIn );
+	}
+	else {
+	  return vednnConvolutionBackwardData_wrapper(
+	      vednnConvolutionBackwardData_direct_iwU128,
+	      pParamGradOut, pDataGradOut, pParamKernel, pDataKernel,
+	      pParamConv, pParamGradIn, pDataGradIn );
+	}
       }
       else {
 	return vednnConvolutionBackwardData_wrapper(
