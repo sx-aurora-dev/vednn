@@ -163,7 +163,7 @@ static inline void c1(
 					 (unsigned long)(pGOut+gOutIndex)) ;
       __vr vrgout_k0_r2_s2 = _ve_vgtu_vvm(vrgout_ptr_k0_r2_s2, vmall_r2s2) ;
 
-      VFADD_C1(vrgout_k0_r2_s1, vmall_r2s1, 0, 2, 1)
+      VFADD_C1(vrgout_k0_r2_s0, vmall_r2s0, 0, 2, 0)
       VFADD_C1(vrgout_k0_r2_s1, vmall_r2s1, 0, 2, 1)
       VFADD_C1(vrgout_k0_r2_s2, vmall_r2s2, 0, 2, 2)
 
@@ -838,7 +838,7 @@ static inline void c2(
 					 (unsigned long)(pGOut+gOutIndex)) ;
       __vr vrgout_k0_r2_s2 = _ve_vgtu_vvm(vrgout_ptr_k0_r2_s2, vmall_r2s2) ;
 
-      VFADD_C2(vrgout_k0_r2_s1, vmall_r2s1, 0, 2, 1)
+      VFADD_C2(vrgout_k0_r2_s0, vmall_r2s0, 0, 2, 0)
       VFADD_C2(vrgout_k0_r2_s1, vmall_r2s1, 0, 2, 1)
       VFADD_C2(vrgout_k0_r2_s2, vmall_r2s2, 0, 2, 2)
 
@@ -1518,7 +1518,7 @@ static inline void c4(
 					 (unsigned long)(pGOut+gOutIndex)) ;
       __vr vrgout_k0_r2_s2 = _ve_vgtu_vvm(vrgout_ptr_k0_r2_s2, vmall_r2s2) ;
 
-      VFADD_C4(vrgout_k0_r2_s1, vmall_r2s1, 0, 2, 1)
+      VFADD_C4(vrgout_k0_r2_s0, vmall_r2s0, 0, 2, 0)
       VFADD_C4(vrgout_k0_r2_s1, vmall_r2s1, 0, 2, 1)
       VFADD_C4(vrgout_k0_r2_s2, vmall_r2s2, 0, 2, 2)
 
@@ -2208,7 +2208,7 @@ static inline void c8(
 					 (unsigned long)(pGOut+gOutIndex)) ;
       __vr vrgout_k0_r2_s2 = _ve_vgtu_vvm(vrgout_ptr_k0_r2_s2, vmall_r2s2) ;
 
-      VFADD_C8(vrgout_k0_r2_s1, vmall_r2s1, 0, 2, 1)
+      VFADD_C8(vrgout_k0_r2_s0, vmall_r2s0, 0, 2, 0)
       VFADD_C8(vrgout_k0_r2_s1, vmall_r2s1, 0, 2, 1)
       VFADD_C8(vrgout_k0_r2_s2, vmall_r2s2, 0, 2, 2)
 
