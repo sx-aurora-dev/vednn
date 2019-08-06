@@ -201,10 +201,18 @@ vednnError_t vednnConvolutionBackwardData(
 	}
       }
       else {
-	return vednnConvolutionBackwardData_wrapper(
+	if( pParamKernel->height == 5 && pParamKernel->width == 5 ) {
+	  return vednnConvolutionBackwardData_wrapper(
+	    vednnConvolutionBackwardData_direct_ker5,
+	    pParamGradOut, pDataGradOut, pParamKernel, pDataKernel,
+	    pParamConv, pParamGradIn, pDataGradIn );
+	}
+	else {
+	  return vednnConvolutionBackwardData_wrapper(
 	    vednnConvolutionBackwardData_direct_default,
 	    pParamGradOut, pDataGradOut, pParamKernel, pDataKernel,
 	    pParamConv, pParamGradIn, pDataGradIn );
+	}
       }
     }
   }

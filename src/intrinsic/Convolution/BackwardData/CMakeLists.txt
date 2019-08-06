@@ -17,4 +17,5 @@ add_library(vednn_intrinsic_convolution_backward_data OBJECT
 	direct_ker3_iwU128.c
 	direct_ker5_iwU128.c
 	direct_iwU128.c
+	direct_ker5.c
 )

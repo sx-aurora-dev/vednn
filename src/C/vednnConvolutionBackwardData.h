@@ -38,6 +38,17 @@ vednnConvolutionBackwardData_direct_vecC(
 ) ;
 
 vednnError_t
+vednnConvolutionBackwardData_direct_ker5(
+    const vednnTensorParam_t * restrict 	pParamGradOut,
+    const void * restrict 			pDataGradOut,
+    const vednnFilterParam_t * restrict 	pParamKernel,
+    const void * restrict 			pDataKernel,
+    const vednnConvolutionParam_t * restrict 	pParamConv,
+    const vednnTensorParam_t * restrict 	pParamGradIn,
+    void * restrict 				pDataGradIn
+) ;
+
+vednnError_t
 vednnConvolutionBackwardData_direct_iwU128(
     const vednnTensorParam_t * restrict 	pParamGradOut,
     const void * restrict 			pDataGradOut,
