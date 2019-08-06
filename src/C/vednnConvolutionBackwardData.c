@@ -177,6 +177,24 @@ vednnError_t vednnConvolutionBackwardData(
 	    pParamGradOut, pDataGradOut, pParamKernel, pDataKernel,
 	    pParamConv, pParamGradIn, pDataGradIn );
       }
+      if( pParamKernel->height == 5 && pParamKernel->width == 5
+	  && pParamConv->dilationHeight == 1 && pParamConv->dilationWidth == 1
+	  && pParamConv->strideHeight == 2 && pParamConv->strideWidth == 2
+	  && pParamConv->padHeight == 2 && pParamConv->padWidth == 2 )
+      {
+	if (pParamGradIn->width <= 128) {
+	  return vednnConvolutionBackwardData_wrapper(
+	    vednnConvolutionBackwardData_direct_dil1_str2_pad2_ker5_iwU128,
+	    pParamGradOut, pDataGradOut, pParamKernel, pDataKernel,
+	    pParamConv, pParamGradIn, pDataGradIn );
+	}
+	else {
+	  return vednnConvolutionBackwardData_wrapper(
+	    vednnConvolutionBackwardData_direct_dil1_str2_pad2_ker5,
+	    pParamGradOut, pDataGradOut, pParamKernel, pDataKernel,
+	    pParamConv, pParamGradIn, pDataGradIn );
+	}
+      }
       // no else
 
       if (pParamGradIn->width <= 128)
@@ -202,21 +220,10 @@ vednnError_t vednnConvolutionBackwardData(
       }
       else {
 	if( pParamKernel->height == 5 && pParamKernel->width == 5 ) {
-	  if( pParamConv->dilationHeight == 1 && pParamConv->dilationWidth == 1
-	      && pParamConv->strideHeight == 2 && pParamConv->strideWidth == 2
-	      && pParamConv->padHeight == 2 && pParamConv->padWidth == 2 )
-	  {
-	    return vednnConvolutionBackwardData_wrapper(
-	      vednnConvolutionBackwardData_direct_dil1_str2_pad2_ker5,
-	      pParamGradOut, pDataGradOut, pParamKernel, pDataKernel,
-	      pParamConv, pParamGradIn, pDataGradIn );
-	  }
-	  else {
-	    return vednnConvolutionBackwardData_wrapper(
-	      vednnConvolutionBackwardData_direct_ker5,
-	      pParamGradOut, pDataGradOut, pParamKernel, pDataKernel,
-	      pParamConv, pParamGradIn, pDataGradIn );
-	  }
+	  return vednnConvolutionBackwardData_wrapper(
+	    vednnConvolutionBackwardData_direct_ker5,
+	    pParamGradOut, pDataGradOut, pParamKernel, pDataKernel,
+	    pParamConv, pParamGradIn, pDataGradIn );
 	}
 	else {
 	  return vednnConvolutionBackwardData_wrapper(
