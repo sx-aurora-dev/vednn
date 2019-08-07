@@ -6,7 +6,8 @@
 #include "veintrin.h"
 #define VLEN	(256)
 
-static inline void c1(
+// force no-inline to avoid vr-spill in the most-inner loop
+static __attribute__((noinline))  void c1(
     const float * restrict pGOut,
     const float * restrict pKernel,
     float * restrict const pGIn,
@@ -26,11 +27,13 @@ static inline void c1(
     const int64_t gInPixels,
     const int64_t n,
     const int64_t c,
-    const int64_t nH,
-    const __vr vrh,
-    const __vr vrw
+    const int64_t nH
 )
 {
+  _ve_lvl(nH*gInWidth) ;
+  __vr vrseq = _ve_vseq_v() ;
+  __vr vrh  = _ve_vdivsl_vvs(vrseq, gInWidth) ;
+  __vr vrw  = _ve_vsubsl_vvv(vrseq, _ve_vmulul_vsv(gInWidth,vrh)) ;
 
   for (int64_t h=0; h<gInHeight; h+=nH) {
     const int64_t vl = gInWidth * (gInHeight - h < nH ? gInHeight - h : nH) ;
@@ -46,6 +49,43 @@ static inline void c1(
     __vr vrsum_s3 = _ve_vbrdu_vs_f32(0.f) ;
     __vr vrsum_s4 = _ve_vbrdu_vs_f32(0.f) ;
 
+    __vr vri_r0 = _ve_vaddsl_vsv(2-0+h, vrh) ;
+    __vr vri_r1 = _ve_vaddsl_vsv(2-1+h, vrh) ;
+    __vr vri_r2 = _ve_vaddsl_vsv(2-2+h, vrh) ;
+    __vr vri_r3 = _ve_vaddsl_vsv(2-3+h, vrh) ;
+    __vr vri_r4 = _ve_vaddsl_vsv(2-4+h, vrh) ;
+
+    __vr vry_r0 = _ve_vdivsl_vvs(vri_r0, 2) ;
+    __vr vry_r1 = _ve_vdivsl_vvs(vri_r1, 2) ;
+    __vr vry_r2 = _ve_vdivsl_vvs(vri_r2, 2) ;
+    __vr vry_r3 = _ve_vdivsl_vvs(vri_r3, 2) ;
+    __vr vry_r4 = _ve_vdivsl_vvs(vri_r4, 2) ;
+
+    __vm256 vmy0_r0 = _ve_vfmkl_mcv(VECC_IEQ, _ve_vcmpsl_vvv(vri_r0, _ve_vmulsl_vsv(2, vry_r0))) ;
+    __vm256 vmy1_r0 = _ve_vfmkl_mcv(VECC_GE, vry_r0) ;
+    __vm256 vmy2_r0 = _ve_vfmkl_mcv(VECC_IG, _ve_vcmpsl_vsv(gOutHeight,vry_r0)) ;
+    __vm256 vmy_r0 = _ve_andm_mmm(_ve_andm_mmm(vmy0_r0, vmy1_r0), vmy2_r0) ;
+
+    __vm256 vmy0_r1 = _ve_vfmkl_mcv(VECC_IEQ, _ve_vcmpsl_vvv(vri_r1, _ve_vmulsl_vsv(2, vry_r1))) ;
+    __vm256 vmy1_r1 = _ve_vfmkl_mcv(VECC_GE, vry_r1) ;
+    __vm256 vmy2_r1 = _ve_vfmkl_mcv(VECC_IG, _ve_vcmpsl_vsv(gOutHeight,vry_r1)) ;
+    __vm256 vmy_r1 = _ve_andm_mmm(_ve_andm_mmm(vmy0_r1, vmy1_r1), vmy2_r1) ;
+
+    __vm256 vmy0_r2 = _ve_vfmkl_mcv(VECC_IEQ, _ve_vcmpsl_vvv(vri_r2, _ve_vmulsl_vsv(2, vry_r2))) ;
+    __vm256 vmy1_r2 = _ve_vfmkl_mcv(VECC_GE, vry_r2) ;
+    __vm256 vmy2_r2 = _ve_vfmkl_mcv(VECC_IG, _ve_vcmpsl_vsv(gOutHeight,vry_r2)) ;
+    __vm256 vmy_r2 = _ve_andm_mmm(_ve_andm_mmm(vmy0_r2, vmy1_r2), vmy2_r2) ;
+
+    __vm256 vmy0_r3 = _ve_vfmkl_mcv(VECC_IEQ, _ve_vcmpsl_vvv(vri_r3, _ve_vmulsl_vsv(2, vry_r3))) ;
+    __vm256 vmy1_r3 = _ve_vfmkl_mcv(VECC_GE, vry_r3) ;
+    __vm256 vmy2_r3 = _ve_vfmkl_mcv(VECC_IG, _ve_vcmpsl_vsv(gOutHeight,vry_r3)) ;
+    __vm256 vmy_r3 = _ve_andm_mmm(_ve_andm_mmm(vmy0_r3, vmy1_r3), vmy2_r3) ;
+
+    __vm256 vmy0_r4 = _ve_vfmkl_mcv(VECC_IEQ, _ve_vcmpsl_vvv(vri_r4, _ve_vmulsl_vsv(2, vry_r4))) ;
+    __vm256 vmy1_r4 = _ve_vfmkl_mcv(VECC_GE, vry_r4) ;
+    __vm256 vmy2_r4 = _ve_vfmkl_mcv(VECC_IG, _ve_vcmpsl_vsv(gOutHeight,vry_r4)) ;
+    __vm256 vmy_r4 = _ve_andm_mmm(_ve_andm_mmm(vmy0_r4, vmy1_r4), vmy2_r4) ;
+
     __vr vrj_s0 = _ve_vaddsl_vsv( 2, vrw) ;
     __vr vrj_s1 = _ve_vaddsl_vsv( 1, vrw) ;
     __vr vrj_s2 = _ve_vaddsl_vsv( 0, vrw) ;
@@ -83,39 +123,73 @@ static inline void c1(
     __vm256 vmx2_s4 = _ve_vfmkl_mcv(VECC_IG, _ve_vcmpsl_vsv(gOutWidth,vrx_s4)) ;
     __vm256 vmx_s4 = _ve_andm_mmm(_ve_andm_mmm(vmx0_s4, vmx1_s4), vmx2_s4) ;
 
-    for (int64_t r=0; r<kernHeight; r++) {
-      __vr vri = _ve_vaddsl_vsv(2-r+h, vrh) ;
-      __vr vry = _ve_vdivsl_vvs(vri, 2) ;
-
-      __vm256 vmy0 = _ve_vfmkl_mcv(VECC_IEQ, _ve_vcmpsl_vvv(vri, _ve_vmulsl_vsv(2, vry))) ;
-      __vm256 vmy1 = _ve_vfmkl_mcv(VECC_GE, vry) ;
-      __vm256 vmy2 = _ve_vfmkl_mcv(VECC_IG, _ve_vcmpsl_vsv(gOutHeight,vry)) ;
-      __vm256 vmy = _ve_andm_mmm(_ve_andm_mmm(vmy0, vmy1), vmy2) ;
-
-      int64_t k=0;
-      for (; k<gOutChannelGroup; k++) {
-	int64_t gOutIndex    = gOutGroupOffset + ((n * gOutChannel + k) * gOutHeight) * gOutWidth ;
-	const float *pKerValue = pKernel + kernGroupOffset + (((k  ) * gInChannelGroup + c) * kernHeight) * kernWidth ;
+    for (int64_t k=0; k<gOutChannelGroup; k++) {
+      int64_t gOutIndex    = gOutGroupOffset + ((n * gOutChannel + k) * gOutHeight) * gOutWidth ;
+      const float *pKerValue = pKernel + kernGroupOffset + (((k  ) * gInChannelGroup + c) * kernHeight) * kernWidth ;
 
 #define VFADD_C1(VRGOUT, K, R, S)  {												\
-	  const float kerValue = pKerValue[(((K)*gInChannelGroup + 0) * kernHeight +(R)) * kernWidth + (S) ] ;	\
-	  vrsum_s##S = _ve_vfmads_vvsv(vrsum_s##S, kerValue, VRGOUT) ;	\
-	}
-
-	__vr vrgout_ptr_k0_s2 = _ve_vsfa_vvss(_ve_vaddsl_vvv(_ve_vmulsl_vsv(gOutWidth, vry), vrx_s2),
-					   2,
-					   (unsigned long)(pGOut+gOutIndex)) ;
-	__vr vrgout_k0_s2 = _ve_vgtu_vvm(vrgout_ptr_k0_s2, vmy) ;
-	vrgout_k0_s2 = _ve_vmrg_vvvm(_ve_vbrdu_vs_f32(0.0f), vrgout_k0_s2, vmy) ;
-
-	VFADD_C1(vrgout_k0_s2, 0, r, 0)
-	VFADD_C1(vrgout_k0_s2, 0, r, 1)
-	VFADD_C1(vrgout_k0_s2, 0, r, 2)
-	VFADD_C1(vrgout_k0_s2, 0, r, 3)
-	VFADD_C1(vrgout_k0_s2, 0, r, 4)
-#undef VFADD_C2
+	const float kerValue = pKerValue[(((K)*gInChannelGroup + 0) * kernHeight +(R)) * kernWidth + (S) ] ;	\
+	vrsum_s##S = _ve_vfmads_vvsv(vrsum_s##S, kerValue, VRGOUT) ;	\
       }
-    } // kernHeight
+
+      __vr vrgout_ptr_k0_r0s2 = _ve_vsfa_vvss(_ve_vaddsl_vvv(_ve_vmulsl_vsv(gOutWidth, vry_r0), vrx_s2),
+					 2,
+					 (unsigned long)(pGOut+gOutIndex)) ;
+      __vr vrgout_k0_r0s2 = _ve_vgtu_vvm(vrgout_ptr_k0_r0s2, vmy_r0) ;
+      __vr vrgout_ptr_k0_r1s2 = _ve_vsfa_vvss(_ve_vaddsl_vvv(_ve_vmulsl_vsv(gOutWidth, vry_r1), vrx_s2),
+					 2,
+					 (unsigned long)(pGOut+gOutIndex)) ;
+      __vr vrgout_k0_r1s2 = _ve_vgtu_vvm(vrgout_ptr_k0_r1s2, vmy_r1) ;
+      __vr vrgout_ptr_k0_r2s2 = _ve_vsfa_vvss(_ve_vaddsl_vvv(_ve_vmulsl_vsv(gOutWidth, vry_r2), vrx_s2),
+					 2,
+					 (unsigned long)(pGOut+gOutIndex)) ;
+      __vr vrgout_k0_r2s2 = _ve_vgtu_vvm(vrgout_ptr_k0_r2s2, vmy_r2) ;
+      __vr vrgout_ptr_k0_r3s2 = _ve_vsfa_vvss(_ve_vaddsl_vvv(_ve_vmulsl_vsv(gOutWidth, vry_r3), vrx_s2),
+					 2,
+					 (unsigned long)(pGOut+gOutIndex)) ;
+      __vr vrgout_k0_r3s2 = _ve_vgtu_vvm(vrgout_ptr_k0_r3s2, vmy_r3) ;
+      __vr vrgout_ptr_k0_r4s2 = _ve_vsfa_vvss(_ve_vaddsl_vvv(_ve_vmulsl_vsv(gOutWidth, vry_r4), vrx_s2),
+					 2,
+					 (unsigned long)(pGOut+gOutIndex)) ;
+      __vr vrgout_k0_r4s2 = _ve_vgtu_vvm(vrgout_ptr_k0_r4s2, vmy_r4) ;
+
+      vrgout_k0_r0s2 = _ve_vmrg_vvvm(_ve_vbrdu_vs_f32(0.0f), vrgout_k0_r0s2, vmy_r0) ;
+      VFADD_C1(vrgout_k0_r0s2, 0, 0, 0)
+      VFADD_C1(vrgout_k0_r0s2, 0, 0, 1)
+      VFADD_C1(vrgout_k0_r0s2, 0, 0, 2)
+      VFADD_C1(vrgout_k0_r0s2, 0, 0, 3)
+      VFADD_C1(vrgout_k0_r0s2, 0, 0, 4)
+
+      vrgout_k0_r1s2 = _ve_vmrg_vvvm(_ve_vbrdu_vs_f32(0.0f), vrgout_k0_r1s2, vmy_r1) ;
+      VFADD_C1(vrgout_k0_r1s2, 0, 1, 0)
+      VFADD_C1(vrgout_k0_r1s2, 0, 1, 1)
+      VFADD_C1(vrgout_k0_r1s2, 0, 1, 2)
+      VFADD_C1(vrgout_k0_r1s2, 0, 1, 3)
+      VFADD_C1(vrgout_k0_r1s2, 0, 1, 4)
+
+      vrgout_k0_r2s2 = _ve_vmrg_vvvm(_ve_vbrdu_vs_f32(0.0f), vrgout_k0_r2s2, vmy_r2) ;
+      VFADD_C1(vrgout_k0_r2s2, 0, 2, 0)
+      VFADD_C1(vrgout_k0_r2s2, 0, 2, 1)
+      VFADD_C1(vrgout_k0_r2s2, 0, 2, 2)
+      VFADD_C1(vrgout_k0_r2s2, 0, 2, 3)
+      VFADD_C1(vrgout_k0_r2s2, 0, 2, 4)
+
+      vrgout_k0_r3s2 = _ve_vmrg_vvvm(_ve_vbrdu_vs_f32(0.0f), vrgout_k0_r3s2, vmy_r3) ;
+      VFADD_C1(vrgout_k0_r3s2, 0, 3, 0)
+      VFADD_C1(vrgout_k0_r3s2, 0, 3, 1)
+      VFADD_C1(vrgout_k0_r3s2, 0, 3, 2)
+      VFADD_C1(vrgout_k0_r3s2, 0, 3, 3)
+      VFADD_C1(vrgout_k0_r3s2, 0, 3, 4)
+
+      vrgout_k0_r4s2 = _ve_vmrg_vvvm(_ve_vbrdu_vs_f32(0.0f), vrgout_k0_r4s2, vmy_r4) ;
+      VFADD_C1(vrgout_k0_r4s2, 0, 4, 0)
+      VFADD_C1(vrgout_k0_r4s2, 0, 4, 1)
+      VFADD_C1(vrgout_k0_r4s2, 0, 4, 2)
+      VFADD_C1(vrgout_k0_r4s2, 0, 4, 3)
+      VFADD_C1(vrgout_k0_r4s2, 0, 4, 4)
+
+#undef VFADD_C1
+    }
 
     vrsum_s0 = _ve_vmrg_vvvm(_ve_vbrdu_vs_f32(0.f), _ve_vmv_vsv( 2, vrsum_s0), vmx_s0) ;
     vrsum_s1 = _ve_vmrg_vvvm(_ve_vbrdu_vs_f32(0.f), _ve_vmv_vsv( 1, vrsum_s1), vmx_s1) ;
@@ -125,10 +199,13 @@ static inline void c1(
     __vr vrsum = _ve_vfadds_vvv(_ve_vfadds_vvv(vrsum_s0, _ve_vfadds_vvv(vrsum_s1, vrsum_s2)),
                                 _ve_vfadds_vvv(vrsum_s3, vrsum_s4)) ;
     _ve_vstu_vss(vrsum, 4, pGIn+gInIndex) ;
+
   } // gOutPixels
 }
 
-static inline void c2(
+
+// force no-inline to avoid vr-spill in the most-inner loop
+static __attribute__((noinline))  void c2(
     const float * restrict pGOut,
     const float * restrict pKernel,
     float * restrict const pGIn,
@@ -148,11 +225,14 @@ static inline void c2(
     const int64_t gInPixels,
     const int64_t n,
     const int64_t c,
-    const int64_t nH,
-    const __vr vrh,
-    const __vr vrw
+    const int64_t nH
 )
 {
+  _ve_lvl(nH*gInWidth) ;
+  __vr vrseq = _ve_vseq_v() ;
+  __vr vrh  = _ve_vdivsl_vvs(vrseq, gInWidth) ;
+  __vr vrw  = _ve_vsubsl_vvv(vrseq, _ve_vmulul_vsv(gInWidth,vrh)) ;
+
 
   for (int64_t h=0; h<gInHeight; h+=nH) {
     const int64_t vl = gInWidth * (gInHeight - h < nH ? gInHeight - h : nH) ;
@@ -168,6 +248,43 @@ static inline void c2(
     __vr vrsum01_s3 = _ve_vbrd_vs_i64(0UL) ;
     __vr vrsum01_s4 = _ve_vbrd_vs_i64(0UL) ;
 
+    __vr vri_r0 = _ve_vaddsl_vsv(2-0+h, vrh) ;
+    __vr vri_r1 = _ve_vaddsl_vsv(2-1+h, vrh) ;
+    __vr vri_r2 = _ve_vaddsl_vsv(2-2+h, vrh) ;
+    __vr vri_r3 = _ve_vaddsl_vsv(2-3+h, vrh) ;
+    __vr vri_r4 = _ve_vaddsl_vsv(2-4+h, vrh) ;
+
+    __vr vry_r0 = _ve_vdivsl_vvs(vri_r0, 2) ;
+    __vr vry_r1 = _ve_vdivsl_vvs(vri_r1, 2) ;
+    __vr vry_r2 = _ve_vdivsl_vvs(vri_r2, 2) ;
+    __vr vry_r3 = _ve_vdivsl_vvs(vri_r3, 2) ;
+    __vr vry_r4 = _ve_vdivsl_vvs(vri_r4, 2) ;
+
+    __vm256 vmy0_r0 = _ve_vfmkl_mcv(VECC_IEQ, _ve_vcmpsl_vvv(vri_r0, _ve_vmulsl_vsv(2, vry_r0))) ;
+    __vm256 vmy1_r0 = _ve_vfmkl_mcv(VECC_GE, vry_r0) ;
+    __vm256 vmy2_r0 = _ve_vfmkl_mcv(VECC_IG, _ve_vcmpsl_vsv(gOutHeight,vry_r0)) ;
+    __vm256 vmy_r0 = _ve_andm_mmm(_ve_andm_mmm(vmy0_r0, vmy1_r0), vmy2_r0) ;
+
+    __vm256 vmy0_r1 = _ve_vfmkl_mcv(VECC_IEQ, _ve_vcmpsl_vvv(vri_r1, _ve_vmulsl_vsv(2, vry_r1))) ;
+    __vm256 vmy1_r1 = _ve_vfmkl_mcv(VECC_GE, vry_r1) ;
+    __vm256 vmy2_r1 = _ve_vfmkl_mcv(VECC_IG, _ve_vcmpsl_vsv(gOutHeight,vry_r1)) ;
+    __vm256 vmy_r1 = _ve_andm_mmm(_ve_andm_mmm(vmy0_r1, vmy1_r1), vmy2_r1) ;
+
+    __vm256 vmy0_r2 = _ve_vfmkl_mcv(VECC_IEQ, _ve_vcmpsl_vvv(vri_r2, _ve_vmulsl_vsv(2, vry_r2))) ;
+    __vm256 vmy1_r2 = _ve_vfmkl_mcv(VECC_GE, vry_r2) ;
+    __vm256 vmy2_r2 = _ve_vfmkl_mcv(VECC_IG, _ve_vcmpsl_vsv(gOutHeight,vry_r2)) ;
+    __vm256 vmy_r2 = _ve_andm_mmm(_ve_andm_mmm(vmy0_r2, vmy1_r2), vmy2_r2) ;
+
+    __vm256 vmy0_r3 = _ve_vfmkl_mcv(VECC_IEQ, _ve_vcmpsl_vvv(vri_r3, _ve_vmulsl_vsv(2, vry_r3))) ;
+    __vm256 vmy1_r3 = _ve_vfmkl_mcv(VECC_GE, vry_r3) ;
+    __vm256 vmy2_r3 = _ve_vfmkl_mcv(VECC_IG, _ve_vcmpsl_vsv(gOutHeight,vry_r3)) ;
+    __vm256 vmy_r3 = _ve_andm_mmm(_ve_andm_mmm(vmy0_r3, vmy1_r3), vmy2_r3) ;
+
+    __vm256 vmy0_r4 = _ve_vfmkl_mcv(VECC_IEQ, _ve_vcmpsl_vvv(vri_r4, _ve_vmulsl_vsv(2, vry_r4))) ;
+    __vm256 vmy1_r4 = _ve_vfmkl_mcv(VECC_GE, vry_r4) ;
+    __vm256 vmy2_r4 = _ve_vfmkl_mcv(VECC_IG, _ve_vcmpsl_vsv(gOutHeight,vry_r4)) ;
+    __vm256 vmy_r4 = _ve_andm_mmm(_ve_andm_mmm(vmy0_r4, vmy1_r4), vmy2_r4) ;
+
     __vr vrj_s0 = _ve_vaddsl_vsv( 2, vrw) ;
     __vr vrj_s1 = _ve_vaddsl_vsv( 1, vrw) ;
     __vr vrj_s2 = _ve_vaddsl_vsv( 0, vrw) ;
@@ -205,41 +322,75 @@ static inline void c2(
     __vm256 vmx2_s4 = _ve_vfmkl_mcv(VECC_IG, _ve_vcmpsl_vsv(gOutWidth,vrx_s4)) ;
     __vm256 vmx_s4 = _ve_andm_mmm(_ve_andm_mmm(vmx0_s4, vmx1_s4), vmx2_s4) ;
 
-    for (int64_t r=0; r<kernHeight; r++) {
-      __vr vri = _ve_vaddsl_vsv(2-r+h, vrh) ;
-      __vr vry = _ve_vdivsl_vvs(vri, 2) ;
-
-      __vm256 vmy0 = _ve_vfmkl_mcv(VECC_IEQ, _ve_vcmpsl_vvv(vri, _ve_vmulsl_vsv(2, vry))) ;
-      __vm256 vmy1 = _ve_vfmkl_mcv(VECC_GE, vry) ;
-      __vm256 vmy2 = _ve_vfmkl_mcv(VECC_IG, _ve_vcmpsl_vsv(gOutHeight,vry)) ;
-      __vm256 vmy = _ve_andm_mmm(_ve_andm_mmm(vmy0, vmy1), vmy2) ;
-
-      int64_t k=0;
-      for (; k<gOutChannelGroup; k++) {
-	int64_t gOutIndex    = gOutGroupOffset + ((n * gOutChannel + k) * gOutHeight) * gOutWidth ;
-	const float *pKerValue = pKernel + kernGroupOffset + (((k  ) * gInChannelGroup + c) * kernHeight) * kernWidth ;
+    for (int64_t k=0; k<gOutChannelGroup; k++) {
+      int64_t gOutIndex    = gOutGroupOffset + ((n * gOutChannel + k) * gOutHeight) * gOutWidth ;
+      const float *pKerValue = pKernel + kernGroupOffset + (((k  ) * gInChannelGroup + c) * kernHeight) * kernWidth ;
 
 #define VFADD_C2(VRGOUT, K, R, S)  {												\
-	  const uint64_t kerValue01 = _ve_pack_f32p(pKerValue + (((K)*gInChannelGroup + 0) * kernHeight +(R)) * kernWidth + (S),	\
-						    pKerValue + (((K)*gInChannelGroup + 1) * kernHeight +(R)) * kernWidth + (S)) ;	\
-	  __vr vrgoutP = _ve_vshf_vvvs(VRGOUT, VRGOUT, VE_VSHUFFLE_YUZU) ;	\
-	  vrsum01_s##S = _ve_pvfmad_vvsv(vrsum01_s##S, kerValue01, vrgoutP) ;	\
-	}
-
-	__vr vrgout_ptr_k0_s2 = _ve_vsfa_vvss(_ve_vaddsl_vvv(_ve_vmulsl_vsv(gOutWidth, vry), vrx_s2),
-					   2,
-					   (unsigned long)(pGOut+gOutIndex)) ;
-	__vr vrgout_k0_s2 = _ve_vgtu_vvm(vrgout_ptr_k0_s2, vmy) ;
-	vrgout_k0_s2 = _ve_vmrg_vvvm(_ve_vbrdu_vs_f32(0.0f), vrgout_k0_s2, vmy) ;
-
-	VFADD_C2(vrgout_k0_s2, 0, r, 0)
-	VFADD_C2(vrgout_k0_s2, 0, r, 1)
-	VFADD_C2(vrgout_k0_s2, 0, r, 2)
-	VFADD_C2(vrgout_k0_s2, 0, r, 3)
-	VFADD_C2(vrgout_k0_s2, 0, r, 4)
-#undef VFADD_C2
+	const uint64_t kerValue01 = _ve_pack_f32p(pKerValue + (((K)*gInChannelGroup + 0) * kernHeight +(R)) * kernWidth + (S),	\
+						  pKerValue + (((K)*gInChannelGroup + 1) * kernHeight +(R)) * kernWidth + (S)) ;	\
+	__vr vrgoutP = _ve_vshf_vvvs(VRGOUT, VRGOUT, VE_VSHUFFLE_YUZU) ;	\
+	vrsum01_s##S = _ve_pvfmad_vvsv(vrsum01_s##S, kerValue01, vrgoutP) ;	\
       }
-    } // kernHeight
+
+      __vr vrgout_ptr_k0_r0s2 = _ve_vsfa_vvss(_ve_vaddsl_vvv(_ve_vmulsl_vsv(gOutWidth, vry_r0), vrx_s2),
+					 2,
+					 (unsigned long)(pGOut+gOutIndex)) ;
+      __vr vrgout_k0_r0s2 = _ve_vgtu_vvm(vrgout_ptr_k0_r0s2, vmy_r0) ;
+      __vr vrgout_ptr_k0_r1s2 = _ve_vsfa_vvss(_ve_vaddsl_vvv(_ve_vmulsl_vsv(gOutWidth, vry_r1), vrx_s2),
+					 2,
+					 (unsigned long)(pGOut+gOutIndex)) ;
+      __vr vrgout_k0_r1s2 = _ve_vgtu_vvm(vrgout_ptr_k0_r1s2, vmy_r1) ;
+      __vr vrgout_ptr_k0_r2s2 = _ve_vsfa_vvss(_ve_vaddsl_vvv(_ve_vmulsl_vsv(gOutWidth, vry_r2), vrx_s2),
+					 2,
+					 (unsigned long)(pGOut+gOutIndex)) ;
+      __vr vrgout_k0_r2s2 = _ve_vgtu_vvm(vrgout_ptr_k0_r2s2, vmy_r2) ;
+      __vr vrgout_ptr_k0_r3s2 = _ve_vsfa_vvss(_ve_vaddsl_vvv(_ve_vmulsl_vsv(gOutWidth, vry_r3), vrx_s2),
+					 2,
+					 (unsigned long)(pGOut+gOutIndex)) ;
+      __vr vrgout_k0_r3s2 = _ve_vgtu_vvm(vrgout_ptr_k0_r3s2, vmy_r3) ;
+      __vr vrgout_ptr_k0_r4s2 = _ve_vsfa_vvss(_ve_vaddsl_vvv(_ve_vmulsl_vsv(gOutWidth, vry_r4), vrx_s2),
+					 2,
+					 (unsigned long)(pGOut+gOutIndex)) ;
+      __vr vrgout_k0_r4s2 = _ve_vgtu_vvm(vrgout_ptr_k0_r4s2, vmy_r4) ;
+
+      vrgout_k0_r0s2 = _ve_vmrg_vvvm(_ve_vbrdu_vs_f32(0.0f), vrgout_k0_r0s2, vmy_r0) ;
+      VFADD_C2(vrgout_k0_r0s2, 0, 0, 0)
+      VFADD_C2(vrgout_k0_r0s2, 0, 0, 1)
+      VFADD_C2(vrgout_k0_r0s2, 0, 0, 2)
+      VFADD_C2(vrgout_k0_r0s2, 0, 0, 3)
+      VFADD_C2(vrgout_k0_r0s2, 0, 0, 4)
+
+      vrgout_k0_r1s2 = _ve_vmrg_vvvm(_ve_vbrdu_vs_f32(0.0f), vrgout_k0_r1s2, vmy_r1) ;
+      VFADD_C2(vrgout_k0_r1s2, 0, 1, 0)
+      VFADD_C2(vrgout_k0_r1s2, 0, 1, 1)
+      VFADD_C2(vrgout_k0_r1s2, 0, 1, 2)
+      VFADD_C2(vrgout_k0_r1s2, 0, 1, 3)
+      VFADD_C2(vrgout_k0_r1s2, 0, 1, 4)
+
+      vrgout_k0_r2s2 = _ve_vmrg_vvvm(_ve_vbrdu_vs_f32(0.0f), vrgout_k0_r2s2, vmy_r2) ;
+      VFADD_C2(vrgout_k0_r2s2, 0, 2, 0)
+      VFADD_C2(vrgout_k0_r2s2, 0, 2, 1)
+      VFADD_C2(vrgout_k0_r2s2, 0, 2, 2)
+      VFADD_C2(vrgout_k0_r2s2, 0, 2, 3)
+      VFADD_C2(vrgout_k0_r2s2, 0, 2, 4)
+
+      vrgout_k0_r3s2 = _ve_vmrg_vvvm(_ve_vbrdu_vs_f32(0.0f), vrgout_k0_r3s2, vmy_r3) ;
+      VFADD_C2(vrgout_k0_r3s2, 0, 3, 0)
+      VFADD_C2(vrgout_k0_r3s2, 0, 3, 1)
+      VFADD_C2(vrgout_k0_r3s2, 0, 3, 2)
+      VFADD_C2(vrgout_k0_r3s2, 0, 3, 3)
+      VFADD_C2(vrgout_k0_r3s2, 0, 3, 4)
+
+      vrgout_k0_r4s2 = _ve_vmrg_vvvm(_ve_vbrdu_vs_f32(0.0f), vrgout_k0_r4s2, vmy_r4) ;
+      VFADD_C2(vrgout_k0_r4s2, 0, 4, 0)
+      VFADD_C2(vrgout_k0_r4s2, 0, 4, 1)
+      VFADD_C2(vrgout_k0_r4s2, 0, 4, 2)
+      VFADD_C2(vrgout_k0_r4s2, 0, 4, 3)
+      VFADD_C2(vrgout_k0_r4s2, 0, 4, 4)
+
+#undef VFADD_C2
+    }
 
     vrsum01_s0 = _ve_vmrg_vvvm(_ve_vbrd_vs_i64(0UL), _ve_vmv_vsv( 2, vrsum01_s0), vmx_s0) ;
     vrsum01_s1 = _ve_vmrg_vvvm(_ve_vbrd_vs_i64(0UL), _ve_vmv_vsv( 1, vrsum01_s1), vmx_s1) ;
@@ -250,10 +401,13 @@ static inline void c2(
                                   _ve_pvfadd_vvv(vrsum01_s3, vrsum01_s4)) ;
     _ve_vstu_vss(vrsum01, 4, pGIn+gInIndex) ;
     _ve_vstl_vss(vrsum01, 4, pGIn+gInIndex+  gInPixels) ;
+
   } // gOutPixels
 }
 
-static inline void c4(
+
+// force no-inline to avoid vr-spill in the most-inner loop
+static __attribute__((noinline))  void c4(
     const float * restrict pGOut,
     const float * restrict pKernel,
     float * restrict const pGIn,
@@ -273,11 +427,13 @@ static inline void c4(
     const int64_t gInPixels,
     const int64_t n,
     const int64_t c,
-    const int64_t nH,
-    const __vr vrh,
-    const __vr vrw
+    const int64_t nH
 )
 {
+  _ve_lvl(nH*gInWidth) ;
+  __vr vrseq = _ve_vseq_v() ;
+  __vr vrh  = _ve_vdivsl_vvs(vrseq, gInWidth) ;
+  __vr vrw  = _ve_vsubsl_vvv(vrseq, _ve_vmulul_vsv(gInWidth,vrh)) ;
 
   for (int64_t h=0; h<gInHeight; h+=nH) {
     const int64_t vl = gInWidth * (gInHeight - h < nH ? gInHeight - h : nH) ;
@@ -302,6 +458,43 @@ static inline void c4(
     __vr vrsum01_s4 = _ve_vbrd_vs_i64(0UL) ;
     __vr vrsum23_s4 = _ve_vbrd_vs_i64(0UL) ;
 
+    __vr vri_r0 = _ve_vaddsl_vsv(2-0+h, vrh) ;
+    __vr vri_r1 = _ve_vaddsl_vsv(2-1+h, vrh) ;
+    __vr vri_r2 = _ve_vaddsl_vsv(2-2+h, vrh) ;
+    __vr vri_r3 = _ve_vaddsl_vsv(2-3+h, vrh) ;
+    __vr vri_r4 = _ve_vaddsl_vsv(2-4+h, vrh) ;
+
+    __vr vry_r0 = _ve_vdivsl_vvs(vri_r0, 2) ;
+    __vr vry_r1 = _ve_vdivsl_vvs(vri_r1, 2) ;
+    __vr vry_r2 = _ve_vdivsl_vvs(vri_r2, 2) ;
+    __vr vry_r3 = _ve_vdivsl_vvs(vri_r3, 2) ;
+    __vr vry_r4 = _ve_vdivsl_vvs(vri_r4, 2) ;
+
+    __vm256 vmy0_r0 = _ve_vfmkl_mcv(VECC_IEQ, _ve_vcmpsl_vvv(vri_r0, _ve_vmulsl_vsv(2, vry_r0))) ;
+    __vm256 vmy1_r0 = _ve_vfmkl_mcv(VECC_GE, vry_r0) ;
+    __vm256 vmy2_r0 = _ve_vfmkl_mcv(VECC_IG, _ve_vcmpsl_vsv(gOutHeight,vry_r0)) ;
+    __vm256 vmy_r0 = _ve_andm_mmm(_ve_andm_mmm(vmy0_r0, vmy1_r0), vmy2_r0) ;
+
+    __vm256 vmy0_r1 = _ve_vfmkl_mcv(VECC_IEQ, _ve_vcmpsl_vvv(vri_r1, _ve_vmulsl_vsv(2, vry_r1))) ;
+    __vm256 vmy1_r1 = _ve_vfmkl_mcv(VECC_GE, vry_r1) ;
+    __vm256 vmy2_r1 = _ve_vfmkl_mcv(VECC_IG, _ve_vcmpsl_vsv(gOutHeight,vry_r1)) ;
+    __vm256 vmy_r1 = _ve_andm_mmm(_ve_andm_mmm(vmy0_r1, vmy1_r1), vmy2_r1) ;
+
+    __vm256 vmy0_r2 = _ve_vfmkl_mcv(VECC_IEQ, _ve_vcmpsl_vvv(vri_r2, _ve_vmulsl_vsv(2, vry_r2))) ;
+    __vm256 vmy1_r2 = _ve_vfmkl_mcv(VECC_GE, vry_r2) ;
+    __vm256 vmy2_r2 = _ve_vfmkl_mcv(VECC_IG, _ve_vcmpsl_vsv(gOutHeight,vry_r2)) ;
+    __vm256 vmy_r2 = _ve_andm_mmm(_ve_andm_mmm(vmy0_r2, vmy1_r2), vmy2_r2) ;
+
+    __vm256 vmy0_r3 = _ve_vfmkl_mcv(VECC_IEQ, _ve_vcmpsl_vvv(vri_r3, _ve_vmulsl_vsv(2, vry_r3))) ;
+    __vm256 vmy1_r3 = _ve_vfmkl_mcv(VECC_GE, vry_r3) ;
+    __vm256 vmy2_r3 = _ve_vfmkl_mcv(VECC_IG, _ve_vcmpsl_vsv(gOutHeight,vry_r3)) ;
+    __vm256 vmy_r3 = _ve_andm_mmm(_ve_andm_mmm(vmy0_r3, vmy1_r3), vmy2_r3) ;
+
+    __vm256 vmy0_r4 = _ve_vfmkl_mcv(VECC_IEQ, _ve_vcmpsl_vvv(vri_r4, _ve_vmulsl_vsv(2, vry_r4))) ;
+    __vm256 vmy1_r4 = _ve_vfmkl_mcv(VECC_GE, vry_r4) ;
+    __vm256 vmy2_r4 = _ve_vfmkl_mcv(VECC_IG, _ve_vcmpsl_vsv(gOutHeight,vry_r4)) ;
+    __vm256 vmy_r4 = _ve_andm_mmm(_ve_andm_mmm(vmy0_r4, vmy1_r4), vmy2_r4) ;
+
     __vr vrj_s0 = _ve_vaddsl_vsv( 2, vrw) ;
     __vr vrj_s1 = _ve_vaddsl_vsv( 1, vrw) ;
     __vr vrj_s2 = _ve_vaddsl_vsv( 0, vrw) ;
@@ -339,44 +532,78 @@ static inline void c4(
     __vm256 vmx2_s4 = _ve_vfmkl_mcv(VECC_IG, _ve_vcmpsl_vsv(gOutWidth,vrx_s4)) ;
     __vm256 vmx_s4 = _ve_andm_mmm(_ve_andm_mmm(vmx0_s4, vmx1_s4), vmx2_s4) ;
 
-    for (int64_t r=0; r<kernHeight; r++) {
-      __vr vri = _ve_vaddsl_vsv(2-r+h, vrh) ;
-      __vr vry = _ve_vdivsl_vvs(vri, 2) ;
-
-      __vm256 vmy0 = _ve_vfmkl_mcv(VECC_IEQ, _ve_vcmpsl_vvv(vri, _ve_vmulsl_vsv(2, vry))) ;
-      __vm256 vmy1 = _ve_vfmkl_mcv(VECC_GE, vry) ;
-      __vm256 vmy2 = _ve_vfmkl_mcv(VECC_IG, _ve_vcmpsl_vsv(gOutHeight,vry)) ;
-      __vm256 vmy = _ve_andm_mmm(_ve_andm_mmm(vmy0, vmy1), vmy2) ;
-
-      int64_t k=0;
-      for (; k<gOutChannelGroup; k++) {
-	int64_t gOutIndex    = gOutGroupOffset + ((n * gOutChannel + k) * gOutHeight) * gOutWidth ;
-	const float *pKerValue = pKernel + kernGroupOffset + (((k  ) * gInChannelGroup + c) * kernHeight) * kernWidth ;
+    for (int64_t k=0; k<gOutChannelGroup; k++) {
+      int64_t gOutIndex    = gOutGroupOffset + ((n * gOutChannel + k) * gOutHeight) * gOutWidth ;
+      const float *pKerValue = pKernel + kernGroupOffset + (((k  ) * gInChannelGroup + c) * kernHeight) * kernWidth ;
 
 #define VFADD_C4(VRGOUT, K, R, S)  {												\
-	  const uint64_t kerValue01 = _ve_pack_f32p(pKerValue + (((K)*gInChannelGroup + 0) * kernHeight +(R)) * kernWidth + (S),	\
-						    pKerValue + (((K)*gInChannelGroup + 1) * kernHeight +(R)) * kernWidth + (S)) ;	\
-	  const uint64_t kerValue23 = _ve_pack_f32p(pKerValue + (((K)*gInChannelGroup + 2) * kernHeight +(R)) * kernWidth + (S),	\
-						    pKerValue + (((K)*gInChannelGroup + 3) * kernHeight +(R)) * kernWidth + (S)) ;	\
-	  __vr vrgoutP = _ve_vshf_vvvs(VRGOUT, VRGOUT, VE_VSHUFFLE_YUZU) ;	\
-	  vrsum01_s##S = _ve_pvfmad_vvsv(vrsum01_s##S, kerValue01, vrgoutP) ;	\
-	  vrsum23_s##S = _ve_pvfmad_vvsv(vrsum23_s##S, kerValue23, vrgoutP) ;	\
-	}
-
-	__vr vrgout_ptr_k0_s2 = _ve_vsfa_vvss(_ve_vaddsl_vvv(_ve_vmulsl_vsv(gOutWidth, vry), vrx_s2),
-					   2,
-					   (unsigned long)(pGOut+gOutIndex)) ;
-	__vr vrgout_k0_s2 = _ve_vgtu_vvm(vrgout_ptr_k0_s2, vmy) ;
-	vrgout_k0_s2 = _ve_vmrg_vvvm(_ve_vbrdu_vs_f32(0.0f), vrgout_k0_s2, vmy) ;
-
-	VFADD_C4(vrgout_k0_s2, 0, r, 0)
-	VFADD_C4(vrgout_k0_s2, 0, r, 1)
-	VFADD_C4(vrgout_k0_s2, 0, r, 2)
-	VFADD_C4(vrgout_k0_s2, 0, r, 3)
-	VFADD_C4(vrgout_k0_s2, 0, r, 4)
-#undef VFADD_C4
+	const uint64_t kerValue01 = _ve_pack_f32p(pKerValue + (((K)*gInChannelGroup + 0) * kernHeight +(R)) * kernWidth + (S),	\
+						  pKerValue + (((K)*gInChannelGroup + 1) * kernHeight +(R)) * kernWidth + (S)) ;	\
+	const uint64_t kerValue23 = _ve_pack_f32p(pKerValue + (((K)*gInChannelGroup + 2) * kernHeight +(R)) * kernWidth + (S),	\
+						  pKerValue + (((K)*gInChannelGroup + 3) * kernHeight +(R)) * kernWidth + (S)) ;	\
+	__vr vrgoutP = _ve_vshf_vvvs(VRGOUT, VRGOUT, VE_VSHUFFLE_YUZU) ;	\
+	vrsum01_s##S = _ve_pvfmad_vvsv(vrsum01_s##S, kerValue01, vrgoutP) ;	\
+	vrsum23_s##S = _ve_pvfmad_vvsv(vrsum23_s##S, kerValue23, vrgoutP) ;	\
       }
-    } // kernHeight
+
+      __vr vrgout_ptr_k0_r0s2 = _ve_vsfa_vvss(_ve_vaddsl_vvv(_ve_vmulsl_vsv(gOutWidth, vry_r0), vrx_s2),
+					 2,
+					 (unsigned long)(pGOut+gOutIndex)) ;
+      __vr vrgout_k0_r0s2 = _ve_vgtu_vvm(vrgout_ptr_k0_r0s2, vmy_r0) ;
+      __vr vrgout_ptr_k0_r1s2 = _ve_vsfa_vvss(_ve_vaddsl_vvv(_ve_vmulsl_vsv(gOutWidth, vry_r1), vrx_s2),
+					 2,
+					 (unsigned long)(pGOut+gOutIndex)) ;
+      __vr vrgout_k0_r1s2 = _ve_vgtu_vvm(vrgout_ptr_k0_r1s2, vmy_r1) ;
+      __vr vrgout_ptr_k0_r2s2 = _ve_vsfa_vvss(_ve_vaddsl_vvv(_ve_vmulsl_vsv(gOutWidth, vry_r2), vrx_s2),
+					 2,
+					 (unsigned long)(pGOut+gOutIndex)) ;
+      __vr vrgout_k0_r2s2 = _ve_vgtu_vvm(vrgout_ptr_k0_r2s2, vmy_r2) ;
+      __vr vrgout_ptr_k0_r3s2 = _ve_vsfa_vvss(_ve_vaddsl_vvv(_ve_vmulsl_vsv(gOutWidth, vry_r3), vrx_s2),
+					 2,
+					 (unsigned long)(pGOut+gOutIndex)) ;
+      __vr vrgout_k0_r3s2 = _ve_vgtu_vvm(vrgout_ptr_k0_r3s2, vmy_r3) ;
+      __vr vrgout_ptr_k0_r4s2 = _ve_vsfa_vvss(_ve_vaddsl_vvv(_ve_vmulsl_vsv(gOutWidth, vry_r4), vrx_s2),
+					 2,
+					 (unsigned long)(pGOut+gOutIndex)) ;
+      __vr vrgout_k0_r4s2 = _ve_vgtu_vvm(vrgout_ptr_k0_r4s2, vmy_r4) ;
+
+      vrgout_k0_r0s2 = _ve_vmrg_vvvm(_ve_vbrdu_vs_f32(0.0f), vrgout_k0_r0s2, vmy_r0) ;
+      VFADD_C4(vrgout_k0_r0s2, 0, 0, 0)
+      VFADD_C4(vrgout_k0_r0s2, 0, 0, 1)
+      VFADD_C4(vrgout_k0_r0s2, 0, 0, 2)
+      VFADD_C4(vrgout_k0_r0s2, 0, 0, 3)
+      VFADD_C4(vrgout_k0_r0s2, 0, 0, 4)
+
+      vrgout_k0_r1s2 = _ve_vmrg_vvvm(_ve_vbrdu_vs_f32(0.0f), vrgout_k0_r1s2, vmy_r1) ;
+      VFADD_C4(vrgout_k0_r1s2, 0, 1, 0)
+      VFADD_C4(vrgout_k0_r1s2, 0, 1, 1)
+      VFADD_C4(vrgout_k0_r1s2, 0, 1, 2)
+      VFADD_C4(vrgout_k0_r1s2, 0, 1, 3)
+      VFADD_C4(vrgout_k0_r1s2, 0, 1, 4)
+
+      vrgout_k0_r2s2 = _ve_vmrg_vvvm(_ve_vbrdu_vs_f32(0.0f), vrgout_k0_r2s2, vmy_r2) ;
+      VFADD_C4(vrgout_k0_r2s2, 0, 2, 0)
+      VFADD_C4(vrgout_k0_r2s2, 0, 2, 1)
+      VFADD_C4(vrgout_k0_r2s2, 0, 2, 2)
+      VFADD_C4(vrgout_k0_r2s2, 0, 2, 3)
+      VFADD_C4(vrgout_k0_r2s2, 0, 2, 4)
+
+      vrgout_k0_r3s2 = _ve_vmrg_vvvm(_ve_vbrdu_vs_f32(0.0f), vrgout_k0_r3s2, vmy_r3) ;
+      VFADD_C4(vrgout_k0_r3s2, 0, 3, 0)
+      VFADD_C4(vrgout_k0_r3s2, 0, 3, 1)
+      VFADD_C4(vrgout_k0_r3s2, 0, 3, 2)
+      VFADD_C4(vrgout_k0_r3s2, 0, 3, 3)
+      VFADD_C4(vrgout_k0_r3s2, 0, 3, 4)
+
+      vrgout_k0_r4s2 = _ve_vmrg_vvvm(_ve_vbrdu_vs_f32(0.0f), vrgout_k0_r4s2, vmy_r4) ;
+      VFADD_C4(vrgout_k0_r4s2, 0, 4, 0)
+      VFADD_C4(vrgout_k0_r4s2, 0, 4, 1)
+      VFADD_C4(vrgout_k0_r4s2, 0, 4, 2)
+      VFADD_C4(vrgout_k0_r4s2, 0, 4, 3)
+      VFADD_C4(vrgout_k0_r4s2, 0, 4, 4)
+
+#undef VFADD_C4
+    }
 
     vrsum01_s0 = _ve_vmrg_vvvm(_ve_vbrd_vs_i64(0UL), _ve_vmv_vsv( 2, vrsum01_s0), vmx_s0) ;
     vrsum01_s1 = _ve_vmrg_vvvm(_ve_vbrd_vs_i64(0UL), _ve_vmv_vsv( 1, vrsum01_s1), vmx_s1) ;
@@ -397,11 +624,13 @@ static inline void c4(
                                   _ve_pvfadd_vvv(vrsum23_s3, vrsum23_s4)) ;
     _ve_vstu_vss(vrsum23, 4, pGIn+gInIndex+2*gInPixels) ;
     _ve_vstl_vss(vrsum23, 4, pGIn+gInIndex+3*gInPixels) ;
+
+
   } // gOutPixels
 }
 
-
-static inline void c8(
+// force no-inline to avoid vr-spill in the most-inner loop
+static __attribute__((noinline))  void c8(
     const float * restrict pGOut,
     const float * restrict pKernel,
     float * restrict const pGIn,
@@ -421,11 +650,13 @@ static inline void c8(
     const int64_t gInPixels,
     const int64_t n,
     const int64_t c,
-    const int64_t nH,
-    const __vr vrh,
-    const __vr vrw
+    const int64_t nH
 )
 {
+  _ve_lvl(nH*gInWidth) ;
+  __vr vrseq = _ve_vseq_v() ;
+  __vr vrh  = _ve_vdivsl_vvs(vrseq, gInWidth) ;
+  __vr vrw  = _ve_vsubsl_vvv(vrseq, _ve_vmulul_vsv(gInWidth,vrh)) ;
 
   for (int64_t h=0; h<gInHeight; h+=nH) {
     const int64_t vl = gInWidth * (gInHeight - h < nH ? gInHeight - h : nH) ;
@@ -460,6 +691,43 @@ static inline void c8(
     __vr vrsum45_s4 = _ve_vbrd_vs_i64(0UL) ;
     __vr vrsum67_s4 = _ve_vbrd_vs_i64(0UL) ;
 
+    __vr vri_r0 = _ve_vaddsl_vsv(2-0+h, vrh) ;
+    __vr vri_r1 = _ve_vaddsl_vsv(2-1+h, vrh) ;
+    __vr vri_r2 = _ve_vaddsl_vsv(2-2+h, vrh) ;
+    __vr vri_r3 = _ve_vaddsl_vsv(2-3+h, vrh) ;
+    __vr vri_r4 = _ve_vaddsl_vsv(2-4+h, vrh) ;
+
+    __vr vry_r0 = _ve_vdivsl_vvs(vri_r0, 2) ;
+    __vr vry_r1 = _ve_vdivsl_vvs(vri_r1, 2) ;
+    __vr vry_r2 = _ve_vdivsl_vvs(vri_r2, 2) ;
+    __vr vry_r3 = _ve_vdivsl_vvs(vri_r3, 2) ;
+    __vr vry_r4 = _ve_vdivsl_vvs(vri_r4, 2) ;
+
+    __vm256 vmy0_r0 = _ve_vfmkl_mcv(VECC_IEQ, _ve_vcmpsl_vvv(vri_r0, _ve_vmulsl_vsv(2, vry_r0))) ;
+    __vm256 vmy1_r0 = _ve_vfmkl_mcv(VECC_GE, vry_r0) ;
+    __vm256 vmy2_r0 = _ve_vfmkl_mcv(VECC_IG, _ve_vcmpsl_vsv(gOutHeight,vry_r0)) ;
+    __vm256 vmy_r0 = _ve_andm_mmm(_ve_andm_mmm(vmy0_r0, vmy1_r0), vmy2_r0) ;
+
+    __vm256 vmy0_r1 = _ve_vfmkl_mcv(VECC_IEQ, _ve_vcmpsl_vvv(vri_r1, _ve_vmulsl_vsv(2, vry_r1))) ;
+    __vm256 vmy1_r1 = _ve_vfmkl_mcv(VECC_GE, vry_r1) ;
+    __vm256 vmy2_r1 = _ve_vfmkl_mcv(VECC_IG, _ve_vcmpsl_vsv(gOutHeight,vry_r1)) ;
+    __vm256 vmy_r1 = _ve_andm_mmm(_ve_andm_mmm(vmy0_r1, vmy1_r1), vmy2_r1) ;
+
+    __vm256 vmy0_r2 = _ve_vfmkl_mcv(VECC_IEQ, _ve_vcmpsl_vvv(vri_r2, _ve_vmulsl_vsv(2, vry_r2))) ;
+    __vm256 vmy1_r2 = _ve_vfmkl_mcv(VECC_GE, vry_r2) ;
+    __vm256 vmy2_r2 = _ve_vfmkl_mcv(VECC_IG, _ve_vcmpsl_vsv(gOutHeight,vry_r2)) ;
+    __vm256 vmy_r2 = _ve_andm_mmm(_ve_andm_mmm(vmy0_r2, vmy1_r2), vmy2_r2) ;
+
+    __vm256 vmy0_r3 = _ve_vfmkl_mcv(VECC_IEQ, _ve_vcmpsl_vvv(vri_r3, _ve_vmulsl_vsv(2, vry_r3))) ;
+    __vm256 vmy1_r3 = _ve_vfmkl_mcv(VECC_GE, vry_r3) ;
+    __vm256 vmy2_r3 = _ve_vfmkl_mcv(VECC_IG, _ve_vcmpsl_vsv(gOutHeight,vry_r3)) ;
+    __vm256 vmy_r3 = _ve_andm_mmm(_ve_andm_mmm(vmy0_r3, vmy1_r3), vmy2_r3) ;
+
+    __vm256 vmy0_r4 = _ve_vfmkl_mcv(VECC_IEQ, _ve_vcmpsl_vvv(vri_r4, _ve_vmulsl_vsv(2, vry_r4))) ;
+    __vm256 vmy1_r4 = _ve_vfmkl_mcv(VECC_GE, vry_r4) ;
+    __vm256 vmy2_r4 = _ve_vfmkl_mcv(VECC_IG, _ve_vcmpsl_vsv(gOutHeight,vry_r4)) ;
+    __vm256 vmy_r4 = _ve_andm_mmm(_ve_andm_mmm(vmy0_r4, vmy1_r4), vmy2_r4) ;
+
     __vr vrj_s0 = _ve_vaddsl_vsv( 2, vrw) ;
     __vr vrj_s1 = _ve_vaddsl_vsv( 1, vrw) ;
     __vr vrj_s2 = _ve_vaddsl_vsv( 0, vrw) ;
@@ -497,50 +765,84 @@ static inline void c8(
     __vm256 vmx2_s4 = _ve_vfmkl_mcv(VECC_IG, _ve_vcmpsl_vsv(gOutWidth,vrx_s4)) ;
     __vm256 vmx_s4 = _ve_andm_mmm(_ve_andm_mmm(vmx0_s4, vmx1_s4), vmx2_s4) ;
 
-    for (int64_t r=0; r<kernHeight; r++) {
-      __vr vri = _ve_vaddsl_vsv(2-r+h, vrh) ;
-      __vr vry = _ve_vdivsl_vvs(vri, 2) ;
-
-      __vm256 vmy0 = _ve_vfmkl_mcv(VECC_IEQ, _ve_vcmpsl_vvv(vri, _ve_vmulsl_vsv(2, vry))) ;
-      __vm256 vmy1 = _ve_vfmkl_mcv(VECC_GE, vry) ;
-      __vm256 vmy2 = _ve_vfmkl_mcv(VECC_IG, _ve_vcmpsl_vsv(gOutHeight,vry)) ;
-      __vm256 vmy = _ve_andm_mmm(_ve_andm_mmm(vmy0, vmy1), vmy2) ;
-
-      int64_t k=0;
-      for (; k<gOutChannelGroup; k++) {
-	int64_t gOutIndex    = gOutGroupOffset + ((n * gOutChannel + k) * gOutHeight) * gOutWidth ;
-	const float *pKerValue = pKernel + kernGroupOffset + (((k  ) * gInChannelGroup + c) * kernHeight) * kernWidth ;
+    for (int64_t k=0; k<gOutChannelGroup; k++) {
+      int64_t gOutIndex    = gOutGroupOffset + ((n * gOutChannel + k) * gOutHeight) * gOutWidth ;
+      const float *pKerValue = pKernel + kernGroupOffset + (((k  ) * gInChannelGroup + c) * kernHeight) * kernWidth ;
 
 #define VFADD_C8(VRGOUT, K, R, S)  {												\
-	  const uint64_t kerValue01 = _ve_pack_f32p(pKerValue + (((K)*gInChannelGroup + 0) * kernHeight +(R)) * kernWidth + (S),	\
-						    pKerValue + (((K)*gInChannelGroup + 1) * kernHeight +(R)) * kernWidth + (S)) ;	\
-	  const uint64_t kerValue23 = _ve_pack_f32p(pKerValue + (((K)*gInChannelGroup + 2) * kernHeight +(R)) * kernWidth + (S),	\
-						    pKerValue + (((K)*gInChannelGroup + 3) * kernHeight +(R)) * kernWidth + (S)) ;	\
-	  const uint64_t kerValue45 = _ve_pack_f32p(pKerValue + (((K)*gInChannelGroup + 4) * kernHeight +(R)) * kernWidth + (S),	\
-						    pKerValue + (((K)*gInChannelGroup + 5) * kernHeight +(R)) * kernWidth + (S)) ;	\
-	  const uint64_t kerValue67 = _ve_pack_f32p(pKerValue + (((K)*gInChannelGroup + 6) * kernHeight +(R)) * kernWidth + (S),	\
-						    pKerValue + (((K)*gInChannelGroup + 7) * kernHeight +(R)) * kernWidth + (S)) ;	\
-	  __vr vrgoutP = _ve_vshf_vvvs(VRGOUT, VRGOUT, VE_VSHUFFLE_YUZU) ;	\
-	  vrsum01_s##S = _ve_pvfmad_vvsv(vrsum01_s##S, kerValue01, vrgoutP) ;	\
-	  vrsum23_s##S = _ve_pvfmad_vvsv(vrsum23_s##S, kerValue23, vrgoutP) ;	\
-	  vrsum45_s##S = _ve_pvfmad_vvsv(vrsum45_s##S, kerValue45, vrgoutP) ;	\
-	  vrsum67_s##S = _ve_pvfmad_vvsv(vrsum67_s##S, kerValue67, vrgoutP) ;	\
-	}
-
-	__vr vrgout_ptr_k0_s2 = _ve_vsfa_vvss(_ve_vaddsl_vvv(_ve_vmulsl_vsv(gOutWidth, vry), vrx_s2),
-					   2,
-					   (unsigned long)(pGOut+gOutIndex)) ;
-	__vr vrgout_k0_s2 = _ve_vgtu_vvm(vrgout_ptr_k0_s2, vmy) ;
-	vrgout_k0_s2 = _ve_vmrg_vvvm(_ve_vbrdu_vs_f32(0.0f), vrgout_k0_s2, vmy) ;
-
-	VFADD_C8(vrgout_k0_s2, 0, r, 0)
-	VFADD_C8(vrgout_k0_s2, 0, r, 1)
-	VFADD_C8(vrgout_k0_s2, 0, r, 2)
-	VFADD_C8(vrgout_k0_s2, 0, r, 3)
-	VFADD_C8(vrgout_k0_s2, 0, r, 4)
-#undef VFADD_C8
+	const uint64_t kerValue01 = _ve_pack_f32p(pKerValue + (((K)*gInChannelGroup + 0) * kernHeight +(R)) * kernWidth + (S),	\
+						  pKerValue + (((K)*gInChannelGroup + 1) * kernHeight +(R)) * kernWidth + (S)) ;	\
+	const uint64_t kerValue23 = _ve_pack_f32p(pKerValue + (((K)*gInChannelGroup + 2) * kernHeight +(R)) * kernWidth + (S),	\
+						  pKerValue + (((K)*gInChannelGroup + 3) * kernHeight +(R)) * kernWidth + (S)) ;	\
+	const uint64_t kerValue45 = _ve_pack_f32p(pKerValue + (((K)*gInChannelGroup + 4) * kernHeight +(R)) * kernWidth + (S),	\
+						  pKerValue + (((K)*gInChannelGroup + 5) * kernHeight +(R)) * kernWidth + (S)) ;	\
+	const uint64_t kerValue67 = _ve_pack_f32p(pKerValue + (((K)*gInChannelGroup + 6) * kernHeight +(R)) * kernWidth + (S),	\
+						  pKerValue + (((K)*gInChannelGroup + 7) * kernHeight +(R)) * kernWidth + (S)) ;	\
+	__vr vrgoutP = _ve_vshf_vvvs(VRGOUT, VRGOUT, VE_VSHUFFLE_YUZU) ;	\
+	vrsum01_s##S = _ve_pvfmad_vvsv(vrsum01_s##S, kerValue01, vrgoutP) ;	\
+	vrsum23_s##S = _ve_pvfmad_vvsv(vrsum23_s##S, kerValue23, vrgoutP) ;	\
+	vrsum45_s##S = _ve_pvfmad_vvsv(vrsum45_s##S, kerValue45, vrgoutP) ;	\
+	vrsum67_s##S = _ve_pvfmad_vvsv(vrsum67_s##S, kerValue67, vrgoutP) ;	\
       }
-    } // kernHeight
+
+      __vr vrgout_ptr_k0_r0s2 = _ve_vsfa_vvss(_ve_vaddsl_vvv(_ve_vmulsl_vsv(gOutWidth, vry_r0), vrx_s2),
+					 2,
+					 (unsigned long)(pGOut+gOutIndex)) ;
+      __vr vrgout_k0_r0s2 = _ve_vgtu_vvm(vrgout_ptr_k0_r0s2, vmy_r0) ;
+      __vr vrgout_ptr_k0_r1s2 = _ve_vsfa_vvss(_ve_vaddsl_vvv(_ve_vmulsl_vsv(gOutWidth, vry_r1), vrx_s2),
+					 2,
+					 (unsigned long)(pGOut+gOutIndex)) ;
+      __vr vrgout_k0_r1s2 = _ve_vgtu_vvm(vrgout_ptr_k0_r1s2, vmy_r1) ;
+      __vr vrgout_ptr_k0_r2s2 = _ve_vsfa_vvss(_ve_vaddsl_vvv(_ve_vmulsl_vsv(gOutWidth, vry_r2), vrx_s2),
+					 2,
+					 (unsigned long)(pGOut+gOutIndex)) ;
+      __vr vrgout_k0_r2s2 = _ve_vgtu_vvm(vrgout_ptr_k0_r2s2, vmy_r2) ;
+      __vr vrgout_ptr_k0_r3s2 = _ve_vsfa_vvss(_ve_vaddsl_vvv(_ve_vmulsl_vsv(gOutWidth, vry_r3), vrx_s2),
+					 2,
+					 (unsigned long)(pGOut+gOutIndex)) ;
+      __vr vrgout_k0_r3s2 = _ve_vgtu_vvm(vrgout_ptr_k0_r3s2, vmy_r3) ;
+      __vr vrgout_ptr_k0_r4s2 = _ve_vsfa_vvss(_ve_vaddsl_vvv(_ve_vmulsl_vsv(gOutWidth, vry_r4), vrx_s2),
+					 2,
+					 (unsigned long)(pGOut+gOutIndex)) ;
+      __vr vrgout_k0_r4s2 = _ve_vgtu_vvm(vrgout_ptr_k0_r4s2, vmy_r4) ;
+
+      vrgout_k0_r0s2 = _ve_vmrg_vvvm(_ve_vbrdu_vs_f32(0.0f), vrgout_k0_r0s2, vmy_r0) ;
+      VFADD_C8(vrgout_k0_r0s2, 0, 0, 0)
+      VFADD_C8(vrgout_k0_r0s2, 0, 0, 1)
+      VFADD_C8(vrgout_k0_r0s2, 0, 0, 2)
+      VFADD_C8(vrgout_k0_r0s2, 0, 0, 3)
+      VFADD_C8(vrgout_k0_r0s2, 0, 0, 4)
+
+      vrgout_k0_r1s2 = _ve_vmrg_vvvm(_ve_vbrdu_vs_f32(0.0f), vrgout_k0_r1s2, vmy_r1) ;
+      VFADD_C8(vrgout_k0_r1s2, 0, 1, 0)
+      VFADD_C8(vrgout_k0_r1s2, 0, 1, 1)
+      VFADD_C8(vrgout_k0_r1s2, 0, 1, 2)
+      VFADD_C8(vrgout_k0_r1s2, 0, 1, 3)
+      VFADD_C8(vrgout_k0_r1s2, 0, 1, 4)
+
+      vrgout_k0_r2s2 = _ve_vmrg_vvvm(_ve_vbrdu_vs_f32(0.0f), vrgout_k0_r2s2, vmy_r2) ;
+      VFADD_C8(vrgout_k0_r2s2, 0, 2, 0)
+      VFADD_C8(vrgout_k0_r2s2, 0, 2, 1)
+      VFADD_C8(vrgout_k0_r2s2, 0, 2, 2)
+      VFADD_C8(vrgout_k0_r2s2, 0, 2, 3)
+      VFADD_C8(vrgout_k0_r2s2, 0, 2, 4)
+
+      vrgout_k0_r3s2 = _ve_vmrg_vvvm(_ve_vbrdu_vs_f32(0.0f), vrgout_k0_r3s2, vmy_r3) ;
+      VFADD_C8(vrgout_k0_r3s2, 0, 3, 0)
+      VFADD_C8(vrgout_k0_r3s2, 0, 3, 1)
+      VFADD_C8(vrgout_k0_r3s2, 0, 3, 2)
+      VFADD_C8(vrgout_k0_r3s2, 0, 3, 3)
+      VFADD_C8(vrgout_k0_r3s2, 0, 3, 4)
+
+      vrgout_k0_r4s2 = _ve_vmrg_vvvm(_ve_vbrdu_vs_f32(0.0f), vrgout_k0_r4s2, vmy_r4) ;
+      VFADD_C8(vrgout_k0_r4s2, 0, 4, 0)
+      VFADD_C8(vrgout_k0_r4s2, 0, 4, 1)
+      VFADD_C8(vrgout_k0_r4s2, 0, 4, 2)
+      VFADD_C8(vrgout_k0_r4s2, 0, 4, 3)
+      VFADD_C8(vrgout_k0_r4s2, 0, 4, 4)
+
+#undef VFADD_C8
+    }
 
     vrsum01_s0 = _ve_vmrg_vvvm(_ve_vbrd_vs_i64(0UL), _ve_vmv_vsv( 2, vrsum01_s0), vmx_s0) ;
     vrsum01_s1 = _ve_vmrg_vvvm(_ve_vbrd_vs_i64(0UL), _ve_vmv_vsv( 1, vrsum01_s1), vmx_s1) ;
@@ -585,7 +887,8 @@ static inline void c8(
   } // gOutPixels
 }
 
-static inline void c16(
+// force no-inline to avoid vr-spill in the most-inner loop
+static __attribute__((noinline))  void c16(
     const float * restrict pGOut,
     const float * restrict pKernel,
     float * restrict const pGIn,
@@ -605,11 +908,13 @@ static inline void c16(
     const int64_t gInPixels,
     const int64_t n,
     const int64_t c,
-    const int64_t nH,
-    const __vr vrh,
-    const __vr vrw
+    const int64_t nH
 )
 {
+  _ve_lvl(nH*gInWidth) ;
+  __vr vrseq = _ve_vseq_v() ;
+  __vr vrh  = _ve_vdivsl_vvs(vrseq, gInWidth) ;
+  __vr vrw  = _ve_vsubsl_vvv(vrseq, _ve_vmulul_vsv(gInWidth,vrh)) ;
 
   for (int64_t h=0; h<gInHeight; h+=nH) {
     const int64_t vl = gInWidth * (gInHeight - h < nH ? gInHeight - h : nH) ;
@@ -664,6 +969,43 @@ static inline void c16(
     __vr vrsumCD_s4 = _ve_vbrd_vs_i64(0UL) ;
     __vr vrsumEF_s4 = _ve_vbrd_vs_i64(0UL) ;
 
+    __vr vri_r0 = _ve_vaddsl_vsv(2-0+h, vrh) ;
+    __vr vri_r1 = _ve_vaddsl_vsv(2-1+h, vrh) ;
+    __vr vri_r2 = _ve_vaddsl_vsv(2-2+h, vrh) ;
+    __vr vri_r3 = _ve_vaddsl_vsv(2-3+h, vrh) ;
+    __vr vri_r4 = _ve_vaddsl_vsv(2-4+h, vrh) ;
+
+    __vr vry_r0 = _ve_vdivsl_vvs(vri_r0, 2) ;
+    __vr vry_r1 = _ve_vdivsl_vvs(vri_r1, 2) ;
+    __vr vry_r2 = _ve_vdivsl_vvs(vri_r2, 2) ;
+    __vr vry_r3 = _ve_vdivsl_vvs(vri_r3, 2) ;
+    __vr vry_r4 = _ve_vdivsl_vvs(vri_r4, 2) ;
+
+    __vm256 vmy0_r0 = _ve_vfmkl_mcv(VECC_IEQ, _ve_vcmpsl_vvv(vri_r0, _ve_vmulsl_vsv(2, vry_r0))) ;
+    __vm256 vmy1_r0 = _ve_vfmkl_mcv(VECC_GE, vry_r0) ;
+    __vm256 vmy2_r0 = _ve_vfmkl_mcv(VECC_IG, _ve_vcmpsl_vsv(gOutHeight,vry_r0)) ;
+    __vm256 vmy_r0 = _ve_andm_mmm(_ve_andm_mmm(vmy0_r0, vmy1_r0), vmy2_r0) ;
+
+    __vm256 vmy0_r1 = _ve_vfmkl_mcv(VECC_IEQ, _ve_vcmpsl_vvv(vri_r1, _ve_vmulsl_vsv(2, vry_r1))) ;
+    __vm256 vmy1_r1 = _ve_vfmkl_mcv(VECC_GE, vry_r1) ;
+    __vm256 vmy2_r1 = _ve_vfmkl_mcv(VECC_IG, _ve_vcmpsl_vsv(gOutHeight,vry_r1)) ;
+    __vm256 vmy_r1 = _ve_andm_mmm(_ve_andm_mmm(vmy0_r1, vmy1_r1), vmy2_r1) ;
+
+    __vm256 vmy0_r2 = _ve_vfmkl_mcv(VECC_IEQ, _ve_vcmpsl_vvv(vri_r2, _ve_vmulsl_vsv(2, vry_r2))) ;
+    __vm256 vmy1_r2 = _ve_vfmkl_mcv(VECC_GE, vry_r2) ;
+    __vm256 vmy2_r2 = _ve_vfmkl_mcv(VECC_IG, _ve_vcmpsl_vsv(gOutHeight,vry_r2)) ;
+    __vm256 vmy_r2 = _ve_andm_mmm(_ve_andm_mmm(vmy0_r2, vmy1_r2), vmy2_r2) ;
+
+    __vm256 vmy0_r3 = _ve_vfmkl_mcv(VECC_IEQ, _ve_vcmpsl_vvv(vri_r3, _ve_vmulsl_vsv(2, vry_r3))) ;
+    __vm256 vmy1_r3 = _ve_vfmkl_mcv(VECC_GE, vry_r3) ;
+    __vm256 vmy2_r3 = _ve_vfmkl_mcv(VECC_IG, _ve_vcmpsl_vsv(gOutHeight,vry_r3)) ;
+    __vm256 vmy_r3 = _ve_andm_mmm(_ve_andm_mmm(vmy0_r3, vmy1_r3), vmy2_r3) ;
+
+    __vm256 vmy0_r4 = _ve_vfmkl_mcv(VECC_IEQ, _ve_vcmpsl_vvv(vri_r4, _ve_vmulsl_vsv(2, vry_r4))) ;
+    __vm256 vmy1_r4 = _ve_vfmkl_mcv(VECC_GE, vry_r4) ;
+    __vm256 vmy2_r4 = _ve_vfmkl_mcv(VECC_IG, _ve_vcmpsl_vsv(gOutHeight,vry_r4)) ;
+    __vm256 vmy_r4 = _ve_andm_mmm(_ve_andm_mmm(vmy0_r4, vmy1_r4), vmy2_r4) ;
+
     __vr vrj_s0 = _ve_vaddsl_vsv( 2, vrw) ;
     __vr vrj_s1 = _ve_vaddsl_vsv( 1, vrw) ;
     __vr vrj_s2 = _ve_vaddsl_vsv( 0, vrw) ;
@@ -701,62 +1043,96 @@ static inline void c16(
     __vm256 vmx2_s4 = _ve_vfmkl_mcv(VECC_IG, _ve_vcmpsl_vsv(gOutWidth,vrx_s4)) ;
     __vm256 vmx_s4 = _ve_andm_mmm(_ve_andm_mmm(vmx0_s4, vmx1_s4), vmx2_s4) ;
 
-    for (int64_t r=0; r<kernHeight; r++) {
-      __vr vri = _ve_vaddsl_vsv(2-r+h, vrh) ;
-      __vr vry = _ve_vdivsl_vvs(vri, 2) ;
-
-      __vm256 vmy0 = _ve_vfmkl_mcv(VECC_IEQ, _ve_vcmpsl_vvv(vri, _ve_vmulsl_vsv(2, vry))) ;
-      __vm256 vmy1 = _ve_vfmkl_mcv(VECC_GE, vry) ;
-      __vm256 vmy2 = _ve_vfmkl_mcv(VECC_IG, _ve_vcmpsl_vsv(gOutHeight,vry)) ;
-      __vm256 vmy = _ve_andm_mmm(_ve_andm_mmm(vmy0, vmy1), vmy2) ;
-
-      int64_t k=0;
-      for (; k<gOutChannelGroup; k++) {
-	int64_t gOutIndex    = gOutGroupOffset + ((n * gOutChannel + k) * gOutHeight) * gOutWidth ;
-	const float *pKerValue = pKernel + kernGroupOffset + (((k  ) * gInChannelGroup + c) * kernHeight) * kernWidth ;
+    for (int64_t k=0; k<gOutChannelGroup; k++) {
+      int64_t gOutIndex    = gOutGroupOffset + ((n * gOutChannel + k) * gOutHeight) * gOutWidth ;
+      const float *pKerValue = pKernel + kernGroupOffset + (((k  ) * gInChannelGroup + c) * kernHeight) * kernWidth ;
 
 #define VFADD_C16(VRGOUT, K, R, S)  {												\
-	  const uint64_t kerValue01 = _ve_pack_f32p(pKerValue + (((K)*gInChannelGroup + 0) * kernHeight +(R)) * kernWidth + (S),	\
-						    pKerValue + (((K)*gInChannelGroup + 1) * kernHeight +(R)) * kernWidth + (S)) ;	\
-	  const uint64_t kerValue23 = _ve_pack_f32p(pKerValue + (((K)*gInChannelGroup + 2) * kernHeight +(R)) * kernWidth + (S),	\
-						    pKerValue + (((K)*gInChannelGroup + 3) * kernHeight +(R)) * kernWidth + (S)) ;	\
-	  const uint64_t kerValue45 = _ve_pack_f32p(pKerValue + (((K)*gInChannelGroup + 4) * kernHeight +(R)) * kernWidth + (S),	\
-						    pKerValue + (((K)*gInChannelGroup + 5) * kernHeight +(R)) * kernWidth + (S)) ;	\
-	  const uint64_t kerValue67 = _ve_pack_f32p(pKerValue + (((K)*gInChannelGroup + 6) * kernHeight +(R)) * kernWidth + (S),	\
-						    pKerValue + (((K)*gInChannelGroup + 7) * kernHeight +(R)) * kernWidth + (S)) ;	\
-	  const uint64_t kerValue89 = _ve_pack_f32p(pKerValue + (((K)*gInChannelGroup + 8) * kernHeight +(R)) * kernWidth + (S),	\
-						    pKerValue + (((K)*gInChannelGroup + 9) * kernHeight +(R)) * kernWidth + (S)) ;	\
-	  const uint64_t kerValueAB = _ve_pack_f32p(pKerValue + (((K)*gInChannelGroup +10) * kernHeight +(R)) * kernWidth + (S),	\
-						    pKerValue + (((K)*gInChannelGroup +11) * kernHeight +(R)) * kernWidth + (S)) ;	\
-	  const uint64_t kerValueCD = _ve_pack_f32p(pKerValue + (((K)*gInChannelGroup +12) * kernHeight +(R)) * kernWidth + (S),	\
-						    pKerValue + (((K)*gInChannelGroup +13) * kernHeight +(R)) * kernWidth + (S)) ;	\
-	  const uint64_t kerValueEF = _ve_pack_f32p(pKerValue + (((K)*gInChannelGroup +14) * kernHeight +(R)) * kernWidth + (S),	\
-						    pKerValue + (((K)*gInChannelGroup +15) * kernHeight +(R)) * kernWidth + (S)) ;	\
-	  __vr vrgoutP = _ve_vshf_vvvs(VRGOUT, VRGOUT, VE_VSHUFFLE_YUZU) ;	\
-	  vrsum01_s##S = _ve_pvfmad_vvsv(vrsum01_s##S, kerValue01, vrgoutP) ;	\
-	  vrsum23_s##S = _ve_pvfmad_vvsv(vrsum23_s##S, kerValue23, vrgoutP) ;	\
-	  vrsum45_s##S = _ve_pvfmad_vvsv(vrsum45_s##S, kerValue45, vrgoutP) ;	\
-	  vrsum67_s##S = _ve_pvfmad_vvsv(vrsum67_s##S, kerValue67, vrgoutP) ;	\
-	  vrsum89_s##S = _ve_pvfmad_vvsv(vrsum89_s##S, kerValue89, vrgoutP) ;	\
-	  vrsumAB_s##S = _ve_pvfmad_vvsv(vrsumAB_s##S, kerValueAB, vrgoutP) ;	\
-	  vrsumCD_s##S = _ve_pvfmad_vvsv(vrsumCD_s##S, kerValueCD, vrgoutP) ;	\
-	  vrsumEF_s##S = _ve_pvfmad_vvsv(vrsumEF_s##S, kerValueEF, vrgoutP) ;	\
-	}
-
-	__vr vrgout_ptr_k0_s2 = _ve_vsfa_vvss(_ve_vaddsl_vvv(_ve_vmulsl_vsv(gOutWidth, vry), vrx_s2),
-					   2,
-					   (unsigned long)(pGOut+gOutIndex)) ;
-	__vr vrgout_k0_s2 = _ve_vgtu_vvm(vrgout_ptr_k0_s2, vmy) ;
-	vrgout_k0_s2 = _ve_vmrg_vvvm(_ve_vbrdu_vs_f32(0.0f), vrgout_k0_s2, vmy) ;
-
-	VFADD_C16(vrgout_k0_s2, 0, r, 0)
-	VFADD_C16(vrgout_k0_s2, 0, r, 1)
-	VFADD_C16(vrgout_k0_s2, 0, r, 2)
-	VFADD_C16(vrgout_k0_s2, 0, r, 3)
-	VFADD_C16(vrgout_k0_s2, 0, r, 4)
-#undef VFADD_C16
+	const uint64_t kerValue01 = _ve_pack_f32p(pKerValue + (((K)*gInChannelGroup + 0) * kernHeight +(R)) * kernWidth + (S),	\
+						  pKerValue + (((K)*gInChannelGroup + 1) * kernHeight +(R)) * kernWidth + (S)) ;	\
+	const uint64_t kerValue23 = _ve_pack_f32p(pKerValue + (((K)*gInChannelGroup + 2) * kernHeight +(R)) * kernWidth + (S),	\
+						  pKerValue + (((K)*gInChannelGroup + 3) * kernHeight +(R)) * kernWidth + (S)) ;	\
+	const uint64_t kerValue45 = _ve_pack_f32p(pKerValue + (((K)*gInChannelGroup + 4) * kernHeight +(R)) * kernWidth + (S),	\
+						  pKerValue + (((K)*gInChannelGroup + 5) * kernHeight +(R)) * kernWidth + (S)) ;	\
+	const uint64_t kerValue67 = _ve_pack_f32p(pKerValue + (((K)*gInChannelGroup + 6) * kernHeight +(R)) * kernWidth + (S),	\
+						  pKerValue + (((K)*gInChannelGroup + 7) * kernHeight +(R)) * kernWidth + (S)) ;	\
+	const uint64_t kerValue89 = _ve_pack_f32p(pKerValue + (((K)*gInChannelGroup + 8) * kernHeight +(R)) * kernWidth + (S),	\
+						  pKerValue + (((K)*gInChannelGroup + 9) * kernHeight +(R)) * kernWidth + (S)) ;	\
+	const uint64_t kerValueAB = _ve_pack_f32p(pKerValue + (((K)*gInChannelGroup +10) * kernHeight +(R)) * kernWidth + (S),	\
+						  pKerValue + (((K)*gInChannelGroup +11) * kernHeight +(R)) * kernWidth + (S)) ;	\
+	const uint64_t kerValueCD = _ve_pack_f32p(pKerValue + (((K)*gInChannelGroup +12) * kernHeight +(R)) * kernWidth + (S),	\
+						  pKerValue + (((K)*gInChannelGroup +13) * kernHeight +(R)) * kernWidth + (S)) ;	\
+	const uint64_t kerValueEF = _ve_pack_f32p(pKerValue + (((K)*gInChannelGroup +14) * kernHeight +(R)) * kernWidth + (S),	\
+						  pKerValue + (((K)*gInChannelGroup +15) * kernHeight +(R)) * kernWidth + (S)) ;	\
+	__vr vrgoutP = _ve_vshf_vvvs(VRGOUT, VRGOUT, VE_VSHUFFLE_YUZU) ;	\
+	vrsum01_s##S = _ve_pvfmad_vvsv(vrsum01_s##S, kerValue01, vrgoutP) ;	\
+	vrsum23_s##S = _ve_pvfmad_vvsv(vrsum23_s##S, kerValue23, vrgoutP) ;	\
+	vrsum45_s##S = _ve_pvfmad_vvsv(vrsum45_s##S, kerValue45, vrgoutP) ;	\
+	vrsum67_s##S = _ve_pvfmad_vvsv(vrsum67_s##S, kerValue67, vrgoutP) ;	\
+	vrsum89_s##S = _ve_pvfmad_vvsv(vrsum89_s##S, kerValue89, vrgoutP) ;	\
+	vrsumAB_s##S = _ve_pvfmad_vvsv(vrsumAB_s##S, kerValueAB, vrgoutP) ;	\
+	vrsumCD_s##S = _ve_pvfmad_vvsv(vrsumCD_s##S, kerValueCD, vrgoutP) ;	\
+	vrsumEF_s##S = _ve_pvfmad_vvsv(vrsumEF_s##S, kerValueEF, vrgoutP) ;	\
       }
-    } // kernHeight
+
+      __vr vrgout_ptr_k0_r0s2 = _ve_vsfa_vvss(_ve_vaddsl_vvv(_ve_vmulsl_vsv(gOutWidth, vry_r0), vrx_s2),
+					 2,
+					 (unsigned long)(pGOut+gOutIndex)) ;
+      __vr vrgout_k0_r0s2 = _ve_vgtu_vvm(vrgout_ptr_k0_r0s2, vmy_r0) ;
+      __vr vrgout_ptr_k0_r1s2 = _ve_vsfa_vvss(_ve_vaddsl_vvv(_ve_vmulsl_vsv(gOutWidth, vry_r1), vrx_s2),
+					 2,
+					 (unsigned long)(pGOut+gOutIndex)) ;
+      __vr vrgout_k0_r1s2 = _ve_vgtu_vvm(vrgout_ptr_k0_r1s2, vmy_r1) ;
+      __vr vrgout_ptr_k0_r2s2 = _ve_vsfa_vvss(_ve_vaddsl_vvv(_ve_vmulsl_vsv(gOutWidth, vry_r2), vrx_s2),
+					 2,
+					 (unsigned long)(pGOut+gOutIndex)) ;
+      __vr vrgout_k0_r2s2 = _ve_vgtu_vvm(vrgout_ptr_k0_r2s2, vmy_r2) ;
+      __vr vrgout_ptr_k0_r3s2 = _ve_vsfa_vvss(_ve_vaddsl_vvv(_ve_vmulsl_vsv(gOutWidth, vry_r3), vrx_s2),
+					 2,
+					 (unsigned long)(pGOut+gOutIndex)) ;
+      __vr vrgout_k0_r3s2 = _ve_vgtu_vvm(vrgout_ptr_k0_r3s2, vmy_r3) ;
+      __vr vrgout_ptr_k0_r4s2 = _ve_vsfa_vvss(_ve_vaddsl_vvv(_ve_vmulsl_vsv(gOutWidth, vry_r4), vrx_s2),
+					 2,
+					 (unsigned long)(pGOut+gOutIndex)) ;
+      __vr vrgout_k0_r4s2 = _ve_vgtu_vvm(vrgout_ptr_k0_r4s2, vmy_r4) ;
+
+      vrgout_k0_r0s2 = _ve_vmrg_vvvm(_ve_vbrdu_vs_f32(0.0f), vrgout_k0_r0s2, vmy_r0) ;
+      VFADD_C16(vrgout_k0_r0s2, 0, 0, 0)
+      VFADD_C16(vrgout_k0_r0s2, 0, 0, 1)
+      VFADD_C16(vrgout_k0_r0s2, 0, 0, 2)
+      VFADD_C16(vrgout_k0_r0s2, 0, 0, 3)
+      VFADD_C16(vrgout_k0_r0s2, 0, 0, 4)
+
+      vrgout_k0_r1s2 = _ve_vmrg_vvvm(_ve_vbrdu_vs_f32(0.0f), vrgout_k0_r1s2, vmy_r1) ;
+      VFADD_C16(vrgout_k0_r1s2, 0, 1, 0)
+      VFADD_C16(vrgout_k0_r1s2, 0, 1, 1)
+      VFADD_C16(vrgout_k0_r1s2, 0, 1, 2)
+      VFADD_C16(vrgout_k0_r1s2, 0, 1, 3)
+      VFADD_C16(vrgout_k0_r1s2, 0, 1, 4)
+
+      vrgout_k0_r2s2 = _ve_vmrg_vvvm(_ve_vbrdu_vs_f32(0.0f), vrgout_k0_r2s2, vmy_r2) ;
+      VFADD_C16(vrgout_k0_r2s2, 0, 2, 0)
+      VFADD_C16(vrgout_k0_r2s2, 0, 2, 1)
+      VFADD_C16(vrgout_k0_r2s2, 0, 2, 2)
+      VFADD_C16(vrgout_k0_r2s2, 0, 2, 3)
+      VFADD_C16(vrgout_k0_r2s2, 0, 2, 4)
+
+      vrgout_k0_r3s2 = _ve_vmrg_vvvm(_ve_vbrdu_vs_f32(0.0f), vrgout_k0_r3s2, vmy_r3) ;
+      VFADD_C16(vrgout_k0_r3s2, 0, 3, 0)
+      VFADD_C16(vrgout_k0_r3s2, 0, 3, 1)
+      VFADD_C16(vrgout_k0_r3s2, 0, 3, 2)
+      VFADD_C16(vrgout_k0_r3s2, 0, 3, 3)
+      VFADD_C16(vrgout_k0_r3s2, 0, 3, 4)
+
+      vrgout_k0_r4s2 = _ve_vmrg_vvvm(_ve_vbrdu_vs_f32(0.0f), vrgout_k0_r4s2, vmy_r4) ;
+      VFADD_C16(vrgout_k0_r4s2, 0, 4, 0)
+      VFADD_C16(vrgout_k0_r4s2, 0, 4, 1)
+      VFADD_C16(vrgout_k0_r4s2, 0, 4, 2)
+      VFADD_C16(vrgout_k0_r4s2, 0, 4, 3)
+      VFADD_C16(vrgout_k0_r4s2, 0, 4, 4)
+
+#undef VFADD_C16
+    }
 
     vrsum01_s0 = _ve_vmrg_vvvm(_ve_vbrd_vs_i64(0UL), _ve_vmv_vsv( 2, vrsum01_s0), vmx_s0) ;
     vrsum01_s1 = _ve_vmrg_vvvm(_ve_vbrd_vs_i64(0UL), _ve_vmv_vsv( 1, vrsum01_s1), vmx_s1) ;
@@ -883,11 +1259,6 @@ vednnConvolutionBackwardData_direct_dil1_str2_pad2_ker5_iwU128(
   {
     const int64_t nH = VLEN / gInWidth ;
 
-    _ve_lvl(nH*gInWidth) ;
-    __vr vrseq = _ve_vseq_v() ;
-    __vr vrh  = _ve_vdivsl_vvs(vrseq, gInWidth) ;
-    __vr vrw  = _ve_vsubsl_vvv(vrseq, _ve_vmulul_vsv(gInWidth,vrh)) ;
-
     for (int64_t n=0; n<batch; n++) {
       for (int64_t g = 0; g < group; g++) {
 
@@ -905,7 +1276,7 @@ vednnConvolutionBackwardData_direct_dil1_str2_pad2_ker5_iwU128(
 	     gInChannelGroup, gOutChannelGroup,
 	     gInGroupOffset, gOutGroupOffset, kernGroupOffset,
 	     gInPixels, n, k,
-	     nH, vrh, vrw ) ;
+	     nH ) ;
 
 	  k++ ;
 	}
@@ -918,7 +1289,7 @@ vednnConvolutionBackwardData_direct_dil1_str2_pad2_ker5_iwU128(
 	     gInChannelGroup, gOutChannelGroup,
 	     gInGroupOffset, gOutGroupOffset, kernGroupOffset,
 	     gInPixels, n, k,
-	     nH, vrh, vrw ) ;
+	     nH ) ;
 
 	  k+=2 ;
 	}
@@ -931,7 +1302,7 @@ vednnConvolutionBackwardData_direct_dil1_str2_pad2_ker5_iwU128(
 	     gInChannelGroup, gOutChannelGroup,
 	     gInGroupOffset, gOutGroupOffset, kernGroupOffset,
 	     gInPixels, n, k,
-	     nH, vrh, vrw ) ;
+	     nH ) ;
 
 	  k+=4 ;
 	}
@@ -944,7 +1315,7 @@ vednnConvolutionBackwardData_direct_dil1_str2_pad2_ker5_iwU128(
 	     gInChannelGroup, gOutChannelGroup,
 	     gInGroupOffset, gOutGroupOffset, kernGroupOffset,
 	     gInPixels, n, k,
-	     nH, vrh, vrw ) ;
+	     nH ) ;
 
 	  k+=8 ;
 	}
@@ -956,7 +1327,7 @@ vednnConvolutionBackwardData_direct_dil1_str2_pad2_ker5_iwU128(
 	     gInChannelGroup, gOutChannelGroup,
 	     gInGroupOffset, gOutGroupOffset, kernGroupOffset,
 	     gInPixels, n, k,
-	     nH, vrh, vrw ) ;
+	     nH ) ;
 
 	} // gInChannel
       } // group
