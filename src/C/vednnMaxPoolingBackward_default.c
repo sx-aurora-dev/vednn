@@ -43,7 +43,7 @@ vednnError_t vednnMaxPoolingBackward_default(
   {
     int64_t nIn = batch * inChannel * inHeight * inWidth ;
     for(int64_t i=0; i<nIn; i++) {
-      pGIn[nIn] = 0.f ;
+      pGIn[i] = 0.f ;
     }
 
     int found[VLEN] ;
@@ -95,7 +95,6 @@ vednnError_t vednnMaxPoolingBackward_default(
 #define NCHW_IDX(n,c,h,w,cl,hl,wl) ((((n)*(cl)+(c))*(hl)+(h))*(wl)+(w))
 
 // base version.0
-static
 vednnError_t vednnMaxPoolingBackward_default(
     const vednnTensorParam_t 		*pParamGradOut,
     const void 				*pDataGradOut,
@@ -131,7 +130,7 @@ vednnError_t vednnMaxPoolingBackward_default(
   {
     int64_t nIn = batch * inChannel * inHeight * inWidth ;
     for(int64_t i=0; i<nIn; i++) {
-      pGIn[nIn] = 0.f ;
+      pGIn[i] = 0.f ;
     }
 
     for(int64_t n=0; n<batch; n++) {

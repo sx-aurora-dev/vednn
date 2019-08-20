@@ -79,7 +79,15 @@ vednnError_t vednnConvolutionBackwardFilter(
   if (algo == VEDNN_CONV_ALGORITHM_DIRECT)
   {
     // [todo] add variations
-    if (pParamConv->strideHeight == 1 && pParamConv->strideWidth == 1
+    if ( pParamGradOut->height * pParamGradOut->width <= 16 ||
+	( pParamGradOut->height * pParamGradOut->width < 64
+	  && pParamGradOut->height * pParamGradOut->width < pParamIn->channel)  ) {
+      return vednnConvolutionBackwardFilter_wrapper(
+	  vednnConvolutionBackwardFilter_direct_vecC,
+	  pParamIn, pDataIn, pParamGradOut, pDataGradOut,
+	  pParamConv, pParamGradKernel, pDataGradKernel );
+    }
+    else if (pParamConv->strideHeight == 1 && pParamConv->strideWidth == 1
 	&& pParamConv->dilationHeight == 1 && pParamConv->dilationWidth == 1
 	&& pParamIn->height == pParamGradOut->height
 	&& pParamIn->width == pParamGradOut->width )
@@ -172,11 +180,44 @@ vednnError_t vednnConvolutionBackwardFilter(
       }
       else if (pParamGradOut->width <= 128 && pParamGradKernel->height == 3 && pParamGradKernel->width == 3 )
       {
-
+	if( pParamConv->strideHeight == 1 && pParamConv->strideWidth == 1 ) {
+	  return vednnConvolutionBackwardFilter_wrapper(
+	      vednnConvolutionBackwardFilter_direct_dil1_str1_pad0_ker3_owU128,
+	      pParamIn, pDataIn, pParamGradOut, pDataGradOut,
+	      pParamConv, pParamGradKernel, pDataGradKernel );
+	}
+	else {
 	  return vednnConvolutionBackwardFilter_wrapper(
 	      vednnConvolutionBackwardFilter_direct_dil1_pad0_ker3_owU128,
 	      pParamIn, pDataIn, pParamGradOut, pDataGradOut,
 	      pParamConv, pParamGradKernel, pDataGradKernel );
+	}
+      }
+      else if (pParamGradKernel->height == 1 && pParamGradKernel->width == 1) {
+	if (pParamGradOut->height * pParamGradOut->width <= 64 ) {
+	  return vednnConvolutionBackwardFilter_wrapper(
+	      vednnConvolutionBackwardFilter_direct_dil1_pad0_ker1_ohwU64,
+	      pParamIn, pDataIn, pParamGradOut, pDataGradOut,
+	      pParamConv, pParamGradKernel, pDataGradKernel );
+	}
+	else if (pParamGradOut->height * pParamGradOut->width <= 128 ) {
+	  return vednnConvolutionBackwardFilter_wrapper(
+	      vednnConvolutionBackwardFilter_direct_dil1_pad0_ker1_ohwU128,
+	      pParamIn, pDataIn, pParamGradOut, pDataGradOut,
+	      pParamConv, pParamGradKernel, pDataGradKernel );
+	}
+	else if (pParamGradOut->width <= 32 ) {
+	  return vednnConvolutionBackwardFilter_wrapper(
+	      vednnConvolutionBackwardFilter_direct_dil1_pad0_ker1_owU32,
+	      pParamIn, pDataIn, pParamGradOut, pDataGradOut,
+	      pParamConv, pParamGradKernel, pDataGradKernel );
+	}
+	else {
+	  return vednnConvolutionBackwardFilter_wrapper(
+	      vednnConvolutionBackwardFilter_direct_dil1_pad0_ker1,
+	      pParamIn, pDataIn, pParamGradOut, pDataGradOut,
+	      pParamConv, pParamGradKernel, pDataGradKernel );
+	}
       }
       else if (pParamGradOut->width <= 32 ){
 	  return vednnConvolutionBackwardFilter_wrapper(
