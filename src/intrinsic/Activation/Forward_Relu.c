@@ -5,7 +5,7 @@
 
 #include "vednn.h"
 
-#include "veintrin.h"
+#include "velintrin.h"
 #define VLEN	(256)
 
 
@@ -26,12 +26,10 @@ vednnError_t vednnActivationForward_Relu(
     for(int64_t i=0; i<halfElements; i+=VLEN) {
       const int64_t vl = halfElements - i < VLEN ? halfElements - i : VLEN ;
 
-      _ve_lvl(vl) ;
+      __vr vrin  = _vel_vld_vssl(8, pIn+2*i, vl) ;
+      __vr vrout = _vel_pvfmax_vsvl(0UL, vrin, vl) ;
 
-      __vr vrin  = _ve_vld_vss(8, pIn+2*i) ;
-      __vr vrout = _ve_pvfmax_vsv(0UL, vrin) ;
-
-      _ve_vst_vss(vrout, 8, pOut+2*i) ;
+      _vel_vst_vssl(vrout, 8, pOut+2*i, vl) ;
     }
     if( (nElements & 0x01) == 1 ) {
       pOut[nElements-1] = pIn[nElements-1] > 0.0f ? pIn[nElements-1] : 0.0f ;
@@ -44,12 +42,10 @@ vednnError_t vednnActivationForward_Relu(
     for(int64_t i=0; i<halfElements; i+=VLEN) {
       const int64_t vl = halfElements - i < VLEN ? halfElements - i : VLEN ;
 
-      _ve_lvl(vl) ;
+      __vr vrin  = _vel_vld_vssl(8, pIn+2*i+1, vl) ;
+      __vr vrout = _vel_pvfmax_vsvl(0UL, vrin, vl) ;
 
-      __vr vrin  = _ve_vld_vss(8, pIn+2*i+1) ;
-      __vr vrout = _ve_pvfmax_vsv(0UL, vrin) ;
-
-      _ve_vst_vss(vrout, 8, pOut+2*i+1) ;
+      _vel_vst_vssl(vrout, 8, pOut+2*i+1, vl) ;
     }
     if( (nElements & 0x01) == 0 ) {
       pOut[nElements-1] = pIn[nElements-1] > 0.0f ? pIn[nElements-1] : 0.0f ;
@@ -59,12 +55,10 @@ vednnError_t vednnActivationForward_Relu(
     for(int64_t i=0; i<nElements; i+=VLEN) {
       const int64_t vl = nElements - i < VLEN ? nElements - i : VLEN ;
 
-      _ve_lvl(vl) ;
+      __vr vrin  = _vel_vldu_vssl(4, pIn+i, vl) ;
+      __vr vrout = _vel_vfmaxs_vsvl(0.0f, vrin, vl) ;
 
-      __vr vrin  = _ve_vldu_vss(4, pIn+i) ;
-      __vr vrout = _ve_vfmaxs_vsv(0.0f, vrin) ;
-
-      _ve_vstu_vss(vrout, 4, pOut+i) ;
+      _vel_vstu_vssl(vrout, 4, pOut+i, vl) ;
     }
   }
 

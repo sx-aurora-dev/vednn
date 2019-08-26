@@ -5,7 +5,7 @@
 
 #include "vednn.h"
 
-#include "veintrin.h"
+#include "velintrin.h"
 #define VLEN	(256)
 
 
@@ -30,16 +30,14 @@ vednnError_t vednnActivationBackward_Relu(
     for(int64_t i=0; i<halfElements; i+=VLEN) {
       const int64_t vl = halfElements - i < VLEN ? halfElements - i : VLEN ;
 
-      _ve_lvl(vl) ;
+      __vr vrin    = _vel_vld_vssl(8, pIn+2*i, vl) ;
+      __vr vrgout  = _vel_vld_vssl(8, pGOut+2*i, vl) ;
 
-      __vr vrin    = _ve_vld_vss(8, pIn+2*i) ;
-      __vr vrgout  = _ve_vld_vss(8, pGOut+2*i) ;
+      __vm512 vm = _vel_pvfmksgt_Mvl(vrin, vl) ;
 
-      __vm512 vm = _ve_pvfmks_Mcv(VECC_G, vrin) ;
+      __vr vrgin = _vel_vmrgw_vvvMl(_vel_pvbrd_vsl(0UL, vl), vrgout, vm, vl) ;
 
-      __vr vrgin = _ve_vmrgw_vvvM(_ve_pvbrd_vs_i64(0UL), vrgout, vm) ;
-
-      _ve_vst_vss(vrgin, 8, pGIn+2*i) ;
+      _vel_vst_vssl(vrgin, 8, pGIn+2*i, vl) ;
     }
     if( (nElements & 0x01) == 1 ) {
       pGIn[nElements-1] = pGOut[nElements-1] * ( pIn[nElements-1] > 0 ) ;
@@ -52,16 +50,16 @@ vednnError_t vednnActivationBackward_Relu(
     for(int64_t i=0; i<halfElements; i+=VLEN) {
       const int64_t vl = halfElements - i < VLEN ? halfElements - i : VLEN ;
 
-      _ve_lvl(vl) ;
+       ;
 
-      __vr vrin    = _ve_vld_vss(8, pIn+2*i+1) ;
-      __vr vrgout  = _ve_vld_vss(8, pGOut+2*i+1) ;
+      __vr vrin    = _vel_vld_vssl(8, pIn+2*i+1, vl) ;
+      __vr vrgout  = _vel_vld_vssl(8, pGOut+2*i+1, vl) ;
 
-      __vm512 vm = _ve_pvfmks_Mcv(VECC_G, vrin) ;
+      __vm512 vm = _vel_pvfmksgt_Mvl(vrin, vl) ;
 
-      __vr vrgin = _ve_vmrgw_vvvM(_ve_pvbrd_vs_i64(0UL), vrgout, vm) ;
+      __vr vrgin = _vel_vmrgw_vvvMl(_vel_pvbrd_vsl(0UL, vl), vrgout, vm, vl) ;
 
-      _ve_vst_vss(vrgin, 8, pGIn+2*i+1) ;
+      _vel_vst_vssl(vrgin, 8, pGIn+2*i+1, vl) ;
     }
     if( (nElements & 0x01) == 0 ) {
       pGIn[nElements-1] = pGOut[nElements-1] * ( pIn[nElements-1] > 0 ) ;
@@ -71,16 +69,16 @@ vednnError_t vednnActivationBackward_Relu(
     for(int64_t i=0; i<nElements; i+=VLEN) {
       const int64_t vl = nElements - i < VLEN ? nElements - i : VLEN ;
 
-      _ve_lvl(vl) ;
+       ;
 
-      __vr vrin    = _ve_vldu_vss(4, pIn+i) ;
-      __vr vrgout  = _ve_vldu_vss(4, pGOut+i) ;
+      __vr vrin    = _vel_vldu_vssl(4, pIn+i, vl) ;
+      __vr vrgout  = _vel_vldu_vssl(4, pGOut+i, vl) ;
 
-      __vm256 vm = _ve_vfmks_mcv(VECC_G, vrin) ;
+      __vm256 vm =  _vel_vfmksgt_mvl(vrin, vl) ;
 
-      __vr vrgin = _ve_vmrg_vvvm(_ve_vbrdu_vs_f32(0.0f), vrgout, vm) ;
+      __vr vrgin = _vel_vmrg_vvvml(_vel_vbrds_vsl(0.0f, vl), vrgout, vm, vl) ;
 
-      _ve_vstu_vss(vrgin, 4, pGIn+i) ;
+      _vel_vstu_vssl(vrgin, 4, pGIn+i, vl) ;
     }
   }
 
