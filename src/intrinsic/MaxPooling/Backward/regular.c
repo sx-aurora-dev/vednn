@@ -5,7 +5,7 @@
 
 #include "vednn.h"
 
-#include "veintrin.h"
+#include "velintrin.h"
 #define VLEN	(256)
 
 #define NCHW_IDX(n,c,h,w,cl,hl,wl) ((((n)*(cl)+(c))*(hl)+(h))*(wl)+(w))
@@ -51,12 +51,10 @@ vednnError_t vednnMaxPoolingBackward_regular(
 
 	    const int64_t outIndex  = NCHW_IDX(n,c,h,w,outChannel,outHeight,outWidth) ;
 
-	    _ve_lvl(vlen) ;
+	    __vr vrout  = _vel_vldu_vssl(4, pOut+outIndex, vlen) ;
+	    __vr vrgout = _vel_vldu_vssl(4, pGOut+outIndex, vlen) ;
 
-	    __vr vrout  = _ve_vldu_vss(4, pOut+outIndex) ;
-	    __vr vrgout = _ve_vldu_vss(4, pGOut+outIndex) ;
-
-	    __vm256 vm_not_found = _ve_vfmkat_m() ;
+	    __vm256 vm_not_found = _vel_vfmklat_ml(vlen) ;
 
 	    for(int64_t ph=0; ph<windowHeight; ph++) {
 	      const int64_t y = h*strideHeight + ph ;
@@ -65,15 +63,15 @@ vednnError_t vednnMaxPoolingBackward_regular(
 		const int64_t x = w*strideWidth + pw ;
 		const int64_t inIndex = NCHW_IDX(n,c,y,x,inChannel,inHeight,inWidth) ;
 
-		__vr vrin = _ve_vldu_vss(4*strideWidth,pIn+inIndex) ;
+		__vr vrin = _vel_vldu_vssl(4*strideWidth,pIn+inIndex, vlen) ;
 
-		__vm256 vm_equal = _ve_vfmks_mcv(VECC_EQ, _ve_vfcmps_vvv(vrout,vrin)) ;
-		__vm256 vm_and   = _ve_andm_mmm(vm_equal, vm_not_found) ;
-		vm_not_found = _ve_nndm_mmm(vm_equal, vm_not_found) ;
+		__vm256 vm_equal =  _vel_vfmkseq_mvl(_vel_vfcmps_vvvl(vrout,vrin, vlen), vlen) ;
+		__vm256 vm_and   = _vel_andm_mmm(vm_equal, vm_not_found) ;
+		vm_not_found = _vel_nndm_mmm(vm_equal, vm_not_found) ;
 
-		__vr vrgin = _ve_vmrg_vvvm(_ve_vbrdu_vs_f32(0.f), vrgout, vm_and) ;
+		__vr vrgin = _vel_vmrg_vvvml(_vel_vbrds_vsl(0.f, vlen), vrgout, vm_and, vlen) ;
 
-		_ve_vstu_vss(vrgin, 4*strideWidth, pGIn+inIndex) ;
+		_vel_vstu_vssl(vrgin, 4*strideWidth, pGIn+inIndex, vlen) ;
 
 	      } // windowWidth
 	    } // windowHeight
@@ -84,9 +82,8 @@ vednnError_t vednnMaxPoolingBackward_regular(
 	  if( y < inHeight ) {
 	    const int64_t inIndex = NCHW_IDX(n,c,y,0,inChannel,inHeight,inWidth) ;
 	    for(int64_t xy=0; xy<(inHeight-y)*inWidth; xy+=VLEN) {
-	      const int vl = (inHeight-y)*inWidth - xy <= VLEN ? (inHeight-y)*inWidth - xy : VLEN ;
-	      _ve_lvl(vl) ;
-	      _ve_vstu_vss(_ve_vbrdu_vs_f32(0.f), 4, pGIn+inIndex+xy) ;
+	      const int64_t vl = (inHeight-y)*inWidth - xy <= VLEN ? (inHeight-y)*inWidth - xy : VLEN ;
+	      _vel_vstu_vssl(_vel_vbrds_vsl(0.f, vl), 4, pGIn+inIndex+xy, vl) ;
 	    }
 	  }
 	}

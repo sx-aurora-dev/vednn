@@ -5,7 +5,7 @@
 
 #include "vednn.h"
 
-#include "veintrin.h"
+#include "velintrin.h"
 #define VLEN	(256)
 
 #define NCHW_IDX(n,c,h,w,cl,hl,wl) ((((n)*(cl)+(c))*(hl)+(h))*(wl)+(w))
@@ -45,17 +45,15 @@ vednnError_t vednnMaxPoolingBackward_regular_owU128(
   {
     const int64_t nH = VLEN / outWidth  ;
 
-    _ve_lvl(VLEN) ;
+    __vr vrseq = _vel_vseq_vl(VLEN) ;	// dh*dw
 
-    __vr vrseq = _ve_vseq_v() ;	// dh*dw
+    __vr vrdh  = _vel_vdivsl_vvsl(vrseq, outWidth, VLEN) ;
+    __vr vrdw  = _vel_vsubsl_vvvl(vrseq, _vel_vmulul_vsvl(outWidth,vrdh, VLEN), VLEN) ;
 
-    __vr vrdh  = _ve_vdivsl_vvs(vrseq, outWidth) ;
-    __vr vrdw  = _ve_vsubsl_vvv(vrseq, _ve_vmulul_vsv(outWidth,vrdh)) ;
+    __vr vrdy  = _vel_vmulsl_vsvl(strideHeight,vrdh, VLEN) ;
+    __vr vrdx  = _vel_vmulsl_vsvl(strideWidth,vrdw, VLEN) ;
 
-    __vr vrdy  = _ve_vmulsl_vsv(strideHeight,vrdh) ;
-    __vr vrdx  = _ve_vmulsl_vsv(strideWidth,vrdw) ;
-
-    __vr vri_idx    = _ve_vaddsl_vvv(_ve_vmulsl_vsv(inWidth, vrdy), vrdx) ;
+    __vr vri_idx    = _vel_vaddsl_vvvl(_vel_vmulsl_vsvl(inWidth, vrdy, VLEN), vrdx, VLEN) ;
 
     for(int64_t n=0; n<batch; n++) {
       for(int64_t c=0; c<outChannel; c++) {
@@ -65,12 +63,10 @@ vednnError_t vednnMaxPoolingBackward_regular_owU128(
 
 	  const int64_t outIndex  = NCHW_IDX(n,c,h0,w0,outChannel,outHeight,outWidth) ;
 
-	  _ve_lvl(vlen) ;
+	  __vr vrout  = _vel_vldu_vssl(4, pOut+outIndex, vlen) ;
+	  __vr vrgout = _vel_vldu_vssl(4, pGOut+outIndex, vlen) ;
 
-	  __vr vrout  = _ve_vldu_vss(4, pOut+outIndex) ;
-	  __vr vrgout = _ve_vldu_vss(4, pGOut+outIndex) ;
-
-	  __vm256 vm_not_found = _ve_vfmkat_m() ;
+	  __vm256 vm_not_found = _vel_vfmklat_ml(vlen) ;
 
 	  for(int64_t ph=0; ph<windowHeight; ph++) {
 	    const int64_t y0 = h0*strideHeight + ph ;
@@ -79,18 +75,18 @@ vednnError_t vednnMaxPoolingBackward_regular_owU128(
 	      const int64_t x0 = w0*strideWidth + pw ;
 	      const int64_t inIndex = NCHW_IDX(n,c,y0,x0,inChannel,inHeight,inWidth) ;
 
-	      __vr vrin_addr  = _ve_vsfa_vvss(vri_idx, 2, (unsigned long)&pIn[inIndex]) ;
-	      __vr vrin = _ve_vgtu_vv(vrin_addr) ;
+	      __vr vrin_addr  = _vel_vsfa_vvssl(vri_idx, 2, (unsigned long)&pIn[inIndex], vlen) ;
+	      __vr vrin = _vel_vgtu_vvssl(vrin_addr, 0, 0, vlen) ;
 
-	      __vr vrgin_addr = _ve_vsfa_vvss(vri_idx, 2, (unsigned long)&pGIn[inIndex]) ;
+	      __vr vrgin_addr = _vel_vsfa_vvssl(vri_idx, 2, (unsigned long)&pGIn[inIndex], vlen) ;
 
-	      __vm256 vm_equal = _ve_vfmks_mcv(VECC_EQ, _ve_vfcmps_vvv(vrout,vrin)) ;
-	      __vm256 vm_and   = _ve_andm_mmm(vm_equal, vm_not_found) ;
-	      vm_not_found = _ve_nndm_mmm(vm_equal, vm_not_found) ;
+	      __vm256 vm_equal =  _vel_vfmkseq_mvl(_vel_vfcmps_vvvl(vrout,vrin, vlen), vlen) ;
+	      __vm256 vm_and   = _vel_andm_mmm(vm_equal, vm_not_found) ;
+	      vm_not_found = _vel_nndm_mmm(vm_equal, vm_not_found) ;
 
-	      __vr vrgin = _ve_vmrg_vvvm(_ve_vbrdu_vs_f32(0.f), vrgout, vm_and) ;
+	      __vr vrgin = _vel_vmrg_vvvml(_vel_vbrds_vsl(0.f, vlen), vrgout, vm_and, vlen) ;
 
-	      _ve_vscu_vv(vrgin, vrgin_addr) ;
+	      _vel_vscu_vvssl(vrgin, vrgin_addr, 0, 0, vlen) ;
 
 	    } // windowWidth
 	  } // windowHeight
@@ -100,9 +96,8 @@ vednnError_t vednnMaxPoolingBackward_regular_owU128(
 	  if( y < inHeight ) {
 	    const int64_t inIndex = NCHW_IDX(n,c,y,0,inChannel,inHeight,inWidth) ;
 	    for(int64_t xy=0; xy<(inHeight-y)*inWidth; xy+=VLEN) {
-	      const int vl = (inHeight-y)*inWidth - xy <= VLEN ? (inHeight-y)*inWidth - xy : VLEN ;
-	      _ve_lvl(vl) ;
-	      _ve_vstu_vss(_ve_vbrdu_vs_f32(0.f), 4, pGIn+inIndex+xy) ;
+	      const int64_t vl = (inHeight-y)*inWidth - xy <= VLEN ? (inHeight-y)*inWidth - xy : VLEN ;
+	      _vel_vstu_vssl(_vel_vbrds_vsl(0.f, vl), 4, pGIn+inIndex+xy, vl) ;
 	    }
 	  }
 	}
