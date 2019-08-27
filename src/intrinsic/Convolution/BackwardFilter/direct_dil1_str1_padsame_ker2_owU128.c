@@ -38,9 +38,8 @@ static inline void k1(
   __vr vry   = _ve_vdivsl_vvs(vrseq, gOutWidth) ;
   __vr vrx   = _ve_vsubsl_vvv(vrseq, _ve_vmulul_vsv(gOutWidth,vry)) ;
 
-  __vm256 vm_r1 = _ve_vfmkl_mcv(VECC_IG, _ve_vcmpsl_vsv(inHeight-1-last_y,vry)) ;	// condition(y+1 < inHeight)
-  __vm256 vm_s1 = _ve_vfmkl_mcv(VECC_IG, _ve_vcmpsl_vsv(inWidth-1,vrx)) ;		// condition(x+1 < inWidth)
-
+  __vm256 vm_r0 = _ve_vfmkl_mcv(VECC_G, vry) ;	// condition(y-1>=0)
+  __vm256 vm_s0 = _ve_vfmkl_mcv(VECC_G, vrx) ;	// condition(x-1>=0)
 
   for (int64_t c=0; c<inChannelGroup; c++) {
     const int64_t kernelIndex0 = kernGroupOffset + ((k     * inChannelGroup + c) * gKernHeight) * gKernWidth;
@@ -53,60 +52,27 @@ static inline void k1(
 
     for (int64_t n=0; n<batch; n++) {
       int64_t y=0;
-      for (; y+nY<gOutHeight; y+=nY) {
-	const int64_t vl = gOutWidth * nY ;
+      for (; y<gOutHeight; y+=nY) {
+	const int64_t vl = gOutWidth * (gOutHeight - y < nY ? gOutHeight - y : nY ) ;
 
 	_ve_lvl(vl) ;
 
-	__vm256 vm_r0s1 = vm_s1 ;
-	__vm256 vm_r1s1 = vm_s1 ;
-
-	const float *pInChannel = pIn + inGroupOffset + ((n * inChannel + c) * inHeight * inWidth ) ;
-
-	const int64_t gOutIndex0  = outGroupOffset + ((n * gOutChannel + k  ) * gOutHeight + y ) * gOutWidth ;
-	const int64_t gOutIndex1  = outGroupOffset + ((n * gOutChannel + k+1) * gOutHeight + y ) * gOutWidth ;
-
-	/* memory access errors mihgt be caused (vrin) */
-	__vr vrin_r0s0    = _ve_vldu_vss(4,&pInChannel[(y  )*inWidth  ]) ;
-	__vr vrin_r0s1    = _ve_vldu_vss(4,&pInChannel[(y  )*inWidth+1]) ;
-	__vr vrin_r1s0    = _ve_vldu_vss(4,&pInChannel[(y+1)*inWidth  ]) ;
-	__vr vrin_r1s1    = _ve_vldu_vss(4,&pInChannel[(y+1)*inWidth+1]) ;
-	__vr vrgout0 = _ve_vldu_vss(4, pGOut+gOutIndex0) ;
-
-
-	// vrin_r0s0 : no need to use mask
-	vrsum_r0s0 = _ve_vfmads_vvvv(vrsum_r0s0, vrin_r0s0, vrgout0) ;
-
-	vrin_r0s1 = _ve_vmrg_vvvm(_ve_vbrdu_vs_f32(0.0f), vrin_r0s1, vm_r0s1) ;
-	vrsum_r0s1 = _ve_vfmads_vvvv(vrsum_r0s1, vrin_r0s1, vrgout0) ;
-
-	// vrin_r1s0 : no need to use mask
-	vrsum_r1s0 = _ve_vfmads_vvvv(vrsum_r1s0, vrin_r1s0, vrgout0) ;
-
-	vrin_r1s1 = _ve_vmrg_vvvm(_ve_vbrdu_vs_f32(0.0f), vrin_r1s1, vm_r1s1) ;
-	vrsum_r1s1 = _ve_vfmads_vvvv(vrsum_r1s1, vrin_r1s1, vrgout0) ;
-      }
-      {
-	const int64_t vl = gOutWidth * (gOutHeight - y) ;
-
-	_ve_lvl(vl) ;
-
-	__vm256 vm_r0s1 = vm_s1 ;
-	__vm256 vm_r1s0 = vm_r1 ;
-	__vm256 vm_r1s1 = _ve_andm_mmm(vm_r1, vm_s1) ;
+	__vm256 vm_r0s0 = _ve_andm_mmm(vm_r0,vm_s0) ;
+	__vm256 vm_r0s1 = vm_r0 ;
+	__vm256 vm_r1s0 = vm_s0 ;
 
 	const float *pInChannel = pIn + inGroupOffset + ((n * inChannel + c) * inHeight * inWidth ) ;
 
 	const int64_t gOutIndex0  = outGroupOffset + ((n * gOutChannel + k  ) * gOutHeight + y ) * gOutWidth ;
 
 	/* memory access errors mihgt be caused (vrin) */
-	__vr vrin_r0s0    = _ve_vldu_vss(4,&pInChannel[(y  )*inWidth  ]) ;
-	__vr vrin_r0s1    = _ve_vldu_vss(4,&pInChannel[(y  )*inWidth+1]) ;
-	__vr vrin_r1s0    = _ve_vldu_vss(4,&pInChannel[(y+1)*inWidth  ]) ;
-	__vr vrin_r1s1    = _ve_vldu_vss(4,&pInChannel[(y+1)*inWidth+1]) ;
+	__vr vrin_r0s0    = _ve_vldu_vss(4,&pInChannel[(y-1)*inWidth-1]) ;
+	__vr vrin_r0s1    = _ve_vldu_vss(4,&pInChannel[(y-1)*inWidth  ]) ;
+	__vr vrin_r1s0    = _ve_vldu_vss(4,&pInChannel[(y  )*inWidth-1]) ;
+	__vr vrin_r1s1    = _ve_vldu_vss(4,&pInChannel[(y  )*inWidth  ]) ;
 	__vr vrgout0 = _ve_vldu_vss(4, pGOut+gOutIndex0) ;
 
-	// vrin_r0s0 : no need to use mask
+	vrin_r0s0 = _ve_vmrg_vvvm(_ve_vbrdu_vs_f32(0.0f), vrin_r0s0, vm_r0s0) ;
 	vrsum_r0s0 = _ve_vfmads_vvvv(vrsum_r0s0, vrin_r0s0, vrgout0) ;
 
 	vrin_r0s1 = _ve_vmrg_vvvm(_ve_vbrdu_vs_f32(0.0f), vrin_r0s1, vm_r0s1) ;
@@ -115,7 +81,7 @@ static inline void k1(
 	vrin_r1s0 = _ve_vmrg_vvvm(_ve_vbrdu_vs_f32(0.0f), vrin_r1s0, vm_r1s0) ;
 	vrsum_r1s0 = _ve_vfmads_vvvv(vrsum_r1s0, vrin_r1s0, vrgout0) ;
 
-	vrin_r1s1 = _ve_vmrg_vvvm(_ve_vbrdu_vs_f32(0.0f), vrin_r1s1, vm_r1s1) ;
+	// vrin_r1s1 : no need to use mask
 	vrsum_r1s1 = _ve_vfmads_vvvv(vrsum_r1s1, vrin_r1s1, vrgout0) ;
       }
     } // batch
@@ -165,9 +131,8 @@ static inline void k2(
   __vr vry   = _ve_vdivsl_vvs(vrseq, gOutWidth) ;
   __vr vrx   = _ve_vsubsl_vvv(vrseq, _ve_vmulul_vsv(gOutWidth,vry)) ;
 
-  __vm256 vm_r1 = _ve_vfmkl_mcv(VECC_IG, _ve_vcmpsl_vsv(inHeight-1-last_y,vry)) ;	// condition(y+1 < inHeight)
-  __vm256 vm_s1 = _ve_vfmkl_mcv(VECC_IG, _ve_vcmpsl_vsv(inWidth-1,vrx)) ;		// condition(x+1 < inWidth)
-
+  __vm256 vm_r0 = _ve_vfmkl_mcv(VECC_G, vry) ;	// condition(y-1>=0)
+  __vm256 vm_s0 = _ve_vfmkl_mcv(VECC_G, vrx) ;	// condition(x-1>=0)
 
   for (int64_t c=0; c<inChannelGroup; c++) {
     const int64_t kernelIndex0 = kernGroupOffset + ((k     * inChannelGroup + c) * gKernHeight) * gKernWidth;
@@ -181,13 +146,14 @@ static inline void k2(
 
     for (int64_t n=0; n<batch; n++) {
       int64_t y=0;
-      for (; y+nY<gOutHeight; y+=nY) {
-	const int64_t vl = gOutWidth * nY ;
+      for (; y<gOutHeight; y+=nY) {
+	const int64_t vl = gOutWidth * (gOutHeight - y < nY ? gOutHeight - y : nY ) ;
 
 	_ve_lvl(vl) ;
 
-	__vm256 vm_r0s1 = vm_s1 ;
-	__vm256 vm_r1s1 = vm_s1 ;
+	__vm256 vm_r0s0 = _ve_andm_mmm(vm_r0,vm_s0) ;
+	__vm256 vm_r0s1 = vm_r0 ;
+	__vm256 vm_r1s0 = vm_s0 ;
 
 	const float *pInChannel = pIn + inGroupOffset + ((n * inChannel + c) * inHeight * inWidth ) ;
 
@@ -195,56 +161,16 @@ static inline void k2(
 	const int64_t gOutIndex1  = outGroupOffset + ((n * gOutChannel + k+1) * gOutHeight + y ) * gOutWidth ;
 
 	/* memory access errors mihgt be caused (vrin) */
-	__vr vrin_r0s0    = _ve_vldu_vss(4,&pInChannel[(y  )*inWidth  ]) ;
-	__vr vrin_r0s1    = _ve_vldu_vss(4,&pInChannel[(y  )*inWidth+1]) ;
-	__vr vrin_r1s0    = _ve_vldu_vss(4,&pInChannel[(y+1)*inWidth  ]) ;
-	__vr vrin_r1s1    = _ve_vldu_vss(4,&pInChannel[(y+1)*inWidth+1]) ;
+	__vr vrin_r0s0    = _ve_vldu_vss(4,&pInChannel[(y-1)*inWidth-1]) ;
+	__vr vrin_r0s1    = _ve_vldu_vss(4,&pInChannel[(y-1)*inWidth  ]) ;
+	__vr vrin_r1s0    = _ve_vldu_vss(4,&pInChannel[(y  )*inWidth-1]) ;
+	__vr vrin_r1s1    = _ve_vldu_vss(4,&pInChannel[(y  )*inWidth  ]) ;
 	__vr vrgout0 = _ve_vldu_vss(4, pGOut+gOutIndex0) ;
 	__vr vrgout1 = _ve_vldu_vss(4, pGOut+gOutIndex1) ;
 
 	__vr vrgout01 = _ve_vshf_vvvs(vrgout0, vrgout1, VE_VSHUFFLE_YUZU) ;
 
-	// vrin_r0s0 : no need to use mask
-	__vr vrinP_r0s0    = _ve_vshf_vvvs(vrin_r0s0, vrin_r0s0, VE_VSHUFFLE_YUZU) ;
-	vrsum01_r0s0 = _ve_pvfmad_vvvv(vrsum01_r0s0, vrinP_r0s0, vrgout01) ;
-
-	vrin_r0s1 = _ve_vmrg_vvvm(_ve_vbrdu_vs_f32(0.0f), vrin_r0s1, vm_r0s1) ;
-	__vr vrinP_r0s1    = _ve_vshf_vvvs(vrin_r0s1, vrin_r0s1, VE_VSHUFFLE_YUZU) ;
-	vrsum01_r0s1 = _ve_pvfmad_vvvv(vrsum01_r0s1, vrinP_r0s1, vrgout01) ;
-
-	// vrin_r1s0 : no need to use mask
-	__vr vrinP_r1s0    = _ve_vshf_vvvs(vrin_r1s0, vrin_r1s0, VE_VSHUFFLE_YUZU) ;
-	vrsum01_r1s0 = _ve_pvfmad_vvvv(vrsum01_r1s0, vrinP_r1s0, vrgout01) ;
-
-	vrin_r1s1 = _ve_vmrg_vvvm(_ve_vbrdu_vs_f32(0.0f), vrin_r1s1, vm_r1s1) ;
-	__vr vrinP_r1s1    = _ve_vshf_vvvs(vrin_r1s1, vrin_r1s1, VE_VSHUFFLE_YUZU) ;
-	vrsum01_r1s1 = _ve_pvfmad_vvvv(vrsum01_r1s1, vrinP_r1s1, vrgout01) ;
-      }
-      {
-	const int64_t vl = gOutWidth * (gOutHeight - y) ;
-
-	_ve_lvl(vl) ;
-
-	__vm256 vm_r0s1 = vm_s1 ;
-	__vm256 vm_r1s0 = vm_r1 ;
-	__vm256 vm_r1s1 = _ve_andm_mmm(vm_r1, vm_s1) ;
-
-	const float *pInChannel = pIn + inGroupOffset + ((n * inChannel + c) * inHeight * inWidth ) ;
-
-	const int64_t gOutIndex0  = outGroupOffset + ((n * gOutChannel + k  ) * gOutHeight + y ) * gOutWidth ;
-	const int64_t gOutIndex1  = outGroupOffset + ((n * gOutChannel + k+1) * gOutHeight + y ) * gOutWidth ;
-
-	/* memory access errors mihgt be caused (vrin) */
-	__vr vrin_r0s0    = _ve_vldu_vss(4,&pInChannel[(y  )*inWidth  ]) ;
-	__vr vrin_r0s1    = _ve_vldu_vss(4,&pInChannel[(y  )*inWidth+1]) ;
-	__vr vrin_r1s0    = _ve_vldu_vss(4,&pInChannel[(y+1)*inWidth  ]) ;
-	__vr vrin_r1s1    = _ve_vldu_vss(4,&pInChannel[(y+1)*inWidth+1]) ;
-	__vr vrgout0 = _ve_vldu_vss(4, pGOut+gOutIndex0) ;
-	__vr vrgout1 = _ve_vldu_vss(4, pGOut+gOutIndex1) ;
-
-	__vr vrgout01 = _ve_vshf_vvvs(vrgout0, vrgout1, VE_VSHUFFLE_YUZU) ;
-
-	// vrin_r0s0 : no need to use mask
+	vrin_r0s0 = _ve_vmrg_vvvm(_ve_vbrdu_vs_f32(0.0f), vrin_r0s0, vm_r0s0) ;
 	__vr vrinP_r0s0    = _ve_vshf_vvvs(vrin_r0s0, vrin_r0s0, VE_VSHUFFLE_YUZU) ;
 	vrsum01_r0s0 = _ve_pvfmad_vvvv(vrsum01_r0s0, vrinP_r0s0, vrgout01) ;
 
@@ -256,7 +182,7 @@ static inline void k2(
 	__vr vrinP_r1s0    = _ve_vshf_vvvs(vrin_r1s0, vrin_r1s0, VE_VSHUFFLE_YUZU) ;
 	vrsum01_r1s0 = _ve_pvfmad_vvvv(vrsum01_r1s0, vrinP_r1s0, vrgout01) ;
 
-	vrin_r1s1 = _ve_vmrg_vvvm(_ve_vbrdu_vs_f32(0.0f), vrin_r1s1, vm_r1s1) ;
+	// vrin_r1s1 : no need to use mask
 	__vr vrinP_r1s1    = _ve_vshf_vvvs(vrin_r1s1, vrin_r1s1, VE_VSHUFFLE_YUZU) ;
 	vrsum01_r1s1 = _ve_pvfmad_vvvv(vrsum01_r1s1, vrinP_r1s1, vrgout01) ;
       }
@@ -325,8 +251,8 @@ static inline void k4(
   __vr vry   = _ve_vdivsl_vvs(vrseq, gOutWidth) ;
   __vr vrx   = _ve_vsubsl_vvv(vrseq, _ve_vmulul_vsv(gOutWidth,vry)) ;
 
-  __vm256 vm_r1 = _ve_vfmkl_mcv(VECC_IG, _ve_vcmpsl_vsv(inHeight-1-last_y,vry)) ;	// condition(y+1 < inHeight)
-  __vm256 vm_s1 = _ve_vfmkl_mcv(VECC_IG, _ve_vcmpsl_vsv(inWidth-1,vrx)) ;		// condition(x+1 < inWidth)
+  __vm256 vm_r0 = _ve_vfmkl_mcv(VECC_G, vry) ;	// condition(y-1>=0)
+  __vm256 vm_s0 = _ve_vfmkl_mcv(VECC_G, vrx) ;	// condition(x-1>=0)
 
   for (int64_t c=0; c<inChannelGroup; c++) {
     const int64_t kernelIndex0 = kernGroupOffset + ((k     * inChannelGroup + c) * gKernHeight) * gKernWidth;
@@ -349,13 +275,14 @@ static inline void k4(
 
     for (int64_t n=0; n<batch; n++) {
       int64_t y=0;
-      for (; y+nY<gOutHeight; y+=nY) {
-	const int64_t vl = gOutWidth * nY ;
+      for (; y<gOutHeight; y+=nY) {
+	const int64_t vl = gOutWidth * (gOutHeight - y < nY ? gOutHeight - y : nY ) ;
 
 	_ve_lvl(vl) ;
 
-	__vm256 vm_r0s1 = vm_s1 ;
-	__vm256 vm_r1s1 = vm_s1 ;
+	__vm256 vm_r0s0 = _ve_andm_mmm(vm_r0,vm_s0) ;
+	__vm256 vm_r0s1 = vm_r0 ;
+	__vm256 vm_r1s0 = vm_s0 ;
 
 	const float *pInChannel = pIn + inGroupOffset + ((n * inChannel + c) * inHeight * inWidth ) ;
 
@@ -365,10 +292,10 @@ static inline void k4(
 	const int64_t gOutIndex3  = outGroupOffset + ((n * gOutChannel + k+3) * gOutHeight + y ) * gOutWidth ;
 
 	/* memory access errors mihgt be caused (vrin) */
-	__vr vrin_r0s0    = _ve_vldu_vss(4,&pInChannel[(y  )*inWidth  ]) ;
-	__vr vrin_r0s1    = _ve_vldu_vss(4,&pInChannel[(y  )*inWidth+1]) ;
-	__vr vrin_r1s0    = _ve_vldu_vss(4,&pInChannel[(y+1)*inWidth  ]) ;
-	__vr vrin_r1s1    = _ve_vldu_vss(4,&pInChannel[(y+1)*inWidth+1]) ;
+	__vr vrin_r0s0    = _ve_vldu_vss(4,&pInChannel[(y-1)*inWidth-1]) ;
+	__vr vrin_r0s1    = _ve_vldu_vss(4,&pInChannel[(y-1)*inWidth  ]) ;
+	__vr vrin_r1s0    = _ve_vldu_vss(4,&pInChannel[(y  )*inWidth-1]) ;
+	__vr vrin_r1s1    = _ve_vldu_vss(4,&pInChannel[(y  )*inWidth  ]) ;
 	__vr vrgout0 = _ve_vldu_vss(4, pGOut+gOutIndex0) ;
 	__vr vrgout1 = _ve_vldu_vss(4, pGOut+gOutIndex1) ;
 	__vr vrgout2 = _ve_vldu_vss(4, pGOut+gOutIndex2) ;
@@ -377,56 +304,7 @@ static inline void k4(
 	__vr vrgout01 = _ve_vshf_vvvs(vrgout0, vrgout1, VE_VSHUFFLE_YUZU) ;
 	__vr vrgout23 = _ve_vshf_vvvs(vrgout2, vrgout3, VE_VSHUFFLE_YUZU) ;
 
-	// vrin_r0s0 : no need to use mask
-	__vr vrinP_r0s0    = _ve_vshf_vvvs(vrin_r0s0, vrin_r0s0, VE_VSHUFFLE_YUZU) ;
-	vrsum01_r0s0 = _ve_pvfmad_vvvv(vrsum01_r0s0, vrinP_r0s0, vrgout01) ;
-	vrsum23_r0s0 = _ve_pvfmad_vvvv(vrsum23_r0s0, vrinP_r0s0, vrgout23) ;
-
-	vrin_r0s1 = _ve_vmrg_vvvm(_ve_vbrdu_vs_f32(0.0f), vrin_r0s1, vm_r0s1) ;
-	__vr vrinP_r0s1    = _ve_vshf_vvvs(vrin_r0s1, vrin_r0s1, VE_VSHUFFLE_YUZU) ;
-	vrsum01_r0s1 = _ve_pvfmad_vvvv(vrsum01_r0s1, vrinP_r0s1, vrgout01) ;
-	vrsum23_r0s1 = _ve_pvfmad_vvvv(vrsum23_r0s1, vrinP_r0s1, vrgout23) ;
-
-	// vrin_r1s0 : no need to use mask
-	__vr vrinP_r1s0    = _ve_vshf_vvvs(vrin_r1s0, vrin_r1s0, VE_VSHUFFLE_YUZU) ;
-	vrsum01_r1s0 = _ve_pvfmad_vvvv(vrsum01_r1s0, vrinP_r1s0, vrgout01) ;
-	vrsum23_r1s0 = _ve_pvfmad_vvvv(vrsum23_r1s0, vrinP_r1s0, vrgout23) ;
-
-	vrin_r1s1 = _ve_vmrg_vvvm(_ve_vbrdu_vs_f32(0.0f), vrin_r1s1, vm_r1s1) ;
-	__vr vrinP_r1s1    = _ve_vshf_vvvs(vrin_r1s1, vrin_r1s1, VE_VSHUFFLE_YUZU) ;
-	vrsum01_r1s1 = _ve_pvfmad_vvvv(vrsum01_r1s1, vrinP_r1s1, vrgout01) ;
-	vrsum23_r1s1 = _ve_pvfmad_vvvv(vrsum23_r1s1, vrinP_r1s1, vrgout23) ;
-      }
-      {
-	const int64_t vl = gOutWidth * (gOutHeight - y) ;
-
-	_ve_lvl(vl) ;
-
-	__vm256 vm_r0s1 = vm_s1 ;
-	__vm256 vm_r1s0 = vm_r1 ;
-	__vm256 vm_r1s1 = _ve_andm_mmm(vm_r1, vm_s1) ;
-
-	const float *pInChannel = pIn + inGroupOffset + ((n * inChannel + c) * inHeight * inWidth ) ;
-
-	const int64_t gOutIndex0  = outGroupOffset + ((n * gOutChannel + k  ) * gOutHeight + y ) * gOutWidth ;
-	const int64_t gOutIndex1  = outGroupOffset + ((n * gOutChannel + k+1) * gOutHeight + y ) * gOutWidth ;
-	const int64_t gOutIndex2  = outGroupOffset + ((n * gOutChannel + k+2) * gOutHeight + y ) * gOutWidth ;
-	const int64_t gOutIndex3  = outGroupOffset + ((n * gOutChannel + k+3) * gOutHeight + y ) * gOutWidth ;
-
-	/* memory access errors mihgt be caused (vrin) */
-	__vr vrin_r0s0    = _ve_vldu_vss(4,&pInChannel[(y  )*inWidth  ]) ;
-	__vr vrin_r0s1    = _ve_vldu_vss(4,&pInChannel[(y  )*inWidth+1]) ;
-	__vr vrin_r1s0    = _ve_vldu_vss(4,&pInChannel[(y+1)*inWidth  ]) ;
-	__vr vrin_r1s1    = _ve_vldu_vss(4,&pInChannel[(y+1)*inWidth+1]) ;
-	__vr vrgout0 = _ve_vldu_vss(4, pGOut+gOutIndex0) ;
-	__vr vrgout1 = _ve_vldu_vss(4, pGOut+gOutIndex1) ;
-	__vr vrgout2 = _ve_vldu_vss(4, pGOut+gOutIndex2) ;
-	__vr vrgout3 = _ve_vldu_vss(4, pGOut+gOutIndex3) ;
-
-	__vr vrgout01 = _ve_vshf_vvvs(vrgout0, vrgout1, VE_VSHUFFLE_YUZU) ;
-	__vr vrgout23 = _ve_vshf_vvvs(vrgout2, vrgout3, VE_VSHUFFLE_YUZU) ;
-
-	// vrin_r0s0 : no need to use mask
+	vrin_r0s0 = _ve_vmrg_vvvm(_ve_vbrdu_vs_f32(0.0f), vrin_r0s0, vm_r0s0) ;
 	__vr vrinP_r0s0    = _ve_vshf_vvvs(vrin_r0s0, vrin_r0s0, VE_VSHUFFLE_YUZU) ;
 	vrsum01_r0s0 = _ve_pvfmad_vvvv(vrsum01_r0s0, vrinP_r0s0, vrgout01) ;
 	vrsum23_r0s0 = _ve_pvfmad_vvvv(vrsum23_r0s0, vrinP_r0s0, vrgout23) ;
@@ -441,7 +319,7 @@ static inline void k4(
 	vrsum01_r1s0 = _ve_pvfmad_vvvv(vrsum01_r1s0, vrinP_r1s0, vrgout01) ;
 	vrsum23_r1s0 = _ve_pvfmad_vvvv(vrsum23_r1s0, vrinP_r1s0, vrgout23) ;
 
-	vrin_r1s1 = _ve_vmrg_vvvm(_ve_vbrdu_vs_f32(0.0f), vrin_r1s1, vm_r1s1) ;
+	// vrin_r1s1 : no need to use mask
 	__vr vrinP_r1s1    = _ve_vshf_vvvs(vrin_r1s1, vrin_r1s1, VE_VSHUFFLE_YUZU) ;
 	vrsum01_r1s1 = _ve_pvfmad_vvvv(vrsum01_r1s1, vrinP_r1s1, vrgout01) ;
 	vrsum23_r1s1 = _ve_pvfmad_vvvv(vrsum23_r1s1, vrinP_r1s1, vrgout23) ;
@@ -487,8 +365,8 @@ static inline void k8(
   __vr vry   = _ve_vdivsl_vvs(vrseq, gOutWidth) ;
   __vr vrx   = _ve_vsubsl_vvv(vrseq, _ve_vmulul_vsv(gOutWidth,vry)) ;
 
-  __vm256 vm_r1 = _ve_vfmkl_mcv(VECC_IG, _ve_vcmpsl_vsv(inHeight-1-last_y,vry)) ;	// condition(y+1 < inHeight)
-  __vm256 vm_s1 = _ve_vfmkl_mcv(VECC_IG, _ve_vcmpsl_vsv(inWidth-1,vrx)) ;		// condition(x+1 < inWidth)
+  __vm256 vm_r0 = _ve_vfmkl_mcv(VECC_G, vry) ;	// condition(y-1>=0)
+  __vm256 vm_s0 = _ve_vfmkl_mcv(VECC_G, vrx) ;	// condition(x-1>=0)
 
   for (int64_t c=0; c<inChannelGroup; c++) {
     const int64_t kernelIndex0 = kernGroupOffset + ((k     * inChannelGroup + c) * gKernHeight) * gKernWidth;
@@ -523,13 +401,14 @@ static inline void k8(
 
     for (int64_t n=0; n<batch; n++) {
       int64_t y=0;
-      for (; y+nY<gOutHeight; y+=nY) {
-	const int64_t vl = gOutWidth * nY ;
+      for (; y<gOutHeight; y+=nY) {
+	const int64_t vl = gOutWidth * (gOutHeight - y < nY ? gOutHeight - y : nY ) ;
 
 	_ve_lvl(vl) ;
 
-	__vm256 vm_r0s1 = vm_s1 ;
-	__vm256 vm_r1s1 = vm_s1 ;
+	__vm256 vm_r0s0 = _ve_andm_mmm(vm_r0,vm_s0) ;
+	__vm256 vm_r0s1 = vm_r0 ;
+	__vm256 vm_r1s0 = vm_s0 ;
 
 	const float *pInChannel = pIn + inGroupOffset + ((n * inChannel + c) * inHeight * inWidth ) ;
 
@@ -543,10 +422,10 @@ static inline void k8(
 	const int64_t gOutIndex7  = outGroupOffset + ((n * gOutChannel + k+7) * gOutHeight + y ) * gOutWidth ;
 
 	/* memory access errors mihgt be caused (vrin) */
-	__vr vrin_r0s0    = _ve_vldu_vss(4,&pInChannel[(y  )*inWidth  ]) ;
-	__vr vrin_r0s1    = _ve_vldu_vss(4,&pInChannel[(y  )*inWidth+1]) ;
-	__vr vrin_r1s0    = _ve_vldu_vss(4,&pInChannel[(y+1)*inWidth  ]) ;
-	__vr vrin_r1s1    = _ve_vldu_vss(4,&pInChannel[(y+1)*inWidth+1]) ;
+	__vr vrin_r0s0    = _ve_vldu_vss(4,&pInChannel[(y-1)*inWidth-1]) ;
+	__vr vrin_r0s1    = _ve_vldu_vss(4,&pInChannel[(y-1)*inWidth  ]) ;
+	__vr vrin_r1s0    = _ve_vldu_vss(4,&pInChannel[(y  )*inWidth-1]) ;
+	__vr vrin_r1s1    = _ve_vldu_vss(4,&pInChannel[(y  )*inWidth  ]) ;
 	__vr vrgout0 = _ve_vldu_vss(4, pGOut+gOutIndex0) ;
 	__vr vrgout1 = _ve_vldu_vss(4, pGOut+gOutIndex1) ;
 	__vr vrgout2 = _ve_vldu_vss(4, pGOut+gOutIndex2) ;
@@ -561,75 +440,7 @@ static inline void k8(
 	__vr vrgout45 = _ve_vshf_vvvs(vrgout4, vrgout5, VE_VSHUFFLE_YUZU) ;
 	__vr vrgout67 = _ve_vshf_vvvs(vrgout6, vrgout7, VE_VSHUFFLE_YUZU) ;
 
-	// vrin_r0s0 : no need to use mask
-	__vr vrinP_r0s0    = _ve_vshf_vvvs(vrin_r0s0, vrin_r0s0, VE_VSHUFFLE_YUZU) ;
-	vrsum01_r0s0 = _ve_pvfmad_vvvv(vrsum01_r0s0, vrinP_r0s0, vrgout01) ;
-	vrsum23_r0s0 = _ve_pvfmad_vvvv(vrsum23_r0s0, vrinP_r0s0, vrgout23) ;
-	vrsum45_r0s0 = _ve_pvfmad_vvvv(vrsum45_r0s0, vrinP_r0s0, vrgout45) ;
-	vrsum67_r0s0 = _ve_pvfmad_vvvv(vrsum67_r0s0, vrinP_r0s0, vrgout67) ;
-
-	vrin_r0s1 = _ve_vmrg_vvvm(_ve_vbrdu_vs_f32(0.0f), vrin_r0s1, vm_r0s1) ;
-	__vr vrinP_r0s1    = _ve_vshf_vvvs(vrin_r0s1, vrin_r0s1, VE_VSHUFFLE_YUZU) ;
-	vrsum01_r0s1 = _ve_pvfmad_vvvv(vrsum01_r0s1, vrinP_r0s1, vrgout01) ;
-	vrsum23_r0s1 = _ve_pvfmad_vvvv(vrsum23_r0s1, vrinP_r0s1, vrgout23) ;
-	vrsum45_r0s1 = _ve_pvfmad_vvvv(vrsum45_r0s1, vrinP_r0s1, vrgout45) ;
-	vrsum67_r0s1 = _ve_pvfmad_vvvv(vrsum67_r0s1, vrinP_r0s1, vrgout67) ;
-
-	// vrin_r1s0 : no need to use mask
-	__vr vrinP_r1s0    = _ve_vshf_vvvs(vrin_r1s0, vrin_r1s0, VE_VSHUFFLE_YUZU) ;
-	vrsum01_r1s0 = _ve_pvfmad_vvvv(vrsum01_r1s0, vrinP_r1s0, vrgout01) ;
-	vrsum23_r1s0 = _ve_pvfmad_vvvv(vrsum23_r1s0, vrinP_r1s0, vrgout23) ;
-	vrsum45_r1s0 = _ve_pvfmad_vvvv(vrsum45_r1s0, vrinP_r1s0, vrgout45) ;
-	vrsum67_r1s0 = _ve_pvfmad_vvvv(vrsum67_r1s0, vrinP_r1s0, vrgout67) ;
-
-	vrin_r1s1 = _ve_vmrg_vvvm(_ve_vbrdu_vs_f32(0.0f), vrin_r1s1, vm_r1s1) ;
-	__vr vrinP_r1s1    = _ve_vshf_vvvs(vrin_r1s1, vrin_r1s1, VE_VSHUFFLE_YUZU) ;
-	vrsum01_r1s1 = _ve_pvfmad_vvvv(vrsum01_r1s1, vrinP_r1s1, vrgout01) ;
-	vrsum23_r1s1 = _ve_pvfmad_vvvv(vrsum23_r1s1, vrinP_r1s1, vrgout23) ;
-	vrsum45_r1s1 = _ve_pvfmad_vvvv(vrsum45_r1s1, vrinP_r1s1, vrgout45) ;
-	vrsum67_r1s1 = _ve_pvfmad_vvvv(vrsum67_r1s1, vrinP_r1s1, vrgout67) ;
-
-      }
-      {
-	const int64_t vl = gOutWidth * (gOutHeight - y) ;
-
-	_ve_lvl(vl) ;
-
-	__vm256 vm_r0s1 = vm_s1 ;
-	__vm256 vm_r1s0 = vm_r1 ;
-	__vm256 vm_r1s1 = _ve_andm_mmm(vm_r1, vm_s1) ;
-
-	const float *pInChannel = pIn + inGroupOffset + ((n * inChannel + c) * inHeight * inWidth ) ;
-
-	const int64_t gOutIndex0  = outGroupOffset + ((n * gOutChannel + k  ) * gOutHeight + y ) * gOutWidth ;
-	const int64_t gOutIndex1  = outGroupOffset + ((n * gOutChannel + k+1) * gOutHeight + y ) * gOutWidth ;
-	const int64_t gOutIndex2  = outGroupOffset + ((n * gOutChannel + k+2) * gOutHeight + y ) * gOutWidth ;
-	const int64_t gOutIndex3  = outGroupOffset + ((n * gOutChannel + k+3) * gOutHeight + y ) * gOutWidth ;
-	const int64_t gOutIndex4  = outGroupOffset + ((n * gOutChannel + k+4) * gOutHeight + y ) * gOutWidth ;
-	const int64_t gOutIndex5  = outGroupOffset + ((n * gOutChannel + k+5) * gOutHeight + y ) * gOutWidth ;
-	const int64_t gOutIndex6  = outGroupOffset + ((n * gOutChannel + k+6) * gOutHeight + y ) * gOutWidth ;
-	const int64_t gOutIndex7  = outGroupOffset + ((n * gOutChannel + k+7) * gOutHeight + y ) * gOutWidth ;
-
-	/* memory access errors mihgt be caused (vrin) */
-	__vr vrin_r0s0    = _ve_vldu_vss(4,&pInChannel[(y  )*inWidth  ]) ;
-	__vr vrin_r0s1    = _ve_vldu_vss(4,&pInChannel[(y  )*inWidth+1]) ;
-	__vr vrin_r1s0    = _ve_vldu_vss(4,&pInChannel[(y+1)*inWidth  ]) ;
-	__vr vrin_r1s1    = _ve_vldu_vss(4,&pInChannel[(y+1)*inWidth+1]) ;
-	__vr vrgout0 = _ve_vldu_vss(4, pGOut+gOutIndex0) ;
-	__vr vrgout1 = _ve_vldu_vss(4, pGOut+gOutIndex1) ;
-	__vr vrgout2 = _ve_vldu_vss(4, pGOut+gOutIndex2) ;
-	__vr vrgout3 = _ve_vldu_vss(4, pGOut+gOutIndex3) ;
-	__vr vrgout4 = _ve_vldu_vss(4, pGOut+gOutIndex4) ;
-	__vr vrgout5 = _ve_vldu_vss(4, pGOut+gOutIndex5) ;
-	__vr vrgout6 = _ve_vldu_vss(4, pGOut+gOutIndex6) ;
-	__vr vrgout7 = _ve_vldu_vss(4, pGOut+gOutIndex7) ;
-
-	__vr vrgout01 = _ve_vshf_vvvs(vrgout0, vrgout1, VE_VSHUFFLE_YUZU) ;
-	__vr vrgout23 = _ve_vshf_vvvs(vrgout2, vrgout3, VE_VSHUFFLE_YUZU) ;
-	__vr vrgout45 = _ve_vshf_vvvs(vrgout4, vrgout5, VE_VSHUFFLE_YUZU) ;
-	__vr vrgout67 = _ve_vshf_vvvs(vrgout6, vrgout7, VE_VSHUFFLE_YUZU) ;
-
-	// vrin_r0s0 : no need to use mask
+	vrin_r0s0 = _ve_vmrg_vvvm(_ve_vbrdu_vs_f32(0.0f), vrin_r0s0, vm_r0s0) ;
 	__vr vrinP_r0s0    = _ve_vshf_vvvs(vrin_r0s0, vrin_r0s0, VE_VSHUFFLE_YUZU) ;
 	vrsum01_r0s0 = _ve_pvfmad_vvvv(vrsum01_r0s0, vrinP_r0s0, vrgout01) ;
 	vrsum23_r0s0 = _ve_pvfmad_vvvv(vrsum23_r0s0, vrinP_r0s0, vrgout23) ;
@@ -650,7 +461,7 @@ static inline void k8(
 	vrsum45_r1s0 = _ve_pvfmad_vvvv(vrsum45_r1s0, vrinP_r1s0, vrgout45) ;
 	vrsum67_r1s0 = _ve_pvfmad_vvvv(vrsum67_r1s0, vrinP_r1s0, vrgout67) ;
 
-	vrin_r1s1 = _ve_vmrg_vvvm(_ve_vbrdu_vs_f32(0.0f), vrin_r1s1, vm_r1s1) ;
+	// vrin_r1s1 : no need to use mask
 	__vr vrinP_r1s1    = _ve_vshf_vvvs(vrin_r1s1, vrin_r1s1, VE_VSHUFFLE_YUZU) ;
 	vrsum01_r1s1 = _ve_pvfmad_vvvv(vrsum01_r1s1, vrinP_r1s1, vrgout01) ;
 	vrsum23_r1s1 = _ve_pvfmad_vvvv(vrsum23_r1s1, vrinP_r1s1, vrgout23) ;
