@@ -108,10 +108,10 @@ static inline void c1(
 	const float *pKerValue = pKernel + kernGroupOffset + (((k  ) * gInChannelGroup + c) * kernHeight) * kernWidth ;
 
 
-#define VFADD_C1(VRGOUT, VM, K, R, S)  {												\
-	  const uint64_t kerValue = pKerValue[(((K)*gInChannelGroup + 0) * kernHeight +(R)) * kernWidth + (S) ] ;	\
-	  VRGOUT = _ve_vmrg_vvvm(_ve_vbrdu_vs_f32(0.0f), VRGOUT, VM) ;			\
-	  vrsum = _ve_pvfmad_vvsv(vrsum, kerValue, VRGOUT) ;				\
+#define VFADD_C1(VRGOUT, VM, K, R, S)  {									\
+	  const float kerValue = pKerValue[(((K)*gInChannelGroup + 0) * kernHeight +(R)) * kernWidth + (S) ] ;	\
+	  VRGOUT = _ve_vmrg_vvvm(_ve_vbrdu_vs_f32(0.0f), VRGOUT, VM) ;						\
+	  vrsum = _ve_vfmads_vvsv(vrsum, kerValue, VRGOUT) ;							\
 	}
 
 	__vr vrgout_ptr_k0_s0 = _ve_vsfa_vvss(_ve_vaddsl_vvv(_ve_vmulsl_vsv(gOutWidth, vry), vrx_s0),
