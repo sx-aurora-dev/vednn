@@ -3,7 +3,7 @@
 
 #include "vednn.h"
 
-#include "veintrin.h"
+#include "velintrin.h"
 #define VLEN	(256)
 
 vednnError_t
@@ -59,24 +59,23 @@ vednnConvolutionForward_direct_dil1_str1_pad0(
 	    for ( int64_t x0=0; x0<outWidth; x0+=VLEN) {
 	      const int64_t vl = outWidth - x0 < VLEN ? outWidth - x0 : VLEN ;
 
-	      _ve_lvl(vl) ;
-	      __vr vrsum = _ve_vbrdu_vs_f32(0.0f) ;
+	      __vr vrsum = _vel_vbrds_vsl(0.0f, vl) ;
 	      for (int64_t r = 0; r < kernHeight; r++) {
 		for (int64_t s = 0; s < kernWidth; s++) {
 		  const int64_t h = y + r ;
 		  for (int64_t c = 0; c < inChannelGroup; c++) {
 		    const float *pInChannel = pIn + inGroupOffset + ((n * inChannel + c) * inHeight * inWidth ) ;
-		    __vr vrin = _ve_vldu_vss(4,&pInChannel[h*inWidth+x0+s]) ;
+		    __vr vrin = _vel_vldu_vssl(4,&pInChannel[h*inWidth+x0+s], vl) ;
 
 		    const float *pKerValue = pKernel + kernGroupOffset + ((k * inChannelGroup + c) * kernHeight + r) * kernWidth + s;
 
-		    vrsum = _ve_vfmads_vvsv(vrsum, *pKerValue, vrin) ;
+		    vrsum = _vel_vfmads_vvsvl(vrsum, *pKerValue, vrin, vl) ;
 		  } // inChannel
 		} // kernWidth
 	      } // kernHeight
 
 
-	      _ve_vstu_vss(vrsum, 4, pOut+outIndex) ;
+	      _vel_vstu_vssl(vrsum, 4, pOut+outIndex, vl) ;
 
 	      outIndex += vl ;
 	    } // x
@@ -93,8 +92,7 @@ vednnConvolutionForward_direct_dil1_str1_pad0(
 
 	      const int64_t vl = outWidth - x0 < VLEN ? outWidth - x0 : VLEN ;
 
-	      _ve_lvl(vl) ;
-	      __vr vrsum01 = _ve_pvbrd_vs_i64(0UL) ;
+	      __vr vrsum01 = _vel_pvbrd_vsl(0UL, vl) ;
 	      for (int64_t r = 0; r < kernHeight; r++) {
 		for (int64_t s = 0; s < kernWidth; s++) {
 
@@ -102,21 +100,21 @@ vednnConvolutionForward_direct_dil1_str1_pad0(
 		  for (int64_t c = 0; c < inChannelGroup; c++) {
 		    const float *pInChannel = pIn + inGroupOffset + ((n * inChannel + c) * inHeight * inWidth ) ;
 
-		    __vr vrin = _ve_vldu_vss(4,&pInChannel[h*inWidth+x0+s]) ;
-		    __vr vrinP = _ve_vshf_vvvs(vrin, vrin, VE_VSHUFFLE_YUZU) ;
+		    __vr vrin = _vel_vldu_vssl(4,&pInChannel[h*inWidth+x0+s], vl) ;
+		    __vr vrinP = _vel_vshf_vvvsl(vrin, vrin, VE_VSHUFFLE_YUZU, vl) ;
 
 		    const float *pKerValue = pKernel + kernGroupOffset + ((k * inChannelGroup + c) * kernHeight + r) * kernWidth + s;
 
-		    const uint64_t kerValue01 = _ve_pack_f32p(pKerValue,
-							      pKerValue+      inChannelGroup * kernHeight * kernWidth) ;
+		    const uint64_t kerValue01 = _vel_pack_f32p(pKerValue,
+							       pKerValue+      inChannelGroup * kernHeight * kernWidth) ;
 
-		    vrsum01 = _ve_pvfmad_vvsv(vrsum01, kerValue01, vrinP) ;
+		    vrsum01 = _vel_pvfmad_vvsvl(vrsum01, kerValue01, vrinP, vl) ;
 		  } // inChannel
 		} // kernWidth
 	      } // kernHeight
 
-	      _ve_vstu_vss(vrsum01, 4, pOut+outIndex0) ;
-	      _ve_vstl_vss(vrsum01, 4, pOut+outIndex1) ;
+	      _vel_vstu_vssl(vrsum01, 4, pOut+outIndex0, vl) ;
+	      _vel_vstl_vssl(vrsum01, 4, pOut+outIndex1, vl) ;
 
 	      outIndex0 += vl ;
 	      outIndex1 += vl ;
@@ -136,10 +134,8 @@ vednnConvolutionForward_direct_dil1_str1_pad0(
 
 	      const int64_t vl = outWidth - x0 < VLEN ? outWidth - x0 : VLEN ;
 
-	      _ve_lvl(vl) ;
-
-	      __vr vrsum01 = _ve_pvbrd_vs_i64(0UL) ;
-	      __vr vrsum23 = _ve_pvbrd_vs_i64(0UL) ;
+	      __vr vrsum01 = _vel_pvbrd_vsl(0UL, vl) ;
+	      __vr vrsum23 = _vel_pvbrd_vsl(0UL, vl) ;
 
 	      for (int64_t r = 0; r < kernHeight; r++) {
 		for (int64_t s = 0; s < kernWidth; s++) {
@@ -147,26 +143,26 @@ vednnConvolutionForward_direct_dil1_str1_pad0(
 		    for (int64_t c = 0; c < inChannelGroup; c++) {
 		    const float *pInChannel = pIn + inGroupOffset + ((n * inChannel + c) * inHeight * inWidth ) ;
 
-		    __vr vrin = _ve_vldu_vss(4,&pInChannel[h*inWidth+x0+s]) ;
-		    __vr vrinP = _ve_vshf_vvvs(vrin, vrin, VE_VSHUFFLE_YUZU) ;
+		    __vr vrin = _vel_vldu_vssl(4,&pInChannel[h*inWidth+x0+s], vl) ;
+		    __vr vrinP = _vel_vshf_vvvsl(vrin, vrin, VE_VSHUFFLE_YUZU, vl) ;
 
 		    const float *pKerValue = pKernel + kernGroupOffset + ((k * inChannelGroup + c) * kernHeight + r) * kernWidth + s;
 
-		    const uint64_t kerValue01 = _ve_pack_f32p(pKerValue,
-							      pKerValue+      inChannelGroup * kernHeight * kernWidth) ;
-		    const uint64_t kerValue23 = _ve_pack_f32p(pKerValue + 2 * inChannelGroup * kernHeight * kernWidth,
-							      pKerValue + 3 * inChannelGroup * kernHeight * kernWidth) ;
+		    const uint64_t kerValue01 = _vel_pack_f32p(pKerValue,
+							       pKerValue+      inChannelGroup * kernHeight * kernWidth) ;
+		    const uint64_t kerValue23 = _vel_pack_f32p(pKerValue + 2 * inChannelGroup * kernHeight * kernWidth,
+							       pKerValue + 3 * inChannelGroup * kernHeight * kernWidth) ;
 
-		    vrsum01 = _ve_pvfmad_vvsv(vrsum01, kerValue01, vrinP) ;
-		    vrsum23 = _ve_pvfmad_vvsv(vrsum23, kerValue23, vrinP) ;
+		    vrsum01 = _vel_pvfmad_vvsvl(vrsum01, kerValue01, vrinP, vl) ;
+		    vrsum23 = _vel_pvfmad_vvsvl(vrsum23, kerValue23, vrinP, vl) ;
 		  } // inChannel
 		} // kernWidth
 	      } // kernHeight
 
-	      _ve_vstu_vss(vrsum01, 4, pOut+outIndex0) ;
-	      _ve_vstl_vss(vrsum01, 4, pOut+outIndex1) ;
-	      _ve_vstu_vss(vrsum23, 4, pOut+outIndex2) ;
-	      _ve_vstl_vss(vrsum23, 4, pOut+outIndex3) ;
+	      _vel_vstu_vssl(vrsum01, 4, pOut+outIndex0, vl) ;
+	      _vel_vstl_vssl(vrsum01, 4, pOut+outIndex1, vl) ;
+	      _vel_vstu_vssl(vrsum23, 4, pOut+outIndex2, vl) ;
+	      _vel_vstl_vssl(vrsum23, 4, pOut+outIndex3, vl) ;
 
 	      outIndex0 += vl ;
 	      outIndex1 += vl ;
@@ -192,12 +188,10 @@ vednnConvolutionForward_direct_dil1_str1_pad0(
 
 	      const int64_t vl = outWidth - x0 < VLEN ? outWidth - x0 : VLEN ;
 
-	      _ve_lvl(vl) ;
-
-	      __vr vrsum01 = _ve_pvbrd_vs_i64(0UL) ;
-	      __vr vrsum23 = _ve_pvbrd_vs_i64(0UL) ;
-	      __vr vrsum45 = _ve_pvbrd_vs_i64(0UL) ;
-	      __vr vrsum67 = _ve_pvbrd_vs_i64(0UL) ;
+	      __vr vrsum01 = _vel_pvbrd_vsl(0UL, vl) ;
+	      __vr vrsum23 = _vel_pvbrd_vsl(0UL, vl) ;
+	      __vr vrsum45 = _vel_pvbrd_vsl(0UL, vl) ;
+	      __vr vrsum67 = _vel_pvbrd_vsl(0UL, vl) ;
 
 	      const float *pKerValue = pKernel + kernGroupOffset + k * inChannelGroup * kernHeight * kernWidth ;
 
@@ -209,36 +203,36 @@ vednnConvolutionForward_direct_dil1_str1_pad0(
 		    const float *pInChannel = pIn + inGroupOffset + ((n * inChannel + c) * inHeight * inWidth ) ;
 
 
-		    __vr vrin = _ve_vldu_vss(4,&pInChannel[h*inWidth+x0+s]) ;
-		    __vr vrinP = _ve_vshf_vvvs(vrin, vrin, VE_VSHUFFLE_YUZU) ;
+		    __vr vrin = _vel_vldu_vssl(4,&pInChannel[h*inWidth+x0+s], vl) ;
+		    __vr vrinP = _vel_vshf_vvvsl(vrin, vrin, VE_VSHUFFLE_YUZU, vl) ;
 
 		    const float *pKerValue = pKernel + kernGroupOffset + ((k * inChannelGroup + c) * kernHeight + r) * kernWidth + s;
 
-		    const uint64_t kerValue01 = _ve_pack_f32p(pKerValue,
-							      pKerValue+      inChannelGroup * kernHeight * kernWidth) ;
-		    const uint64_t kerValue23 = _ve_pack_f32p(pKerValue + 2 * inChannelGroup * kernHeight * kernWidth,
-							      pKerValue + 3 * inChannelGroup * kernHeight * kernWidth) ;
-		    const uint64_t kerValue45 = _ve_pack_f32p(pKerValue + 4 * inChannelGroup * kernHeight * kernWidth,
-							      pKerValue + 5 * inChannelGroup * kernHeight * kernWidth) ;
-		    const uint64_t kerValue67 = _ve_pack_f32p(pKerValue + 6 * inChannelGroup * kernHeight * kernWidth,
-							      pKerValue + 7 * inChannelGroup * kernHeight * kernWidth) ;
+		    const uint64_t kerValue01 = _vel_pack_f32p(pKerValue,
+							       pKerValue+      inChannelGroup * kernHeight * kernWidth) ;
+		    const uint64_t kerValue23 = _vel_pack_f32p(pKerValue + 2 * inChannelGroup * kernHeight * kernWidth,
+							       pKerValue + 3 * inChannelGroup * kernHeight * kernWidth) ;
+		    const uint64_t kerValue45 = _vel_pack_f32p(pKerValue + 4 * inChannelGroup * kernHeight * kernWidth,
+							       pKerValue + 5 * inChannelGroup * kernHeight * kernWidth) ;
+		    const uint64_t kerValue67 = _vel_pack_f32p(pKerValue + 6 * inChannelGroup * kernHeight * kernWidth,
+							       pKerValue + 7 * inChannelGroup * kernHeight * kernWidth) ;
 
-		    vrsum01 = _ve_pvfmad_vvsv(vrsum01, kerValue01, vrinP) ;
-		    vrsum23 = _ve_pvfmad_vvsv(vrsum23, kerValue23, vrinP) ;
-		    vrsum45 = _ve_pvfmad_vvsv(vrsum45, kerValue45, vrinP) ;
-		    vrsum67 = _ve_pvfmad_vvsv(vrsum67, kerValue67, vrinP) ;
+		    vrsum01 = _vel_pvfmad_vvsvl(vrsum01, kerValue01, vrinP, vl) ;
+		    vrsum23 = _vel_pvfmad_vvsvl(vrsum23, kerValue23, vrinP, vl) ;
+		    vrsum45 = _vel_pvfmad_vvsvl(vrsum45, kerValue45, vrinP, vl) ;
+		    vrsum67 = _vel_pvfmad_vvsvl(vrsum67, kerValue67, vrinP, vl) ;
 		  } // inChannel
 		} // kernWidth
 	      } // kernHeight
 
-	      _ve_vstu_vss(vrsum01, 4, pOut+outIndex0) ;
-	      _ve_vstl_vss(vrsum01, 4, pOut+outIndex1) ;
-	      _ve_vstu_vss(vrsum23, 4, pOut+outIndex2) ;
-	      _ve_vstl_vss(vrsum23, 4, pOut+outIndex3) ;
-	      _ve_vstu_vss(vrsum45, 4, pOut+outIndex4) ;
-	      _ve_vstl_vss(vrsum45, 4, pOut+outIndex5) ;
-	      _ve_vstu_vss(vrsum67, 4, pOut+outIndex6) ;
-	      _ve_vstl_vss(vrsum67, 4, pOut+outIndex7) ;
+	      _vel_vstu_vssl(vrsum01, 4, pOut+outIndex0, vl) ;
+	      _vel_vstl_vssl(vrsum01, 4, pOut+outIndex1, vl) ;
+	      _vel_vstu_vssl(vrsum23, 4, pOut+outIndex2, vl) ;
+	      _vel_vstl_vssl(vrsum23, 4, pOut+outIndex3, vl) ;
+	      _vel_vstu_vssl(vrsum45, 4, pOut+outIndex4, vl) ;
+	      _vel_vstl_vssl(vrsum45, 4, pOut+outIndex5, vl) ;
+	      _vel_vstu_vssl(vrsum67, 4, pOut+outIndex6, vl) ;
+	      _vel_vstl_vssl(vrsum67, 4, pOut+outIndex7, vl) ;
 
 	      outIndex0 += vl ;
 	      outIndex1 += vl ;
