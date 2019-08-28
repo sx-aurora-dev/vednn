@@ -46,9 +46,7 @@ static inline void c1(
 
       /* memory access errors might be caused */
       __vr vrgout = _ve_vldu_vss(4,&pGOutChannel[gip]) ;
-      const uint64_t kerValue01 = _ve_pack_f32p(pKerValue,
-						pKerValue+ 1) ;
-      vrsum = _ve_pvfmad_vvsv(vrsum, pKerValue[0], vrgout) ;
+      vrsum = _ve_vfmads_vvsv(vrsum, pKerValue[0], vrgout) ;
 
     } // gInChannel
 
