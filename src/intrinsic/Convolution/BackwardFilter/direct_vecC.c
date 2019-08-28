@@ -419,6 +419,7 @@ vednnConvolutionBackwardFilter_direct_vecC(
          batch,
          k
       ) ;
+      k+=1 ;
     }
     if ( ((nOChannel >> 1) & 0x01) == 1 ) {
       k2(pIn, inWidth, inHeight,
