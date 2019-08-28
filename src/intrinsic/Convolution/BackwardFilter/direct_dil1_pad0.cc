@@ -3,7 +3,7 @@
 
 #include "vednn.h"
 
-#include "veintrin.h"
+#include "velintrin.h"
 #define VLEN	(256)
 
 template<int R_UNROLL, int S_UNROLL>
@@ -20,12 +20,10 @@ static inline void f1(
 {
   const int64_t kernelIndex = kernGroupOffset + ((k     * inChannelGroup + c) * gKernHeight + r) * gKernWidth + s;
 
-  _ve_lvl(VLEN) ;
-
 #define INIT_VRSUM(R, S, RS)			\
   __vr vrsum_##RS ;				\
   if( (R_UNROLL > R) && (S_UNROLL > S) ) {	\
-    vrsum_##RS = _ve_vbrdu_vs_f32(0.f) ;	\
+    vrsum_##RS = _vel_vbrds_vsl(0.f, VLEN) ;	\
   }
 
   INIT_VRSUM(0,0,r0s0) ;
@@ -44,8 +42,6 @@ static inline void f1(
       for (int64_t x = 0; x < gOutWidth ; x += VLEN ) {
 	const int64_t vl = gOutWidth - x < VLEN ? gOutWidth - x  : VLEN ;
 
-	_ve_lvl(vl) ;
-
 	const float *pInChannel = pIn + inGroupOffset + ((n * inChannel + c) * inHeight * inWidth ) ;
 
 	const int64_t gOutIndex  = outGroupOffset + ((n * gOutChannel + k  ) * gOutHeight + y) * gOutWidth + x ;
@@ -53,7 +49,7 @@ static inline void f1(
 #define VLOAD_VRIN(R, S, RS)			\
   __vr vrin_##RS ;				\
   if( (R_UNROLL > R) && (S_UNROLL > S) ) {	\
-    vrin_##RS = _ve_vldu_vss(4*strideWidth,&pInChannel[(y*strideHeight+r+R)*inWidth+x*strideWidth+s+S]) ; \
+    vrin_##RS = _vel_vldu_vssl(4*strideWidth,&pInChannel[(y*strideHeight+r+R)*inWidth+x*strideWidth+s+S], vl) ; \
   }						\
 
 	VLOAD_VRIN(0,0,r0s0) ;
@@ -67,11 +63,11 @@ static inline void f1(
 	VLOAD_VRIN(2,2,r2s2) ;
 #undef VLOAD_VRIN
 
-	__vr vrgout = _ve_vldu_vss(4, pGOut+gOutIndex) ;
+	__vr vrgout = _vel_vldu_vssl(4, pGOut+gOutIndex, vl) ;
 
-#define VFMAD(R,S,RS)							\
-  if( (R_UNROLL > R) && (S_UNROLL > S) ) {				\
-    vrsum_##RS = _ve_vfmads_vvvv(vrsum_##RS, vrin_##RS, vrgout) ;	\
+#define VFMAD(R,S,RS)									\
+  if( (R_UNROLL > R) && (S_UNROLL > S) ) {						\
+    vrsum_##RS = _vel_vfmads_vvvvvl(vrsum_##RS, vrin_##RS, vrgout, vrsum_##RS, vl) ;	\
   }
 
 	VFMAD(0,0,r0s0) ;
@@ -88,11 +84,9 @@ static inline void f1(
     } // gOutHeight
   } // batch
 
-  _ve_lvl(VLEN) ;
-
 #define VSUM(R,S,RS)							\
   if( (R_UNROLL > R) && (S_UNROLL > S) ) {				\
-    vrsum_##RS = _ve_vfsums_vv(vrsum_##RS) ;				\
+    vrsum_##RS = _vel_vfsums_vvl(vrsum_##RS, VLEN) ;			\
   }
   VSUM(0,0,r0s0) ;
   VSUM(0,1,r0s1) ;
@@ -105,10 +99,9 @@ static inline void f1(
   VSUM(2,2,r2s2) ;
 #undef VSUM
 
-  _ve_lvl(1) ;
-#define VST(R,S,RS)							\
-  if( (R_UNROLL > R) && (S_UNROLL > S) ) {				\
-    _ve_vstu_vss(vrsum_##RS, 4, pGKernel+kernelIndex+R*gKernWidth+S) ;	\
+#define VST(R,S,RS)								\
+  if( (R_UNROLL > R) && (S_UNROLL > S) ) {					\
+    _vel_vstu_vssl(vrsum_##RS, 4, pGKernel+kernelIndex+R*gKernWidth+S, 1) ;	\
   }
 
   VST(0,0,r0s0) ;
@@ -142,12 +135,10 @@ static inline void f2(
   const int64_t kernelIndex0 = kernGroupOffset + ((k     * inChannelGroup + c) * gKernHeight + r) * gKernWidth + s;
   const int64_t kernelIndex1 = kernGroupOffset + (((k+1) * inChannelGroup + c) * gKernHeight + r) * gKernWidth + s;
 
-  _ve_lvl(VLEN) ;
-
 #define INIT_VRSUM2(R, S, RS)			\
   __vr vrsum01_##RS ;				\
   if( (R_UNROLL > R) && (S_UNROLL > S) ) {	\
-    vrsum01_##RS = _ve_vbrd_vs_i64(0UL) ;	\
+    vrsum01_##RS = _vel_vbrdl_vsl(0UL, VLEN) ;	\
   }
 
   INIT_VRSUM2(0,0,r0s0) ;
@@ -166,8 +157,6 @@ static inline void f2(
       for (int64_t x = 0; x < gOutWidth ; x += VLEN ) {
 	const int64_t vl = gOutWidth - x < VLEN ? gOutWidth - x  : VLEN ;
 
-	_ve_lvl(vl) ;
-
 	const float *pInChannel = pIn + inGroupOffset + ((n * inChannel + c) * inHeight * inWidth ) ;
 
 	const int64_t gOutIndex0  = outGroupOffset + ((n * gOutChannel + k  ) * gOutHeight + y) * gOutWidth + x ;
@@ -176,7 +165,7 @@ static inline void f2(
 #define VLOAD_VRIN(R, S, RS)			\
   __vr vrin_##RS ;				\
   if( (R_UNROLL > R) && (S_UNROLL > S) ) {	\
-    vrin_##RS = _ve_vldu_vss(4*strideWidth,&pInChannel[(y*strideHeight+r+R)*inWidth+x*strideWidth+s+S]) ; \
+    vrin_##RS = _vel_vldu_vssl(4*strideWidth,&pInChannel[(y*strideHeight+r+R)*inWidth+x*strideWidth+s+S], vl) ; \
   }						\
 
 	VLOAD_VRIN(0,0,r0s0) ;
@@ -190,15 +179,15 @@ static inline void f2(
 	VLOAD_VRIN(2,2,r2s2) ;
 #undef VLOAD_VRIN
 
-	__vr vrgout0 = _ve_vldu_vss(4, pGOut+gOutIndex0) ;
-	__vr vrgout1 = _ve_vldu_vss(4, pGOut+gOutIndex1) ;
+	__vr vrgout0 = _vel_vldu_vssl(4, pGOut+gOutIndex0, vl) ;
+	__vr vrgout1 = _vel_vldu_vssl(4, pGOut+gOutIndex1, vl) ;
 
-	__vr vrgout01 = _ve_vshf_vvvs(vrgout0, vrgout1, VE_VSHUFFLE_YUZU) ;
+	__vr vrgout01 = _vel_vshf_vvvsl(vrgout0, vrgout1, VE_VSHUFFLE_YUZU, vl) ;
 
-#define VFMAD2(R,S,RS)								\
-  if( (R_UNROLL > R) && (S_UNROLL > S) ) {					\
-    __vr vrinP_##RS = _ve_vshf_vvvs(vrin_##RS, vrin_##RS, VE_VSHUFFLE_YUZU) ;	\
-    vrsum01_##RS = _ve_pvfmad_vvvv(vrsum01_##RS, vrinP_##RS, vrgout01) ;	\
+#define VFMAD2(R,S,RS)										\
+  if( (R_UNROLL > R) && (S_UNROLL > S) ) {							\
+    __vr vrinP_##RS = _vel_vshf_vvvsl(vrin_##RS, vrin_##RS, VE_VSHUFFLE_YUZU, vl) ;		\
+    vrsum01_##RS = _vel_pvfmad_vvvvvl(vrsum01_##RS, vrinP_##RS, vrgout01, vrsum01_##RS, vl) ;	\
   }
 
 	VFMAD2(0,0,r0s0) ;
@@ -215,14 +204,12 @@ static inline void f2(
     } // gOutHeight
   } // batch
 
-#define VSUM_AND_VST2(R,S,RS)						\
-  if( (R_UNROLL > R) && (S_UNROLL > S) ) {				\
-    _ve_lvl(VLEN) ;							\
-    __vr vrsum0 = _ve_vfsums_vv(vrsum01_##RS) ;				\
-    __vr vrsum1 = _ve_vfsums_vv(_ve_vsll_vvs(vrsum01_##RS,32));		\
-    _ve_lvl(1) ;							\
-    _ve_vstu_vss(vrsum0, 4, pGKernel+kernelIndex0+R*gKernWidth+S) ;	\
-    _ve_vstu_vss(vrsum1, 4, pGKernel+kernelIndex1+R*gKernWidth+S) ;	\
+#define VSUM_AND_VST2(R,S,RS)								\
+  if( (R_UNROLL > R) && (S_UNROLL > S) ) {						\
+    __vr vrsum0 = _vel_vfsums_vvl(vrsum01_##RS, VLEN) ;					\
+    __vr vrsum1 = _vel_vfsums_vvl(_vel_vsll_vvsl(vrsum01_##RS,32, VLEN), VLEN);		\
+    _vel_vstu_vssl(vrsum0, 4, pGKernel+kernelIndex0+R*gKernWidth+S, 1) ;		\
+    _vel_vstu_vssl(vrsum1, 4, pGKernel+kernelIndex1+R*gKernWidth+S, 1) ;		\
   }
 
   VSUM_AND_VST2(0,0,r0s0) ;
@@ -257,14 +244,12 @@ static inline void f4(
   const int64_t kernelIndex2 = kernGroupOffset + (((k+2) * inChannelGroup + c) * gKernHeight + r) * gKernWidth + s;
   const int64_t kernelIndex3 = kernGroupOffset + (((k+3) * inChannelGroup + c) * gKernHeight + r) * gKernWidth + s;
 
-  _ve_lvl(VLEN) ;
-
 #define INIT_VRSUM4(R, S, RS)			\
   __vr vrsum01_##RS ;				\
   __vr vrsum23_##RS ;				\
   if( (R_UNROLL > R) && (S_UNROLL > S) ) {	\
-    vrsum01_##RS = _ve_vbrd_vs_i64(0UL) ;	\
-    vrsum23_##RS = _ve_vbrd_vs_i64(0UL) ;	\
+    vrsum01_##RS = _vel_vbrdl_vsl(0UL, VLEN) ;	\
+    vrsum23_##RS = _vel_vbrdl_vsl(0UL, VLEN) ;	\
   }
 
   INIT_VRSUM4(0,0,r0s0) ;
@@ -283,8 +268,6 @@ static inline void f4(
       for (int64_t x = 0; x < gOutWidth ; x += VLEN ) {
 	const int64_t vl = gOutWidth - x < VLEN ? gOutWidth - x  : VLEN ;
 
-	_ve_lvl(vl) ;
-
 	const float *pInChannel = pIn + inGroupOffset + ((n * inChannel + c) * inHeight * inWidth ) ;
 
 	const int64_t gOutIndex0  = outGroupOffset + ((n * gOutChannel + k  ) * gOutHeight + y) * gOutWidth + x ;
@@ -295,7 +278,7 @@ static inline void f4(
 #define VLOAD_VRIN(R, S, RS)			\
   __vr vrin_##RS ;				\
   if( (R_UNROLL > R) && (S_UNROLL > S) ) {	\
-    vrin_##RS = _ve_vldu_vss(4*strideWidth,&pInChannel[(y*strideHeight+r+R)*inWidth+x*strideWidth+s+S]) ; \
+    vrin_##RS = _vel_vldu_vssl(4*strideWidth,&pInChannel[(y*strideHeight+r+R)*inWidth+x*strideWidth+s+S], vl) ; \
   }						\
 
 	VLOAD_VRIN(0,0,r0s0) ;
@@ -309,19 +292,19 @@ static inline void f4(
 	VLOAD_VRIN(2,2,r2s2) ;
 #undef VLOAD_VRIN
 
-	__vr vrgout0 = _ve_vldu_vss(4, pGOut+gOutIndex0) ;
-	__vr vrgout1 = _ve_vldu_vss(4, pGOut+gOutIndex1) ;
-	__vr vrgout2 = _ve_vldu_vss(4, pGOut+gOutIndex2) ;
-	__vr vrgout3 = _ve_vldu_vss(4, pGOut+gOutIndex3) ;
+	__vr vrgout0 = _vel_vldu_vssl(4, pGOut+gOutIndex0, vl) ;
+	__vr vrgout1 = _vel_vldu_vssl(4, pGOut+gOutIndex1, vl) ;
+	__vr vrgout2 = _vel_vldu_vssl(4, pGOut+gOutIndex2, vl) ;
+	__vr vrgout3 = _vel_vldu_vssl(4, pGOut+gOutIndex3, vl) ;
 
-	__vr vrgout01 = _ve_vshf_vvvs(vrgout0, vrgout1, VE_VSHUFFLE_YUZU) ;
-	__vr vrgout23 = _ve_vshf_vvvs(vrgout2, vrgout3, VE_VSHUFFLE_YUZU) ;
+	__vr vrgout01 = _vel_vshf_vvvsl(vrgout0, vrgout1, VE_VSHUFFLE_YUZU, vl) ;
+	__vr vrgout23 = _vel_vshf_vvvsl(vrgout2, vrgout3, VE_VSHUFFLE_YUZU, vl) ;
 
-#define VFMAD4(R,S,RS)								\
-  if( (R_UNROLL > R) && (S_UNROLL > S) ) {					\
-    __vr vrinP_##RS = _ve_vshf_vvvs(vrin_##RS, vrin_##RS, VE_VSHUFFLE_YUZU) ;	\
-    vrsum01_##RS = _ve_pvfmad_vvvv(vrsum01_##RS, vrinP_##RS, vrgout01) ;	\
-    vrsum23_##RS = _ve_pvfmad_vvvv(vrsum23_##RS, vrinP_##RS, vrgout23) ;	\
+#define VFMAD4(R,S,RS)											\
+  if( (R_UNROLL > R) && (S_UNROLL > S) ) {								\
+    __vr vrinP_##RS = _vel_vshf_vvvsl(vrin_##RS, vrin_##RS, VE_VSHUFFLE_YUZU, vl) ;			\
+    vrsum01_##RS = _vel_pvfmad_vvvvvl(vrsum01_##RS, vrinP_##RS, vrgout01, vrsum01_##RS, vl) ;		\
+    vrsum23_##RS = _vel_pvfmad_vvvvvl(vrsum23_##RS, vrinP_##RS, vrgout23, vrsum23_##RS, vl) ;		\
   }
 
 	VFMAD4(0,0,r0s0) ;
@@ -338,18 +321,16 @@ static inline void f4(
     } // gOutHeight
   } // batch
 
-#define VSUM_AND_VST4(R,S,RS)						\
-  if( (R_UNROLL > R) && (S_UNROLL > S) ) {				\
-    _ve_lvl(VLEN) ;							\
-    __vr vrsum0 = _ve_vfsums_vv(vrsum01_##RS) ;				\
-    __vr vrsum1 = _ve_vfsums_vv(_ve_vsll_vvs(vrsum01_##RS,32));		\
-    __vr vrsum2 = _ve_vfsums_vv(vrsum23_##RS) ;				\
-    __vr vrsum3 = _ve_vfsums_vv(_ve_vsll_vvs(vrsum23_##RS,32));		\
-    _ve_lvl(1) ;							\
-    _ve_vstu_vss(vrsum0, 4, pGKernel+kernelIndex0+R*gKernWidth+S) ;	\
-    _ve_vstu_vss(vrsum1, 4, pGKernel+kernelIndex1+R*gKernWidth+S) ;	\
-    _ve_vstu_vss(vrsum2, 4, pGKernel+kernelIndex2+R*gKernWidth+S) ;	\
-    _ve_vstu_vss(vrsum3, 4, pGKernel+kernelIndex3+R*gKernWidth+S) ;	\
+#define VSUM_AND_VST4(R,S,RS)							\
+  if( (R_UNROLL > R) && (S_UNROLL > S) ) {					\
+    __vr vrsum0 = _vel_vfsums_vvl(vrsum01_##RS, VLEN) ;				\
+    __vr vrsum1 = _vel_vfsums_vvl(_vel_vsll_vvsl(vrsum01_##RS,32, VLEN), VLEN);	\
+    __vr vrsum2 = _vel_vfsums_vvl(vrsum23_##RS, VLEN) ;				\
+    __vr vrsum3 = _vel_vfsums_vvl(_vel_vsll_vvsl(vrsum23_##RS,32, VLEN), VLEN);	\
+    _vel_vstu_vssl(vrsum0, 4, pGKernel+kernelIndex0+R*gKernWidth+S, 1) ;	\
+    _vel_vstu_vssl(vrsum1, 4, pGKernel+kernelIndex1+R*gKernWidth+S, 1) ;	\
+    _vel_vstu_vssl(vrsum2, 4, pGKernel+kernelIndex2+R*gKernWidth+S, 1) ;	\
+    _vel_vstu_vssl(vrsum3, 4, pGKernel+kernelIndex3+R*gKernWidth+S, 1) ;	\
   }
 
   VSUM_AND_VST4(0,0,r0s0) ;
@@ -387,18 +368,16 @@ static inline void f8(
   const int64_t kernelIndex6 = kernGroupOffset + (((k+6) * inChannelGroup + c) * gKernHeight + r) * gKernWidth + s;
   const int64_t kernelIndex7 = kernGroupOffset + (((k+7) * inChannelGroup + c) * gKernHeight + r) * gKernWidth + s;
 
-  _ve_lvl(VLEN) ;
-
 #define INIT_VRSUM8(R, S, RS)			\
   __vr vrsum01_##RS ;				\
   __vr vrsum23_##RS ;				\
   __vr vrsum45_##RS ;				\
   __vr vrsum67_##RS ;				\
   if( (R_UNROLL > R) && (S_UNROLL > S) ) {	\
-    vrsum01_##RS = _ve_vbrd_vs_i64(0UL) ;	\
-    vrsum23_##RS = _ve_vbrd_vs_i64(0UL) ;	\
-    vrsum45_##RS = _ve_vbrd_vs_i64(0UL) ;	\
-    vrsum67_##RS = _ve_vbrd_vs_i64(0UL) ;	\
+    vrsum01_##RS = _vel_vbrdl_vsl(0UL, VLEN) ;	\
+    vrsum23_##RS = _vel_vbrdl_vsl(0UL, VLEN) ;	\
+    vrsum45_##RS = _vel_vbrdl_vsl(0UL, VLEN) ;	\
+    vrsum67_##RS = _vel_vbrdl_vsl(0UL, VLEN) ;	\
   }
 
   INIT_VRSUM8(0,0,r0s0) ;
@@ -418,8 +397,6 @@ static inline void f8(
       for (int64_t x = 0; x < gOutWidth ; x += VLEN ) {
 	const int64_t vl = gOutWidth - x < VLEN ? gOutWidth - x  : VLEN ;
 
-	_ve_lvl(vl) ;
-
 	const float *pInChannel = pIn + inGroupOffset + ((n * inChannel + c) * inHeight * inWidth ) ;
 
 	const int64_t gOutIndex0  = outGroupOffset + ((n * gOutChannel + k  ) * gOutHeight + y) * gOutWidth + x ;
@@ -435,7 +412,7 @@ static inline void f8(
 #define VLOAD_VRIN(R, S, RS)			\
   __vr vrin_##RS ;				\
   if( (R_UNROLL > R) && (S_UNROLL > S) ) {	\
-    vrin_##RS = _ve_vldu_vss(4*strideWidth,&pInChannel[(y*strideHeight+r+R)*inWidth+x*strideWidth+s+S]) ; \
+    vrin_##RS = _vel_vldu_vssl(4*strideWidth,&pInChannel[(y*strideHeight+r+R)*inWidth+x*strideWidth+s+S], vl) ; \
   }						\
 
 	VLOAD_VRIN(0,0,r0s0) ;
@@ -449,27 +426,27 @@ static inline void f8(
 	VLOAD_VRIN(2,2,r2s2) ;
 #undef VLOAD_VRIN
 
-	__vr vrgout0 = _ve_vldu_vss(4, pGOut+gOutIndex0) ;
-	__vr vrgout1 = _ve_vldu_vss(4, pGOut+gOutIndex1) ;
-	__vr vrgout2 = _ve_vldu_vss(4, pGOut+gOutIndex2) ;
-	__vr vrgout3 = _ve_vldu_vss(4, pGOut+gOutIndex3) ;
-	__vr vrgout4 = _ve_vldu_vss(4, pGOut+gOutIndex4) ;
-	__vr vrgout5 = _ve_vldu_vss(4, pGOut+gOutIndex5) ;
-	__vr vrgout6 = _ve_vldu_vss(4, pGOut+gOutIndex6) ;
-	__vr vrgout7 = _ve_vldu_vss(4, pGOut+gOutIndex7) ;
+	__vr vrgout0 = _vel_vldu_vssl(4, pGOut+gOutIndex0, vl) ;
+	__vr vrgout1 = _vel_vldu_vssl(4, pGOut+gOutIndex1, vl) ;
+	__vr vrgout2 = _vel_vldu_vssl(4, pGOut+gOutIndex2, vl) ;
+	__vr vrgout3 = _vel_vldu_vssl(4, pGOut+gOutIndex3, vl) ;
+	__vr vrgout4 = _vel_vldu_vssl(4, pGOut+gOutIndex4, vl) ;
+	__vr vrgout5 = _vel_vldu_vssl(4, pGOut+gOutIndex5, vl) ;
+	__vr vrgout6 = _vel_vldu_vssl(4, pGOut+gOutIndex6, vl) ;
+	__vr vrgout7 = _vel_vldu_vssl(4, pGOut+gOutIndex7, vl) ;
 
-	__vr vrgout01 = _ve_vshf_vvvs(vrgout0, vrgout1, VE_VSHUFFLE_YUZU) ;
-	__vr vrgout23 = _ve_vshf_vvvs(vrgout2, vrgout3, VE_VSHUFFLE_YUZU) ;
-	__vr vrgout45 = _ve_vshf_vvvs(vrgout4, vrgout5, VE_VSHUFFLE_YUZU) ;
-	__vr vrgout67 = _ve_vshf_vvvs(vrgout6, vrgout7, VE_VSHUFFLE_YUZU) ;
+	__vr vrgout01 = _vel_vshf_vvvsl(vrgout0, vrgout1, VE_VSHUFFLE_YUZU, vl) ;
+	__vr vrgout23 = _vel_vshf_vvvsl(vrgout2, vrgout3, VE_VSHUFFLE_YUZU, vl) ;
+	__vr vrgout45 = _vel_vshf_vvvsl(vrgout4, vrgout5, VE_VSHUFFLE_YUZU, vl) ;
+	__vr vrgout67 = _vel_vshf_vvvsl(vrgout6, vrgout7, VE_VSHUFFLE_YUZU, vl) ;
 
-#define VFMAD8(R,S,RS)								\
-  if( (R_UNROLL > R) && (S_UNROLL > S) ) {					\
-    __vr vrinP_##RS = _ve_vshf_vvvs(vrin_##RS, vrin_##RS, VE_VSHUFFLE_YUZU) ;	\
-    vrsum01_##RS = _ve_pvfmad_vvvv(vrsum01_##RS, vrinP_##RS, vrgout01) ;	\
-    vrsum23_##RS = _ve_pvfmad_vvvv(vrsum23_##RS, vrinP_##RS, vrgout23) ;	\
-    vrsum45_##RS = _ve_pvfmad_vvvv(vrsum45_##RS, vrinP_##RS, vrgout45) ;	\
-    vrsum67_##RS = _ve_pvfmad_vvvv(vrsum67_##RS, vrinP_##RS, vrgout67) ;	\
+#define VFMAD8(R,S,RS)										\
+  if( (R_UNROLL > R) && (S_UNROLL > S) ) {							\
+    __vr vrinP_##RS = _vel_vshf_vvvsl(vrin_##RS, vrin_##RS, VE_VSHUFFLE_YUZU, vl) ;		\
+    vrsum01_##RS = _vel_pvfmad_vvvvvl(vrsum01_##RS, vrinP_##RS, vrgout01, vrsum01_##RS, vl) ;	\
+    vrsum23_##RS = _vel_pvfmad_vvvvvl(vrsum23_##RS, vrinP_##RS, vrgout23, vrsum23_##RS, vl) ;	\
+    vrsum45_##RS = _vel_pvfmad_vvvvvl(vrsum45_##RS, vrinP_##RS, vrgout45, vrsum45_##RS, vl) ;	\
+    vrsum67_##RS = _vel_pvfmad_vvvvvl(vrsum67_##RS, vrinP_##RS, vrgout67, vrsum67_##RS, vl) ;	\
   }
 
 	VFMAD8(0,0,r0s0) ;
@@ -486,26 +463,24 @@ static inline void f8(
     } // gOutHeight
   } // batch
 
-#define VSUM_AND_VST8(R,S,RS)						\
-  if( (R_UNROLL > R) && (S_UNROLL > S) ) {				\
-    _ve_lvl(VLEN) ;							\
-    __vr vrsum0 = _ve_vfsums_vv(vrsum01_##RS) ;				\
-    __vr vrsum1 = _ve_vfsums_vv(_ve_vsll_vvs(vrsum01_##RS,32));		\
-    __vr vrsum2 = _ve_vfsums_vv(vrsum23_##RS) ;				\
-    __vr vrsum3 = _ve_vfsums_vv(_ve_vsll_vvs(vrsum23_##RS,32));		\
-    __vr vrsum4 = _ve_vfsums_vv(vrsum45_##RS) ;				\
-    __vr vrsum5 = _ve_vfsums_vv(_ve_vsll_vvs(vrsum45_##RS,32));		\
-    __vr vrsum6 = _ve_vfsums_vv(vrsum67_##RS) ;				\
-    __vr vrsum7 = _ve_vfsums_vv(_ve_vsll_vvs(vrsum67_##RS,32));		\
-    _ve_lvl(1) ;							\
-    _ve_vstu_vss(vrsum0, 4, pGKernel+kernelIndex0+R*gKernWidth+S) ;	\
-    _ve_vstu_vss(vrsum1, 4, pGKernel+kernelIndex1+R*gKernWidth+S) ;	\
-    _ve_vstu_vss(vrsum2, 4, pGKernel+kernelIndex2+R*gKernWidth+S) ;	\
-    _ve_vstu_vss(vrsum3, 4, pGKernel+kernelIndex3+R*gKernWidth+S) ;	\
-    _ve_vstu_vss(vrsum4, 4, pGKernel+kernelIndex4+R*gKernWidth+S) ;	\
-    _ve_vstu_vss(vrsum5, 4, pGKernel+kernelIndex5+R*gKernWidth+S) ;	\
-    _ve_vstu_vss(vrsum6, 4, pGKernel+kernelIndex6+R*gKernWidth+S) ;	\
-    _ve_vstu_vss(vrsum7, 4, pGKernel+kernelIndex7+R*gKernWidth+S) ;	\
+#define VSUM_AND_VST8(R,S,RS)							\
+  if( (R_UNROLL > R) && (S_UNROLL > S) ) {					\
+    __vr vrsum0 = _vel_vfsums_vvl(vrsum01_##RS, VLEN) ;				\
+    __vr vrsum1 = _vel_vfsums_vvl(_vel_vsll_vvsl(vrsum01_##RS,32, VLEN), VLEN);	\
+    __vr vrsum2 = _vel_vfsums_vvl(vrsum23_##RS, VLEN) ;				\
+    __vr vrsum3 = _vel_vfsums_vvl(_vel_vsll_vvsl(vrsum23_##RS,32, VLEN), VLEN);	\
+    __vr vrsum4 = _vel_vfsums_vvl(vrsum45_##RS, VLEN) ;				\
+    __vr vrsum5 = _vel_vfsums_vvl(_vel_vsll_vvsl(vrsum45_##RS,32, VLEN), VLEN);	\
+    __vr vrsum6 = _vel_vfsums_vvl(vrsum67_##RS, VLEN) ;				\
+    __vr vrsum7 = _vel_vfsums_vvl(_vel_vsll_vvsl(vrsum67_##RS,32, VLEN), VLEN);	\
+    _vel_vstu_vssl(vrsum0, 4, pGKernel+kernelIndex0+R*gKernWidth+S, 1) ;	\
+    _vel_vstu_vssl(vrsum1, 4, pGKernel+kernelIndex1+R*gKernWidth+S, 1) ;	\
+    _vel_vstu_vssl(vrsum2, 4, pGKernel+kernelIndex2+R*gKernWidth+S, 1) ;	\
+    _vel_vstu_vssl(vrsum3, 4, pGKernel+kernelIndex3+R*gKernWidth+S, 1) ;	\
+    _vel_vstu_vssl(vrsum4, 4, pGKernel+kernelIndex4+R*gKernWidth+S, 1) ;	\
+    _vel_vstu_vssl(vrsum5, 4, pGKernel+kernelIndex5+R*gKernWidth+S, 1) ;	\
+    _vel_vstu_vssl(vrsum6, 4, pGKernel+kernelIndex6+R*gKernWidth+S, 1) ;	\
+    _vel_vstu_vssl(vrsum7, 4, pGKernel+kernelIndex7+R*gKernWidth+S, 1) ;	\
   }
 
   VSUM_AND_VST8(0,0,r0s0) ;
