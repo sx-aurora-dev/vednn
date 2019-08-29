@@ -3,7 +3,7 @@
 
 #include "vednn.h"
 
-#include "veintrin.h"
+#include "velintrin.h"
 #define VLEN	(256)
 
 
@@ -64,29 +64,27 @@ vednnConvolutionForwardAddBias_direct_dil1_str1_pad0_ker1_c1024x(
 	  for (int64_t op = 0; op < oPixels; op+=VLEN) {
 	    const int64_t vl = oPixels - op < VLEN ? oPixels - op : VLEN ;
 
-	    _ve_lvl(vl) ;
-
-	    __vr vrsum = _ve_vbrdu_vs_f32(bias) ;
+	    __vr vrsum = _vel_vbrds_vsl(bias, vl) ;
 
 	    for(int64_t c = 0 ; c < inChannelGroup ; c+=2 ) {
 	      const float *pInChannel = pIn + inGroupOffset + ((n * inChannel + c  ) * inHeight * inWidth ) ;
 
-	      __vr vrin0  = _ve_vldu_vss(4,&pInChannel[op]) ;
-	      __vr vrin1  = _ve_vldu_vss(4,&pInChannel[op + inHeight * inWidth ]) ;
+	      __vr vrin0  = _vel_vldu_vssl(4,&pInChannel[op], vl) ;
+	      __vr vrin1  = _vel_vldu_vssl(4,&pInChannel[op + inHeight * inWidth ], vl) ;
 
 	      const float *pKerValue = pKernel + kernGroupOffset + (k * inChannelGroup + c) ;
 
 #define FILTER2C(VRSUM, N)				\
 {							\
-  VRSUM = _ve_vfmads_vvsv(VRSUM, pKerValue[0], vrin0) ;	\
-  VRSUM = _ve_vfmads_vvsv(VRSUM, pKerValue[1], vrin1) ;	\
+  VRSUM = _vel_vfmads_vvsvl(VRSUM, pKerValue[0], vrin0, vl) ;	\
+  VRSUM = _vel_vfmads_vvsvl(VRSUM, pKerValue[1], vrin1, vl) ;	\
 }
 	      FILTER2C(vrsum, 0) ; pKerValue += inChannelGroup ;
 #undef FILTER2C
 
 	    } // inChannel
 
-	    _ve_vstu_vss(vrsum, 4, pOut+outIndex) ;
+	    _vel_vstu_vssl(vrsum, 4, pOut+outIndex, vl) ;
 
 	    outIndex += vl ;
 	  } // outPixels
@@ -98,41 +96,39 @@ vednnConvolutionForwardAddBias_direct_dil1_str1_pad0_ker1_c1024x(
 	  const float bias0 = (pBias == NULL) ? 0.0 : pBias[g * outChannelGroup + k  ];
 	  const float bias1 = (pBias == NULL) ? 0.0 : pBias[g * outChannelGroup + k+1];
 
-	  const uint64_t bias01 = _ve_pack_f32p(&bias0, &bias1) ;
+	  const uint64_t bias01 = _vel_pack_f32p(&bias0, &bias1) ;
 
 	  for (int64_t op = 0; op < oPixels; op+=VLEN) {
 	    const int64_t vl = oPixels - op < VLEN ? oPixels - op : VLEN ;
 
-	    _ve_lvl(vl) ;
-
-	    __vr vrsum01 = _ve_pvbrd_vs_i64(bias01) ;
+	    __vr vrsum01 = _vel_pvbrd_vsl(bias01, vl) ;
 
 	    for(int64_t c = 0 ; c < inChannelGroup ; c+=2 ) {
 	      const float *pInChannel = pIn + inGroupOffset + ((n * inChannel + c  ) * inHeight * inWidth ) ;
 
-	      __vr vrin0  = _ve_vldu_vss(4,&pInChannel[op]) ;
-	      __vr vrin1  = _ve_vldu_vss(4,&pInChannel[op + inHeight * inWidth ]) ;
-	      __vr vrin0P = _ve_vshf_vvvs(vrin0, vrin0, VE_VSHUFFLE_YUZU) ;
-	      __vr vrin1P = _ve_vshf_vvvs(vrin1, vrin1, VE_VSHUFFLE_YUZU) ;
+	      __vr vrin0  = _vel_vldu_vssl(4,&pInChannel[op], vl) ;
+	      __vr vrin1  = _vel_vldu_vssl(4,&pInChannel[op + inHeight * inWidth ], vl) ;
+	      __vr vrin0P = _vel_vshf_vvvsl(vrin0, vrin0, VE_VSHUFFLE_YUZU, vl) ;
+	      __vr vrin1P = _vel_vshf_vvvsl(vrin1, vrin1, VE_VSHUFFLE_YUZU, vl) ;
 
 	      const float *pKerValue = pKernel + kernGroupOffset + (k * inChannelGroup + c) ;
 
 #define FILTER2C(VRSUM, N)							\
 {										\
-  const uint64_t kerValue_0 = _ve_pack_f32p(pKerValue,				\
+  const uint64_t kerValue_0 = _vel_pack_f32p(pKerValue,				\
 					    pKerValue   + inChannelGroup ) ;	\
-  const uint64_t kerValue_1 = _ve_pack_f32p(pKerValue+1,			\
+  const uint64_t kerValue_1 = _vel_pack_f32p(pKerValue+1,			\
 					    pKerValue+1 + inChannelGroup ) ;	\
-  VRSUM = _ve_pvfmad_vvsv(VRSUM, kerValue_0, vrin0P) ;				\
-  VRSUM = _ve_pvfmad_vvsv(VRSUM, kerValue_1, vrin1P) ;				\
+  VRSUM = _vel_pvfmad_vvsvl(VRSUM, kerValue_0, vrin0P, vl) ;				\
+  VRSUM = _vel_pvfmad_vvsvl(VRSUM, kerValue_1, vrin1P, vl) ;				\
 }
 	      FILTER2C(vrsum01, 0) ; pKerValue += 2 * inChannelGroup ;
 #undef FILTER2C
 
 	    } // inChannel
 
-	    _ve_vstu_vss(vrsum01, 4, pOut+outIndex) ;
-	    _ve_vstl_vss(vrsum01, 4, pOut+outIndex+   oPixels) ;
+	    _vel_vstu_vssl(vrsum01, 4, pOut+outIndex, vl) ;
+	    _vel_vstl_vssl(vrsum01, 4, pOut+outIndex+   oPixels, vl) ;
 
 	    outIndex += vl ;
 	  } // outPixels
@@ -147,35 +143,33 @@ vednnConvolutionForwardAddBias_direct_dil1_str1_pad0_ker1_c1024x(
 	  const float bias2 = (pBias == NULL) ? 0.0 : pBias[g * outChannelGroup + k+2];
 	  const float bias3 = (pBias == NULL) ? 0.0 : pBias[g * outChannelGroup + k+3];
 
-	  const uint64_t bias01 = _ve_pack_f32p(&bias0, &bias1) ;
-	  const uint64_t bias23 = _ve_pack_f32p(&bias2, &bias3) ;
+	  const uint64_t bias01 = _vel_pack_f32p(&bias0, &bias1) ;
+	  const uint64_t bias23 = _vel_pack_f32p(&bias2, &bias3) ;
 
 	  for (int64_t op = 0; op < oPixels; op+=VLEN) {
 	    const int64_t vl = oPixels - op < VLEN ? oPixels - op : VLEN ;
 
-	    _ve_lvl(vl) ;
-
-	    __vr vrsum01 = _ve_pvbrd_vs_i64(bias01) ;
-	    __vr vrsum23 = _ve_pvbrd_vs_i64(bias23) ;
+	    __vr vrsum01 = _vel_pvbrd_vsl(bias01, vl) ;
+	    __vr vrsum23 = _vel_pvbrd_vsl(bias23, vl) ;
 
 	    for(int64_t c = 0 ; c < inChannelGroup ; c+=2 ) {
 	      const float *pInChannel = pIn + inGroupOffset + ((n * inChannel + c  ) * inHeight * inWidth ) ;
 
-	      __vr vrin0  = _ve_vldu_vss(4,&pInChannel[op]) ;
-	      __vr vrin1  = _ve_vldu_vss(4,&pInChannel[op + inHeight * inWidth ]) ;
-	      __vr vrin0P = _ve_vshf_vvvs(vrin0, vrin0, VE_VSHUFFLE_YUZU) ;
-	      __vr vrin1P = _ve_vshf_vvvs(vrin1, vrin1, VE_VSHUFFLE_YUZU) ;
+	      __vr vrin0  = _vel_vldu_vssl(4,&pInChannel[op], vl) ;
+	      __vr vrin1  = _vel_vldu_vssl(4,&pInChannel[op + inHeight * inWidth ], vl) ;
+	      __vr vrin0P = _vel_vshf_vvvsl(vrin0, vrin0, VE_VSHUFFLE_YUZU, vl) ;
+	      __vr vrin1P = _vel_vshf_vvvsl(vrin1, vrin1, VE_VSHUFFLE_YUZU, vl) ;
 
 	      const float *pKerValue = pKernel + kernGroupOffset + (k * inChannelGroup + c) ;
 
 #define FILTER2C(VRSUM, N)							\
 {										\
-  const uint64_t kerValue_0 = _ve_pack_f32p(pKerValue,				\
+  const uint64_t kerValue_0 = _vel_pack_f32p(pKerValue,				\
 					    pKerValue   + inChannelGroup ) ;	\
-  const uint64_t kerValue_1 = _ve_pack_f32p(pKerValue+1,			\
+  const uint64_t kerValue_1 = _vel_pack_f32p(pKerValue+1,			\
 					    pKerValue+1 + inChannelGroup ) ;	\
-  VRSUM = _ve_pvfmad_vvsv(VRSUM, kerValue_0, vrin0P) ;				\
-  VRSUM = _ve_pvfmad_vvsv(VRSUM, kerValue_1, vrin1P) ;				\
+  VRSUM = _vel_pvfmad_vvsvl(VRSUM, kerValue_0, vrin0P, vl) ;				\
+  VRSUM = _vel_pvfmad_vvsvl(VRSUM, kerValue_1, vrin1P, vl) ;				\
 }
 	      FILTER2C(vrsum01, 0) ; pKerValue += 2 * inChannelGroup ;
 	      FILTER2C(vrsum23, 2) ; pKerValue += 2 * inChannelGroup ;
@@ -183,10 +177,10 @@ vednnConvolutionForwardAddBias_direct_dil1_str1_pad0_ker1_c1024x(
 
 	    } // inChannel
 
-	    _ve_vstu_vss(vrsum01, 4, pOut+outIndex) ;
-	    _ve_vstl_vss(vrsum01, 4, pOut+outIndex+   oPixels) ;
-	    _ve_vstu_vss(vrsum23, 4, pOut+outIndex+ 2*oPixels) ;
-	    _ve_vstl_vss(vrsum23, 4, pOut+outIndex+ 3*oPixels) ;
+	    _vel_vstu_vssl(vrsum01, 4, pOut+outIndex, vl) ;
+	    _vel_vstl_vssl(vrsum01, 4, pOut+outIndex+   oPixels, vl) ;
+	    _vel_vstu_vssl(vrsum23, 4, pOut+outIndex+ 2*oPixels, vl) ;
+	    _vel_vstl_vssl(vrsum23, 4, pOut+outIndex+ 3*oPixels, vl) ;
 
 	    outIndex += vl ;
 	  } // outPixels
@@ -205,39 +199,37 @@ vednnConvolutionForwardAddBias_direct_dil1_str1_pad0_ker1_c1024x(
 	  const float bias6 = (pBias == NULL) ? 0.0 : pBias[g * outChannelGroup + k+6];
 	  const float bias7 = (pBias == NULL) ? 0.0 : pBias[g * outChannelGroup + k+7];
 
-	  const uint64_t bias01 = _ve_pack_f32p(&bias0, &bias1) ;
-	  const uint64_t bias23 = _ve_pack_f32p(&bias2, &bias3) ;
-	  const uint64_t bias45 = _ve_pack_f32p(&bias4, &bias5) ;
-	  const uint64_t bias67 = _ve_pack_f32p(&bias6, &bias7) ;
+	  const uint64_t bias01 = _vel_pack_f32p(&bias0, &bias1) ;
+	  const uint64_t bias23 = _vel_pack_f32p(&bias2, &bias3) ;
+	  const uint64_t bias45 = _vel_pack_f32p(&bias4, &bias5) ;
+	  const uint64_t bias67 = _vel_pack_f32p(&bias6, &bias7) ;
 
 	  for (int64_t op = 0; op < oPixels; op+=VLEN) {
 	    const int64_t vl = oPixels - op < VLEN ? oPixels - op : VLEN ;
 
-	    _ve_lvl(vl) ;
-
-	    __vr vrsum01 = _ve_pvbrd_vs_i64(bias01) ;
-	    __vr vrsum23 = _ve_pvbrd_vs_i64(bias23) ;
-	    __vr vrsum45 = _ve_pvbrd_vs_i64(bias45) ;
-	    __vr vrsum67 = _ve_pvbrd_vs_i64(bias67) ;
+	    __vr vrsum01 = _vel_pvbrd_vsl(bias01, vl) ;
+	    __vr vrsum23 = _vel_pvbrd_vsl(bias23, vl) ;
+	    __vr vrsum45 = _vel_pvbrd_vsl(bias45, vl) ;
+	    __vr vrsum67 = _vel_pvbrd_vsl(bias67, vl) ;
 
 	    for(int64_t c = 0 ; c < inChannelGroup ; c+=2 ) {
 	      const float *pInChannel = pIn + inGroupOffset + ((n * inChannel + c  ) * inHeight * inWidth ) ;
 
-	      __vr vrin0  = _ve_vldu_vss(4,&pInChannel[op]) ;
-	      __vr vrin1  = _ve_vldu_vss(4,&pInChannel[op + inHeight * inWidth ]) ;
-	      __vr vrin0P = _ve_vshf_vvvs(vrin0, vrin0, VE_VSHUFFLE_YUZU) ;
-	      __vr vrin1P = _ve_vshf_vvvs(vrin1, vrin1, VE_VSHUFFLE_YUZU) ;
+	      __vr vrin0  = _vel_vldu_vssl(4,&pInChannel[op], vl) ;
+	      __vr vrin1  = _vel_vldu_vssl(4,&pInChannel[op + inHeight * inWidth ], vl) ;
+	      __vr vrin0P = _vel_vshf_vvvsl(vrin0, vrin0, VE_VSHUFFLE_YUZU, vl) ;
+	      __vr vrin1P = _vel_vshf_vvvsl(vrin1, vrin1, VE_VSHUFFLE_YUZU, vl) ;
 
 	      const float *pKerValue = pKernel + kernGroupOffset + (k * inChannelGroup + c) ;
 
 #define FILTER2C(VRSUM, N)							\
 {										\
-  const uint64_t kerValue_0 = _ve_pack_f32p(pKerValue,				\
+  const uint64_t kerValue_0 = _vel_pack_f32p(pKerValue,				\
 					    pKerValue   + inChannelGroup ) ;	\
-  const uint64_t kerValue_1 = _ve_pack_f32p(pKerValue+1,			\
+  const uint64_t kerValue_1 = _vel_pack_f32p(pKerValue+1,			\
 					    pKerValue+1 + inChannelGroup ) ;	\
-  VRSUM = _ve_pvfmad_vvsv(VRSUM, kerValue_0, vrin0P) ;				\
-  VRSUM = _ve_pvfmad_vvsv(VRSUM, kerValue_1, vrin1P) ;				\
+  VRSUM = _vel_pvfmad_vvsvl(VRSUM, kerValue_0, vrin0P, vl) ;				\
+  VRSUM = _vel_pvfmad_vvsvl(VRSUM, kerValue_1, vrin1P, vl) ;				\
 }
 	      FILTER2C(vrsum01, 0) ; pKerValue += 2 * inChannelGroup ;
 	      FILTER2C(vrsum23, 2) ; pKerValue += 2 * inChannelGroup ;
@@ -246,14 +238,14 @@ vednnConvolutionForwardAddBias_direct_dil1_str1_pad0_ker1_c1024x(
 #undef FILTER2C
 
 	    } // inChannel
-	    _ve_vstu_vss(vrsum01, 4, pOut+outIndex) ;
-	    _ve_vstl_vss(vrsum01, 4, pOut+outIndex+   oPixels) ;
-	    _ve_vstu_vss(vrsum23, 4, pOut+outIndex+ 2*oPixels) ;
-	    _ve_vstl_vss(vrsum23, 4, pOut+outIndex+ 3*oPixels) ;
-	    _ve_vstu_vss(vrsum45, 4, pOut+outIndex+ 4*oPixels) ;
-	    _ve_vstl_vss(vrsum45, 4, pOut+outIndex+ 5*oPixels) ;
-	    _ve_vstu_vss(vrsum67, 4, pOut+outIndex+ 6*oPixels) ;
-	    _ve_vstl_vss(vrsum67, 4, pOut+outIndex+ 7*oPixels) ;
+	    _vel_vstu_vssl(vrsum01, 4, pOut+outIndex, vl) ;
+	    _vel_vstl_vssl(vrsum01, 4, pOut+outIndex+   oPixels, vl) ;
+	    _vel_vstu_vssl(vrsum23, 4, pOut+outIndex+ 2*oPixels, vl) ;
+	    _vel_vstl_vssl(vrsum23, 4, pOut+outIndex+ 3*oPixels, vl) ;
+	    _vel_vstu_vssl(vrsum45, 4, pOut+outIndex+ 4*oPixels, vl) ;
+	    _vel_vstl_vssl(vrsum45, 4, pOut+outIndex+ 5*oPixels, vl) ;
+	    _vel_vstu_vssl(vrsum67, 4, pOut+outIndex+ 6*oPixels, vl) ;
+	    _vel_vstl_vssl(vrsum67, 4, pOut+outIndex+ 7*oPixels, vl) ;
 
 	    outIndex += vl ;
 	  } // outPixels
