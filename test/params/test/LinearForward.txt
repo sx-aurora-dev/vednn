@@ -1,0 +1,15 @@
+14
+oU32_b1, 1, 1031, 31
+oU32_b2, 2, 1031, 31
+oU32_b3, 3, 1031, 31
+oU32_b4, 4, 1031, 31
+o2X_woaligned_b1, 1, 1031, 514
+o2X_woaligned_b2, 2, 1031, 514
+o2X_woaligned_b3, 3, 1031, 514
+o2X_woaligned_b4, 4, 1031, 514
+default_b1, 1, 1031, 513
+default_b2, 2, 1031, 513
+default_b3, 3, 1031, 513
+default_b4, 4, 1031, 513
+default_b5, 5, 1031, 513
+default_b6, 6, 1031, 513

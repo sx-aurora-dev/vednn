@@ -1,0 +1,9 @@
+8
+default_b1, 1, 1031, 513
+default_b2, 2, 1031, 513
+default_b3, 3, 1031, 513
+default_b4, 4, 1031, 513
+default_b5, 5, 1031, 513
+default_b6, 6, 1031, 513
+default_b7, 7, 1031, 513
+default_b8, 8, 1031, 513
