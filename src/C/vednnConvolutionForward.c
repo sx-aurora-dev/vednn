@@ -93,7 +93,7 @@ vednnError_t vednnConvolutionForward(
       }
       else if (pParamKernel->height == 3 && pParamKernel->width == 3)
       {
-	if (pParamKernel->inChannel == pParamConv->group)
+	if (pParamIn->channel == pParamConv->group) // aka inputChannelGroup==1
 	{
 	  if (pParamOut->width <= 128)
 	  {
