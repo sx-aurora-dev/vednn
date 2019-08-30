@@ -173,7 +173,7 @@ static vednnError_t vednnSoftmaxForward_Log (
 
     float sum = 0.f ;
     for(uint64_t i=0; i<nClass; i++) {
-      sum += (pOut[i] = (pIn[i]-max)) ;
+      sum += expf(pOut[i] = (pIn[i]-max)) ;
     }
 
     float log_sum = logf(sum) ;
