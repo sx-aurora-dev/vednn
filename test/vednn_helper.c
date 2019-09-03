@@ -257,7 +257,7 @@ dumpBiasData(FILE *pFile, const char * restrict pName, const vednnBiasParam_t * 
 
 /* ----------------------------------------------------------------------- */
 vednnError_t
-createKernelParam(vednnFilterParam_t **ppParam, dataType_t dtype, int inChannel, int outChannel, int width, int height)
+createKernelParam(vednnFilterParam_t **ppParam, dataType_t dtype, filterLayout_t filter_layout, int inChannel, int outChannel, int width, int height)
 {
     vednnFilterParam_t *pParam = NULL;
 
@@ -286,6 +286,7 @@ createKernelParam(vednnFilterParam_t **ppParam, dataType_t dtype, int inChannel,
     memset(pParam, 0, sizeof(vednnFilterParam_t));
 
     pParam->dtype	= dtype;
+    pParam->layout      = filter_layout;
     pParam->inChannel	= inChannel;
     pParam->outChannel	= outChannel;
     pParam->width	= width;

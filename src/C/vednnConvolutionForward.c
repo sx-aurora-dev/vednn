@@ -109,13 +109,6 @@ vednnError_t vednnConvolutionForward(
 		pParamConv, pParamOut, pDataOut );
 	  }
 	}
-	else if (pParamKernel->inChannel % 1024 == 0)
-	{
-	  return vednnConvolutionForward_wrapper(
-	      vednnConvolutionForward_direct_dil1_str1_padsame_ker3_c1024x,
-	      pParamIn, pDataIn, pParamKernel, pDataKernel,
-	      pParamConv, pParamOut, pDataOut );
-	}
 	else
 	{
 	  return vednnConvolutionForward_wrapper(

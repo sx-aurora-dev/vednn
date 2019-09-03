@@ -171,12 +171,12 @@ diffData(const vednnTensorParam_t *pParam, const void *pData, const void *pExpec
 }
 
 
-void testForward(struct param *pNetwork, int nEntry, double HZ, int flagBias, int flagCSV)
+void testForward(struct param *pNetwork, int nEntry, double HZ, int flagBias, int flagCSV, int filter_layout)
 {
     struct conv {
         vednnTensorParam_t *pParamIn;
         vednnTensorParam_t *pParamOut;
-        vednnBiasParam_t *pParamBias;
+        vednnBiasParam_t   *pParamBias;
         vednnFilterParam_t *pParamKernel;
         vednnConvolutionParam_t *pParamConv;
         void *pDataIn;
@@ -215,6 +215,7 @@ void testForward(struct param *pNetwork, int nEntry, double HZ, int flagBias, in
         pConv->pDataOut		= NULL;
         pConv->pDataBias	= NULL;
         pConv->pDataKernel	= NULL;
+        pConv->pDataKernel	= NULL;
 
         pConv->pBufRef		= NULL;
         pConv->pBufOne		= NULL;
@@ -250,7 +251,7 @@ void testForward(struct param *pNetwork, int nEntry, double HZ, int flagBias, in
         if( flagBias ) {
           rv[2] = createBiasParam(&pConv->pParamBias, DTYPE_FLOAT, pNw->outChannel);
         }
-        rv[3] = createKernelParam(&pConv->pParamKernel, DTYPE_FLOAT, inChannelGroup, outChannelGroup, pNw->kernWidth, pNw->kernHeight);
+        rv[3] = createKernelParam(&pConv->pParamKernel, DTYPE_FLOAT, filter_layout, inChannelGroup, outChannelGroup, pNw->kernWidth, pNw->kernHeight);
         rv[4] = createConvolutionParam(&pConv->pParamConv, pNw->group, pNw->strideWidth, pNw->strideHeight, pNw->padWidth, pNw->padHeight, 1, 1);
         if (rv[0] != VEDNN_SUCCESS || rv[1] != VEDNN_SUCCESS || ( flagBias && rv[2] != VEDNN_SUCCESS ) || rv[3] != VEDNN_SUCCESS || rv[4] != VEDNN_SUCCESS ) {
             fprintf(stderr, "Failed to create/initialize structure.\n");
@@ -427,7 +428,7 @@ void testForward(struct param *pNetwork, int nEntry, double HZ, int flagBias, in
     free(pConvBuff);
 }
 
-void testBackwardData(struct param *pNetwork, int nEntry, double HZ, int flagCSV)
+void testBackwardData(struct param *pNetwork, int nEntry, double HZ, int flagCSV, int filter_layout)
 {
     struct conv {
         vednnTensorParam_t *pParamGradOut;
@@ -497,7 +498,7 @@ void testBackwardData(struct param *pNetwork, int nEntry, double HZ, int flagCSV
 
         rv[0] = createTensorParam(&pConv->pParamGradOut, DTYPE_FLOAT, pNw->batchNum, pNw->outChannel, pNw->outWidth, pNw->outHeight);
         rv[1] = createTensorParam(&pConv->pParamGradIn, DTYPE_FLOAT, pNw->batchNum, pNw->inChannel, pNw->inWidth, pNw->inHeight);
-        rv[2] = createKernelParam(&pConv->pParamKernel, DTYPE_FLOAT, inChannelGroup, outChannelGroup, pNw->kernWidth, pNw->kernHeight);
+        rv[2] = createKernelParam(&pConv->pParamKernel, DTYPE_FLOAT, filter_layout, inChannelGroup, outChannelGroup, pNw->kernWidth, pNw->kernHeight);
         rv[3] = createConvolutionParam(&pConv->pParamConv, pNw->group, pNw->strideWidth, pNw->strideHeight, pNw->padWidth, pNw->padHeight, 1, 1);
         if (rv[0] != VEDNN_SUCCESS || rv[1] != VEDNN_SUCCESS || rv[2] != VEDNN_SUCCESS || rv[3] != VEDNN_SUCCESS ) {
             fprintf(stderr, "Failed to create/initialize structure.\n");
@@ -645,7 +646,7 @@ void testBackwardData(struct param *pNetwork, int nEntry, double HZ, int flagCSV
     free(pConvBuff);
 }
 
-void testBackwardFilter(struct param *pNetwork, int nEntry, double HZ, int flagCSV)
+void testBackwardFilter(struct param *pNetwork, int nEntry, double HZ, int flagCSV, int filter_layout)
 {
     struct conv {
         vednnTensorParam_t *pParamIn;
@@ -715,7 +716,7 @@ void testBackwardFilter(struct param *pNetwork, int nEntry, double HZ, int flagC
 
         rv[0] = createTensorParam(&pConv->pParamIn, DTYPE_FLOAT, pNw->batchNum, pNw->inChannel, pNw->inWidth, pNw->inHeight);
         rv[1] = createTensorParam(&pConv->pParamGradOut, DTYPE_FLOAT, pNw->batchNum, pNw->outChannel, pNw->outWidth, pNw->outHeight);
-        rv[2] = createKernelParam(&pConv->pParamGradKernel, DTYPE_FLOAT, inChannelGroup, outChannelGroup, pNw->kernWidth, pNw->kernHeight);
+        rv[2] = createKernelParam(&pConv->pParamGradKernel, DTYPE_FLOAT, filter_layout, inChannelGroup, outChannelGroup, pNw->kernWidth, pNw->kernHeight);
         rv[3] = createConvolutionParam(&pConv->pParamConv, pNw->group, pNw->strideWidth, pNw->strideHeight, pNw->padWidth, pNw->padHeight, 1, 1);
         if (rv[0] != VEDNN_SUCCESS || rv[1] != VEDNN_SUCCESS || rv[2] != VEDNN_SUCCESS || rv[3] != VEDNN_SUCCESS ) {
             fprintf(stderr, "Failed to create/initialize structure.\n");
@@ -927,6 +928,14 @@ static struct {
 //    { "ConvBackwardBias", CONV_TEST_BACKWARD_BIAS } ,   // not implemented
 };
 
+static struct {
+    char *pName;
+    int   layouttype;
+} filterLayout[] = {
+    { "filter_nchw",	VEDNN_FILTER_LAYOUT_NCHW } ,
+    { "filter_hwcn",	VEDNN_FILTER_LAYOUT_HWCN }
+};
+
 int main(int argc, char **argv)
 {
     extern int optind;
@@ -936,11 +945,12 @@ int main(int argc, char **argv)
     char *pParamPath = NULL ;
     double HZ        = 0.0 ;
     int testtype     = 0 ;
+    int filter_layout= 0 ;
     int flagCSV	     = 0 ;
 
-    int flagNoMkConsistent = 0 ; 
+    int flagNoMkConsistent = 0 ;
 
-    while ((opt = getopt(argc, argv, "p:CH:T:n")) != -1) {
+    while ((opt = getopt(argc, argv, "p:CH:T:nf:")) != -1) {
         switch (opt) {
         case 'p':
           pParamPath = optarg;
@@ -964,6 +974,22 @@ int main(int argc, char **argv)
 	  }
         break;
         case 'n':	flagNoMkConsistent = 1;		break;
+        case 'f' :
+	  {
+	    int found = 0;
+	    for (int i=0; i<sizeof(filterLayout)/sizeof(filterLayout[0]); i++) {
+	      if (strcasecmp(optarg, filterLayout[i].pName) == 0) {
+		filter_layout= filterLayout[i].layouttype ;
+		found = 1;
+		break;
+	      }
+	    }
+	    if (! found )  {
+	      fprintf(stderr, "Invalid filter layout.\n");
+	      exit(1);
+	    }
+	  }
+	  break ;
         default: /* '?' */
             fprintf(stderr, "Unknown option.\n");
             exit(1);
@@ -981,7 +1007,8 @@ int main(int argc, char **argv)
         fprintf(stderr, "Processor core frequency must be set by '-H' option.\n");
         exit(1);
     }
-    printf("TEST TYPE        = %s\n",	 tests[testtype].pName) ;
+    printf("TEST TYPE        = %s\n",	   tests[testtype].pName) ;
+    printf("FILTER LAYOUT    = %s\n",	   filterLayout[filter_layout].pName) ;
     printf("STM FREQUENCY    = %.3e HZ\n", HZ);
     printf("PARAMETER FILE   = %s\n",      pParamPath);
 
@@ -1007,16 +1034,16 @@ int main(int argc, char **argv)
 
     switch(testtype) {
     case CONV_TEST_FORWARD :
-      testForward(pParams, nParams, HZ, 0, flagCSV);
+      testForward(pParams, nParams, HZ, 0, flagCSV, filter_layout);
       break ;
     case CONV_TEST_FORWARD_ADDBIAS :
-      testForward(pParams, nParams, HZ, 1, flagCSV);
+      testForward(pParams, nParams, HZ, 1, flagCSV, filter_layout);
       break ;
     case CONV_TEST_BACKWARD_DATA :
-      testBackwardData(pParams, nParams, HZ, flagCSV);
+      testBackwardData(pParams, nParams, HZ, flagCSV, filter_layout);
       break ;
     case CONV_TEST_BACKWARD_FILTER :
-      testBackwardFilter(pParams, nParams, HZ, flagCSV);
+      testBackwardFilter(pParams, nParams, HZ, flagCSV, filter_layout);
       break ;
     default :
       break ;

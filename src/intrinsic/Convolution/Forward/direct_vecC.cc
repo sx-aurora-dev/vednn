@@ -6,10 +6,11 @@
 #include "velintrin.h"
 #define VLEN	(256)
 
+template<filterLayout_t FLAYOUT>
 static inline void k1(
-    const float * restrict pIn,
-    const float * restrict pKernel,
-    float * restrict const pOut,
+    const float * __restrict__ pIn,
+    const float * __restrict__ pKernel,
+    float * __restrict__ const pOut,
     const int64_t inChannel,
     const int64_t inWidth,
     const int64_t inHeight,
@@ -55,10 +56,16 @@ static inline void k1(
 	      continue;
 	    }
 	    int64_t inputIndex  = inGroupOffset + ((n * inChannel + c) * inHeight + h) * inWidth + w;
-	    int64_t kernelIndex = kernGroupOffset + ((k * inChannelGroup + c) * kernHeight + r) * kernWidth + s;
-
 	    __vr vri = _vel_vldu_vssl(4*inHeight*inWidth, &pIn[inputIndex], vl) ;
-	    __vr vrk = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex], vl) ;
+
+	    const float *pKerValue = ( FLAYOUT == VEDNN_FILTER_LAYOUT_NCHW ) ?
+				      pKernel + kernGroupOffset + ((k * inChannelGroup + c) * kernHeight + r) * kernWidth + s :
+				      pKernel + kernGroupOffset + ( ( r * kernWidth + s ) * inChannelGroup + c ) * outChannelGroup + k ;
+
+	    const int64_t kernelStride = ( FLAYOUT == VEDNN_FILTER_LAYOUT_NCHW ) ?
+			                 kernHeight * kernWidth :
+					 outChannelGroup ;
+	    __vr vrk = _vel_vldu_vssl(4*kernelStride, pKerValue, vl) ;
 
 	    vrsum = _vel_vfmads_vvvvvl(vrsum, vri, vrk, vrsum, vl) ;
 	  } // kernWidth
@@ -71,10 +78,11 @@ static inline void k1(
   } // outHeight
 }
 
+template<filterLayout_t FLAYOUT>
 static inline void k2(
-    const float * restrict pIn,
-    const float * restrict pKernel,
-    float * restrict const pOut,
+    const float * __restrict__ pIn,
+    const float * __restrict__ pKernel,
+    float * __restrict__ const pOut,
     const int64_t inChannel,
     const int64_t inWidth,
     const int64_t inHeight,
@@ -120,12 +128,21 @@ static inline void k2(
 	      continue;
 	    }
 	    int64_t inputIndex  = inGroupOffset + ((n * inChannel + c) * inHeight + h) * inWidth + w;
-	    int64_t kernelIndex = kernGroupOffset + ((k * inChannelGroup + c) * kernHeight + r) * kernWidth + s;
-
 	    __vr vri = _vel_vldu_vssl(4*inHeight*inWidth, &pIn[inputIndex], vl) ;
 
-	    __vr vrk0 = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+0*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrk1 = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+1*inChannelGroup*kernHeight*kernWidth], vl) ;
+	    const float *pKerValue = ( FLAYOUT == VEDNN_FILTER_LAYOUT_NCHW ) ?
+				      pKernel + kernGroupOffset + ((k * inChannelGroup + c) * kernHeight + r) * kernWidth + s :
+				      pKernel + kernGroupOffset + ( ( r * kernWidth + s ) * inChannelGroup + c ) * outChannelGroup + k ;
+
+	    const int64_t kernelDistance = ( FLAYOUT == VEDNN_FILTER_LAYOUT_NCHW ) ?
+					   inChannelGroup * kernHeight * kernWidth :
+					   1 ;
+
+	    const int64_t kernelStride = ( FLAYOUT == VEDNN_FILTER_LAYOUT_NCHW ) ?
+			                 kernHeight * kernWidth :
+					 outChannelGroup ;
+	    __vr vrk0 = _vel_vldu_vssl(4*kernelStride, pKerValue+0*kernelDistance, vl) ;
+	    __vr vrk1 = _vel_vldu_vssl(4*kernelStride, pKerValue+1*kernelDistance, vl) ;
 
 	    __vr vriP  = _vel_vshf_vvvsl(vri, vri, VE_VSHUFFLE_YUZU, vl) ;
 
@@ -144,10 +161,11 @@ static inline void k2(
   } // outHeight
 }
 
+template<filterLayout_t FLAYOUT>
 static inline void k4(
-    const float * restrict pIn,
-    const float * restrict pKernel,
-    float * restrict const pOut,
+    const float * __restrict__ pIn,
+    const float * __restrict__ pKernel,
+    float * __restrict__ const pOut,
     const int64_t inChannel,
     const int64_t inWidth,
     const int64_t inHeight,
@@ -194,14 +212,23 @@ static inline void k4(
 	      continue;
 	    }
 	    int64_t inputIndex  = inGroupOffset + ((n * inChannel + c) * inHeight + h) * inWidth + w;
-	    int64_t kernelIndex = kernGroupOffset + ((k * inChannelGroup + c) * kernHeight + r) * kernWidth + s;
-
 	    __vr vri = _vel_vldu_vssl(4*inHeight*inWidth, &pIn[inputIndex], vl) ;
 
-	    __vr vrk0 = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+0*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrk1 = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+1*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrk2 = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+2*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrk3 = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+3*inChannelGroup*kernHeight*kernWidth], vl) ;
+	    const float *pKerValue = ( FLAYOUT == VEDNN_FILTER_LAYOUT_NCHW ) ?
+				      pKernel + kernGroupOffset + ((k * inChannelGroup + c) * kernHeight + r) * kernWidth + s :
+				      pKernel + kernGroupOffset + ( ( r * kernWidth + s ) * inChannelGroup + c ) * outChannelGroup + k ;
+
+	    const int64_t kernelDistance = ( FLAYOUT == VEDNN_FILTER_LAYOUT_NCHW ) ?
+					   inChannelGroup * kernHeight * kernWidth :
+					   1 ;
+
+	    const int64_t kernelStride = ( FLAYOUT == VEDNN_FILTER_LAYOUT_NCHW ) ?
+			                 kernHeight * kernWidth :
+					 outChannelGroup ;
+	    __vr vrk0 = _vel_vldu_vssl(4*kernelStride, pKerValue+0*kernelDistance, vl) ;
+	    __vr vrk1 = _vel_vldu_vssl(4*kernelStride, pKerValue+1*kernelDistance, vl) ;
+	    __vr vrk2 = _vel_vldu_vssl(4*kernelStride, pKerValue+2*kernelDistance, vl) ;
+	    __vr vrk3 = _vel_vldu_vssl(4*kernelStride, pKerValue+3*kernelDistance, vl) ;
 
 	    __vr vriP  = _vel_vshf_vvvsl(vri, vri, VE_VSHUFFLE_YUZU, vl) ;
 
@@ -227,10 +254,11 @@ static inline void k4(
   } // outHeight
 }
 
+template<filterLayout_t FLAYOUT>
 static inline void k8y1x1(
-    const float * restrict pIn,
-    const float * restrict pKernel,
-    float * restrict const pOut,
+    const float * __restrict__ pIn,
+    const float * __restrict__ pKernel,
+    float * __restrict__ const pOut,
     const int64_t inChannel,
     const int64_t inWidth,
     const int64_t inHeight,
@@ -280,19 +308,27 @@ static inline void k8y1x1(
 
 	  if( w0_valid ) {
 	    int64_t inputIndex_h0w0  = inGroupOffset + ((n * inChannel + c) * inHeight + h0) * inWidth + w0;
-
-	    int64_t kernelIndex = kernGroupOffset + ((k * inChannelGroup + c) * kernHeight + r) * kernWidth + s;
-
 	    __vr vri_h0w0 = _vel_vldu_vssl(4*inHeight*inWidth, &pIn[inputIndex_h0w0], vl) ;
 
-	    __vr vrk0 = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+0*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrk1 = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+1*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrk2 = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+2*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrk3 = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+3*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrk4 = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+4*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrk5 = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+5*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrk6 = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+6*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrk7 = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+7*inChannelGroup*kernHeight*kernWidth], vl) ;
+	    const float *pKerValue = ( FLAYOUT == VEDNN_FILTER_LAYOUT_NCHW ) ?
+				      pKernel + kernGroupOffset + ((k * inChannelGroup + c) * kernHeight + r) * kernWidth + s :
+				      pKernel + kernGroupOffset + ( ( r * kernWidth + s ) * inChannelGroup + c ) * outChannelGroup + k ;
+
+	    const int64_t kernelDistance = ( FLAYOUT == VEDNN_FILTER_LAYOUT_NCHW ) ?
+					   inChannelGroup * kernHeight * kernWidth :
+					   1 ;
+
+	    const int64_t kernelStride = ( FLAYOUT == VEDNN_FILTER_LAYOUT_NCHW ) ?
+			                 kernHeight * kernWidth :
+					 outChannelGroup ;
+	    __vr vrk0 = _vel_vldu_vssl(4*kernelStride, pKerValue+0*kernelDistance, vl) ;
+	    __vr vrk1 = _vel_vldu_vssl(4*kernelStride, pKerValue+1*kernelDistance, vl) ;
+	    __vr vrk2 = _vel_vldu_vssl(4*kernelStride, pKerValue+2*kernelDistance, vl) ;
+	    __vr vrk3 = _vel_vldu_vssl(4*kernelStride, pKerValue+3*kernelDistance, vl) ;
+	    __vr vrk4 = _vel_vldu_vssl(4*kernelStride, pKerValue+4*kernelDistance, vl) ;
+	    __vr vrk5 = _vel_vldu_vssl(4*kernelStride, pKerValue+5*kernelDistance, vl) ;
+	    __vr vrk6 = _vel_vldu_vssl(4*kernelStride, pKerValue+6*kernelDistance, vl) ;
+	    __vr vrk7 = _vel_vldu_vssl(4*kernelStride, pKerValue+7*kernelDistance, vl) ;
 
 	    __vr vriP_h0w0  = _vel_vshf_vvvsl(vri_h0w0, vri_h0w0, VE_VSHUFFLE_YUZU, vl) ;
 
@@ -334,10 +370,11 @@ static inline void k8y1x1(
   }
 }
 
+template<filterLayout_t FLAYOUT>
 static inline void k8y1x2(
-    const float * restrict pIn,
-    const float * restrict pKernel,
-    float * restrict const pOut,
+    const float * __restrict__ pIn,
+    const float * __restrict__ pKernel,
+    float * __restrict__ const pOut,
     const int64_t inChannel,
     const int64_t inWidth,
     const int64_t inHeight,
@@ -397,20 +434,28 @@ static inline void k8y1x2(
 	  if( w0_valid && w1_valid ) {
 	    int64_t inputIndex_h0w0  = inGroupOffset + ((n * inChannel + c) * inHeight + h0) * inWidth + w0;
 	    int64_t inputIndex_h0w1  = inGroupOffset + ((n * inChannel + c) * inHeight + h0) * inWidth + w1;
-
-	    int64_t kernelIndex = kernGroupOffset + ((k * inChannelGroup + c) * kernHeight + r) * kernWidth + s;
-
 	    __vr vri_h0w0 = _vel_vldu_vssl(4*inHeight*inWidth, &pIn[inputIndex_h0w0], vl) ;
 	    __vr vri_h0w1 = _vel_vldu_vssl(4*inHeight*inWidth, &pIn[inputIndex_h0w1], vl) ;
 
-	    __vr vrk0 = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+0*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrk1 = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+1*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrk2 = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+2*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrk3 = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+3*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrk4 = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+4*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrk5 = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+5*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrk6 = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+6*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrk7 = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+7*inChannelGroup*kernHeight*kernWidth], vl) ;
+	    const float *pKerValue = ( FLAYOUT == VEDNN_FILTER_LAYOUT_NCHW ) ?
+				      pKernel + kernGroupOffset + ((k * inChannelGroup + c) * kernHeight + r) * kernWidth + s :
+				      pKernel + kernGroupOffset + ( ( r * kernWidth + s ) * inChannelGroup + c ) * outChannelGroup + k ;
+
+	    const int64_t kernelDistance = ( FLAYOUT == VEDNN_FILTER_LAYOUT_NCHW ) ?
+					   inChannelGroup * kernHeight * kernWidth :
+					   1 ;
+
+	    const int64_t kernelStride = ( FLAYOUT == VEDNN_FILTER_LAYOUT_NCHW ) ?
+			                 kernHeight * kernWidth :
+					 outChannelGroup ;
+	    __vr vrk0 = _vel_vldu_vssl(4*kernelStride, pKerValue+0*kernelDistance, vl) ;
+	    __vr vrk1 = _vel_vldu_vssl(4*kernelStride, pKerValue+1*kernelDistance, vl) ;
+	    __vr vrk2 = _vel_vldu_vssl(4*kernelStride, pKerValue+2*kernelDistance, vl) ;
+	    __vr vrk3 = _vel_vldu_vssl(4*kernelStride, pKerValue+3*kernelDistance, vl) ;
+	    __vr vrk4 = _vel_vldu_vssl(4*kernelStride, pKerValue+4*kernelDistance, vl) ;
+	    __vr vrk5 = _vel_vldu_vssl(4*kernelStride, pKerValue+5*kernelDistance, vl) ;
+	    __vr vrk6 = _vel_vldu_vssl(4*kernelStride, pKerValue+6*kernelDistance, vl) ;
+	    __vr vrk7 = _vel_vldu_vssl(4*kernelStride, pKerValue+7*kernelDistance, vl) ;
 
 	    __vr vriP_h0w0  = _vel_vshf_vvvsl(vri_h0w0, vri_h0w0, VE_VSHUFFLE_YUZU, vl) ;
 	    __vr vriP_h0w1  = _vel_vshf_vvvsl(vri_h0w1, vri_h0w1, VE_VSHUFFLE_YUZU, vl) ;
@@ -433,19 +478,27 @@ static inline void k8y1x2(
 	  }
 	  else if( w0_valid ) {
 	    int64_t inputIndex_h0w0  = inGroupOffset + ((n * inChannel + c) * inHeight + h0) * inWidth + w0;
-
-	    int64_t kernelIndex = kernGroupOffset + ((k * inChannelGroup + c) * kernHeight + r) * kernWidth + s;
-
 	    __vr vri_h0w0 = _vel_vldu_vssl(4*inHeight*inWidth, &pIn[inputIndex_h0w0], vl) ;
 
-	    __vr vrk0 = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+0*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrk1 = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+1*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrk2 = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+2*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrk3 = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+3*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrk4 = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+4*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrk5 = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+5*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrk6 = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+6*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrk7 = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+7*inChannelGroup*kernHeight*kernWidth], vl) ;
+	    const float *pKerValue = ( FLAYOUT == VEDNN_FILTER_LAYOUT_NCHW ) ?
+				      pKernel + kernGroupOffset + ((k * inChannelGroup + c) * kernHeight + r) * kernWidth + s :
+				      pKernel + kernGroupOffset + ( ( r * kernWidth + s ) * inChannelGroup + c ) * outChannelGroup + k ;
+
+	    const int64_t kernelDistance = ( FLAYOUT == VEDNN_FILTER_LAYOUT_NCHW ) ?
+					   inChannelGroup * kernHeight * kernWidth :
+					   1 ;
+
+	    const int64_t kernelStride = ( FLAYOUT == VEDNN_FILTER_LAYOUT_NCHW ) ?
+			                 kernHeight * kernWidth :
+					 outChannelGroup ;
+	    __vr vrk0 = _vel_vldu_vssl(4*kernelStride, pKerValue+0*kernelDistance, vl) ;
+	    __vr vrk1 = _vel_vldu_vssl(4*kernelStride, pKerValue+1*kernelDistance, vl) ;
+	    __vr vrk2 = _vel_vldu_vssl(4*kernelStride, pKerValue+2*kernelDistance, vl) ;
+	    __vr vrk3 = _vel_vldu_vssl(4*kernelStride, pKerValue+3*kernelDistance, vl) ;
+	    __vr vrk4 = _vel_vldu_vssl(4*kernelStride, pKerValue+4*kernelDistance, vl) ;
+	    __vr vrk5 = _vel_vldu_vssl(4*kernelStride, pKerValue+5*kernelDistance, vl) ;
+	    __vr vrk6 = _vel_vldu_vssl(4*kernelStride, pKerValue+6*kernelDistance, vl) ;
+	    __vr vrk7 = _vel_vldu_vssl(4*kernelStride, pKerValue+7*kernelDistance, vl) ;
 
 	    __vr vriP_h0w0  = _vel_vshf_vvvsl(vri_h0w0, vri_h0w0, VE_VSHUFFLE_YUZU, vl) ;
 
@@ -464,18 +517,27 @@ static inline void k8y1x2(
 	  else if( w1_valid ) {
 	    int64_t inputIndex_h0w1  = inGroupOffset + ((n * inChannel + c) * inHeight + h0) * inWidth + w1;
 
-	    int64_t kernelIndex = kernGroupOffset + ((k * inChannelGroup + c) * kernHeight + r) * kernWidth + s;
-
 	    __vr vri_h0w1 = _vel_vldu_vssl(4*inHeight*inWidth, &pIn[inputIndex_h0w1], vl) ;
 
-	    __vr vrk0 = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+0*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrk1 = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+1*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrk2 = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+2*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrk3 = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+3*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrk4 = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+4*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrk5 = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+5*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrk6 = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+6*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrk7 = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+7*inChannelGroup*kernHeight*kernWidth], vl) ;
+	    const float *pKerValue = ( FLAYOUT == VEDNN_FILTER_LAYOUT_NCHW ) ?
+				      pKernel + kernGroupOffset + ((k * inChannelGroup + c) * kernHeight + r) * kernWidth + s :
+				      pKernel + kernGroupOffset + ( ( r * kernWidth + s ) * inChannelGroup + c ) * outChannelGroup + k ;
+
+	    const int64_t kernelDistance = ( FLAYOUT == VEDNN_FILTER_LAYOUT_NCHW ) ?
+					   inChannelGroup * kernHeight * kernWidth :
+					   1 ;
+
+	    const int64_t kernelStride = ( FLAYOUT == VEDNN_FILTER_LAYOUT_NCHW ) ?
+			                 kernHeight * kernWidth :
+					 outChannelGroup ;
+	    __vr vrk0 = _vel_vldu_vssl(4*kernelStride, pKerValue+0*kernelDistance, vl) ;
+	    __vr vrk1 = _vel_vldu_vssl(4*kernelStride, pKerValue+1*kernelDistance, vl) ;
+	    __vr vrk2 = _vel_vldu_vssl(4*kernelStride, pKerValue+2*kernelDistance, vl) ;
+	    __vr vrk3 = _vel_vldu_vssl(4*kernelStride, pKerValue+3*kernelDistance, vl) ;
+	    __vr vrk4 = _vel_vldu_vssl(4*kernelStride, pKerValue+4*kernelDistance, vl) ;
+	    __vr vrk5 = _vel_vldu_vssl(4*kernelStride, pKerValue+5*kernelDistance, vl) ;
+	    __vr vrk6 = _vel_vldu_vssl(4*kernelStride, pKerValue+6*kernelDistance, vl) ;
+	    __vr vrk7 = _vel_vldu_vssl(4*kernelStride, pKerValue+7*kernelDistance, vl) ;
 
 	    __vr vriP_h0w1  = _vel_vshf_vvvsl(vri_h0w1, vri_h0w1, VE_VSHUFFLE_YUZU, vl) ;
 
@@ -537,10 +599,11 @@ static inline void k8y1x2(
 }
 
 
+template<filterLayout_t FLAYOUT>
 static inline void k8y2x1(
-    const float * restrict pIn,
-    const float * restrict pKernel,
-    float * restrict const pOut,
+    const float * __restrict__ pIn,
+    const float * __restrict__ pKernel,
+    float * __restrict__ const pOut,
     const int64_t inChannel,
     const int64_t inWidth,
     const int64_t inHeight,
@@ -600,20 +663,28 @@ static inline void k8y2x1(
 	  if( w0_valid ) {
 	    int64_t inputIndex_h0w0  = inGroupOffset + ((n * inChannel + c) * inHeight + h0) * inWidth + w0;
 	    int64_t inputIndex_h1w0  = inGroupOffset + ((n * inChannel + c) * inHeight + h1) * inWidth + w0;
-
-	    int64_t kernelIndex = kernGroupOffset + ((k * inChannelGroup + c) * kernHeight + r) * kernWidth + s;
-
 	    __vr vri_h0w0 = _vel_vldu_vssl(4*inHeight*inWidth, &pIn[inputIndex_h0w0], vl) ;
 	    __vr vri_h1w0 = _vel_vldu_vssl(4*inHeight*inWidth, &pIn[inputIndex_h1w0], vl) ;
 
-	    __vr vrk0 = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+0*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrk1 = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+1*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrk2 = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+2*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrk3 = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+3*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrk4 = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+4*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrk5 = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+5*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrk6 = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+6*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrk7 = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+7*inChannelGroup*kernHeight*kernWidth], vl) ;
+	    const float *pKerValue = ( FLAYOUT == VEDNN_FILTER_LAYOUT_NCHW ) ?
+				      pKernel + kernGroupOffset + ((k * inChannelGroup + c) * kernHeight + r) * kernWidth + s :
+				      pKernel + kernGroupOffset + ( ( r * kernWidth + s ) * inChannelGroup + c ) * outChannelGroup + k ;
+
+	    const int64_t kernelDistance = ( FLAYOUT == VEDNN_FILTER_LAYOUT_NCHW ) ?
+					   inChannelGroup * kernHeight * kernWidth :
+					   1 ;
+
+	    const int64_t kernelStride = ( FLAYOUT == VEDNN_FILTER_LAYOUT_NCHW ) ?
+			                 kernHeight * kernWidth :
+					 outChannelGroup ;
+	    __vr vrk0 = _vel_vldu_vssl(4*kernelStride, pKerValue+0*kernelDistance, vl) ;
+	    __vr vrk1 = _vel_vldu_vssl(4*kernelStride, pKerValue+1*kernelDistance, vl) ;
+	    __vr vrk2 = _vel_vldu_vssl(4*kernelStride, pKerValue+2*kernelDistance, vl) ;
+	    __vr vrk3 = _vel_vldu_vssl(4*kernelStride, pKerValue+3*kernelDistance, vl) ;
+	    __vr vrk4 = _vel_vldu_vssl(4*kernelStride, pKerValue+4*kernelDistance, vl) ;
+	    __vr vrk5 = _vel_vldu_vssl(4*kernelStride, pKerValue+5*kernelDistance, vl) ;
+	    __vr vrk6 = _vel_vldu_vssl(4*kernelStride, pKerValue+6*kernelDistance, vl) ;
+	    __vr vrk7 = _vel_vldu_vssl(4*kernelStride, pKerValue+7*kernelDistance, vl) ;
 
 	    __vr vriP_h0w0  = _vel_vshf_vvvsl(vri_h0w0, vri_h0w0, VE_VSHUFFLE_YUZU, vl) ;
 	    __vr vriP_h1w0  = _vel_vshf_vvvsl(vri_h1w0, vri_h1w0, VE_VSHUFFLE_YUZU, vl) ;
@@ -644,19 +715,27 @@ static inline void k8y2x1(
 
 	  if( w0_valid ) {
 	    int64_t inputIndex_h0w0  = inGroupOffset + ((n * inChannel + c) * inHeight + h0) * inWidth + w0;
-
-	    int64_t kernelIndex = kernGroupOffset + ((k * inChannelGroup + c) * kernHeight + r) * kernWidth + s;
-
 	    __vr vri_h0w0 = _vel_vldu_vssl(4*inHeight*inWidth, &pIn[inputIndex_h0w0], vl) ;
 
-	    __vr vrk0 = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+0*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrk1 = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+1*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrk2 = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+2*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrk3 = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+3*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrk4 = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+4*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrk5 = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+5*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrk6 = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+6*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrk7 = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+7*inChannelGroup*kernHeight*kernWidth], vl) ;
+	    const float *pKerValue = ( FLAYOUT == VEDNN_FILTER_LAYOUT_NCHW ) ?
+				      pKernel + kernGroupOffset + ((k * inChannelGroup + c) * kernHeight + r) * kernWidth + s :
+				      pKernel + kernGroupOffset + ( ( r * kernWidth + s ) * inChannelGroup + c ) * outChannelGroup + k ;
+
+	    const int64_t kernelDistance = ( FLAYOUT == VEDNN_FILTER_LAYOUT_NCHW ) ?
+					   inChannelGroup * kernHeight * kernWidth :
+					   1 ;
+
+	    const int64_t kernelStride = ( FLAYOUT == VEDNN_FILTER_LAYOUT_NCHW ) ?
+			                 kernHeight * kernWidth :
+					 outChannelGroup ;
+	    __vr vrk0 = _vel_vldu_vssl(4*kernelStride, pKerValue+0*kernelDistance, vl) ;
+	    __vr vrk1 = _vel_vldu_vssl(4*kernelStride, pKerValue+1*kernelDistance, vl) ;
+	    __vr vrk2 = _vel_vldu_vssl(4*kernelStride, pKerValue+2*kernelDistance, vl) ;
+	    __vr vrk3 = _vel_vldu_vssl(4*kernelStride, pKerValue+3*kernelDistance, vl) ;
+	    __vr vrk4 = _vel_vldu_vssl(4*kernelStride, pKerValue+4*kernelDistance, vl) ;
+	    __vr vrk5 = _vel_vldu_vssl(4*kernelStride, pKerValue+5*kernelDistance, vl) ;
+	    __vr vrk6 = _vel_vldu_vssl(4*kernelStride, pKerValue+6*kernelDistance, vl) ;
+	    __vr vrk7 = _vel_vldu_vssl(4*kernelStride, pKerValue+7*kernelDistance, vl) ;
 
 	    __vr vriP_h0w0  = _vel_vshf_vvvsl(vri_h0w0, vri_h0w0, VE_VSHUFFLE_YUZU, vl) ;
 
@@ -682,19 +761,27 @@ static inline void k8y2x1(
 
 	  if( w0_valid ) {
 	    int64_t inputIndex_h1w0  = inGroupOffset + ((n * inChannel + c) * inHeight + h1) * inWidth + w0;
-
-	    int64_t kernelIndex = kernGroupOffset + ((k * inChannelGroup + c) * kernHeight + r) * kernWidth + s;
-
 	    __vr vri_h1w0 = _vel_vldu_vssl(4*inHeight*inWidth, &pIn[inputIndex_h1w0], vl) ;
 
-	    __vr vrk0 = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+0*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrk1 = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+1*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrk2 = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+2*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrk3 = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+3*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrk4 = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+4*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrk5 = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+5*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrk6 = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+6*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrk7 = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+7*inChannelGroup*kernHeight*kernWidth], vl) ;
+	    const float *pKerValue = ( FLAYOUT == VEDNN_FILTER_LAYOUT_NCHW ) ?
+				      pKernel + kernGroupOffset + ((k * inChannelGroup + c) * kernHeight + r) * kernWidth + s :
+				      pKernel + kernGroupOffset + ( ( r * kernWidth + s ) * inChannelGroup + c ) * outChannelGroup + k ;
+
+	    const int64_t kernelDistance = ( FLAYOUT == VEDNN_FILTER_LAYOUT_NCHW ) ?
+					   inChannelGroup * kernHeight * kernWidth :
+					   1 ;
+
+	    const int64_t kernelStride = ( FLAYOUT == VEDNN_FILTER_LAYOUT_NCHW ) ?
+			                 kernHeight * kernWidth :
+					 outChannelGroup ;
+	    __vr vrk0 = _vel_vldu_vssl(4*kernelStride, pKerValue+0*kernelDistance, vl) ;
+	    __vr vrk1 = _vel_vldu_vssl(4*kernelStride, pKerValue+1*kernelDistance, vl) ;
+	    __vr vrk2 = _vel_vldu_vssl(4*kernelStride, pKerValue+2*kernelDistance, vl) ;
+	    __vr vrk3 = _vel_vldu_vssl(4*kernelStride, pKerValue+3*kernelDistance, vl) ;
+	    __vr vrk4 = _vel_vldu_vssl(4*kernelStride, pKerValue+4*kernelDistance, vl) ;
+	    __vr vrk5 = _vel_vldu_vssl(4*kernelStride, pKerValue+5*kernelDistance, vl) ;
+	    __vr vrk6 = _vel_vldu_vssl(4*kernelStride, pKerValue+6*kernelDistance, vl) ;
+	    __vr vrk7 = _vel_vldu_vssl(4*kernelStride, pKerValue+7*kernelDistance, vl) ;
 
 	    __vr vriP_h1w0  = _vel_vshf_vvvsl(vri_h1w0, vri_h1w0, VE_VSHUFFLE_YUZU, vl) ;
 
@@ -755,10 +842,11 @@ static inline void k8y2x1(
   }
 }
 
+template<filterLayout_t FLAYOUT>
 static inline void k8y2x2(
-    const float * restrict pIn,
-    const float * restrict pKernel,
-    float * restrict const pOut,
+    const float * __restrict__ pIn,
+    const float * __restrict__ pKernel,
+    float * __restrict__ const pOut,
     const int64_t inChannel,
     const int64_t inWidth,
     const int64_t inHeight,
@@ -830,22 +918,30 @@ static inline void k8y2x2(
 	    int64_t inputIndex_h0w1  = inGroupOffset + ((n * inChannel + c) * inHeight + h0) * inWidth + w1;
 	    int64_t inputIndex_h1w0  = inGroupOffset + ((n * inChannel + c) * inHeight + h1) * inWidth + w0;
 	    int64_t inputIndex_h1w1  = inGroupOffset + ((n * inChannel + c) * inHeight + h1) * inWidth + w1;
-
-	    int64_t kernelIndex = kernGroupOffset + ((k * inChannelGroup + c) * kernHeight + r) * kernWidth + s;
-
 	    __vr vri_h0w0 = _vel_vldu_vssl(4*inHeight*inWidth, &pIn[inputIndex_h0w0], vl) ;
 	    __vr vri_h0w1 = _vel_vldu_vssl(4*inHeight*inWidth, &pIn[inputIndex_h0w1], vl) ;
 	    __vr vri_h1w0 = _vel_vldu_vssl(4*inHeight*inWidth, &pIn[inputIndex_h1w0], vl) ;
 	    __vr vri_h1w1 = _vel_vldu_vssl(4*inHeight*inWidth, &pIn[inputIndex_h1w1], vl) ;
 
-	    __vr vrk0 = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+0*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrk1 = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+1*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrk2 = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+2*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrk3 = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+3*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrk4 = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+4*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrk5 = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+5*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrk6 = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+6*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrk7 = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+7*inChannelGroup*kernHeight*kernWidth], vl) ;
+	    const float *pKerValue = ( FLAYOUT == VEDNN_FILTER_LAYOUT_NCHW ) ?
+				      pKernel + kernGroupOffset + ((k * inChannelGroup + c) * kernHeight + r) * kernWidth + s :
+				      pKernel + kernGroupOffset + ( ( r * kernWidth + s ) * inChannelGroup + c ) * outChannelGroup + k ;
+
+	    const int64_t kernelDistance = ( FLAYOUT == VEDNN_FILTER_LAYOUT_NCHW ) ?
+					   inChannelGroup * kernHeight * kernWidth :
+					   1 ;
+
+	    const int64_t kernelStride = ( FLAYOUT == VEDNN_FILTER_LAYOUT_NCHW ) ?
+			                 kernHeight * kernWidth :
+					 outChannelGroup ;
+	    __vr vrk0 = _vel_vldu_vssl(4*kernelStride, pKerValue+0*kernelDistance, vl) ;
+	    __vr vrk1 = _vel_vldu_vssl(4*kernelStride, pKerValue+1*kernelDistance, vl) ;
+	    __vr vrk2 = _vel_vldu_vssl(4*kernelStride, pKerValue+2*kernelDistance, vl) ;
+	    __vr vrk3 = _vel_vldu_vssl(4*kernelStride, pKerValue+3*kernelDistance, vl) ;
+	    __vr vrk4 = _vel_vldu_vssl(4*kernelStride, pKerValue+4*kernelDistance, vl) ;
+	    __vr vrk5 = _vel_vldu_vssl(4*kernelStride, pKerValue+5*kernelDistance, vl) ;
+	    __vr vrk6 = _vel_vldu_vssl(4*kernelStride, pKerValue+6*kernelDistance, vl) ;
+	    __vr vrk7 = _vel_vldu_vssl(4*kernelStride, pKerValue+7*kernelDistance, vl) ;
 
 	    __vr vriP_h0w0  = _vel_vshf_vvvsl(vri_h0w0, vri_h0w0, VE_VSHUFFLE_YUZU, vl) ;
 	    __vr vriP_h0w1  = _vel_vshf_vvvsl(vri_h0w1, vri_h0w1, VE_VSHUFFLE_YUZU, vl) ;
@@ -879,20 +975,28 @@ static inline void k8y2x2(
 	  else if( w0_valid ) {
 	    int64_t inputIndex_h0w0  = inGroupOffset + ((n * inChannel + c) * inHeight + h0) * inWidth + w0;
 	    int64_t inputIndex_h1w0  = inGroupOffset + ((n * inChannel + c) * inHeight + h1) * inWidth + w0;
-
-	    int64_t kernelIndex = kernGroupOffset + ((k * inChannelGroup + c) * kernHeight + r) * kernWidth + s;
-
 	    __vr vri_h0w0 = _vel_vldu_vssl(4*inHeight*inWidth, &pIn[inputIndex_h0w0], vl) ;
 	    __vr vri_h1w0 = _vel_vldu_vssl(4*inHeight*inWidth, &pIn[inputIndex_h1w0], vl) ;
 
-	    __vr vrk0 = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+0*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrk1 = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+1*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrk2 = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+2*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrk3 = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+3*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrk4 = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+4*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrk5 = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+5*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrk6 = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+6*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrk7 = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+7*inChannelGroup*kernHeight*kernWidth], vl) ;
+	    const float *pKerValue = ( FLAYOUT == VEDNN_FILTER_LAYOUT_NCHW ) ?
+				      pKernel + kernGroupOffset + ((k * inChannelGroup + c) * kernHeight + r) * kernWidth + s :
+				      pKernel + kernGroupOffset + ( ( r * kernWidth + s ) * inChannelGroup + c ) * outChannelGroup + k ;
+
+	    const int64_t kernelDistance = ( FLAYOUT == VEDNN_FILTER_LAYOUT_NCHW ) ?
+					   inChannelGroup * kernHeight * kernWidth :
+					   1 ;
+
+	    const int64_t kernelStride = ( FLAYOUT == VEDNN_FILTER_LAYOUT_NCHW ) ?
+			                 kernHeight * kernWidth :
+					 outChannelGroup ;
+	    __vr vrk0 = _vel_vldu_vssl(4*kernelStride, pKerValue+0*kernelDistance, vl) ;
+	    __vr vrk1 = _vel_vldu_vssl(4*kernelStride, pKerValue+1*kernelDistance, vl) ;
+	    __vr vrk2 = _vel_vldu_vssl(4*kernelStride, pKerValue+2*kernelDistance, vl) ;
+	    __vr vrk3 = _vel_vldu_vssl(4*kernelStride, pKerValue+3*kernelDistance, vl) ;
+	    __vr vrk4 = _vel_vldu_vssl(4*kernelStride, pKerValue+4*kernelDistance, vl) ;
+	    __vr vrk5 = _vel_vldu_vssl(4*kernelStride, pKerValue+5*kernelDistance, vl) ;
+	    __vr vrk6 = _vel_vldu_vssl(4*kernelStride, pKerValue+6*kernelDistance, vl) ;
+	    __vr vrk7 = _vel_vldu_vssl(4*kernelStride, pKerValue+7*kernelDistance, vl) ;
 
 	    __vr vriP_h0w0  = _vel_vshf_vvvsl(vri_h0w0, vri_h0w0, VE_VSHUFFLE_YUZU, vl) ;
 	    __vr vriP_h1w0  = _vel_vshf_vvvsl(vri_h1w0, vri_h1w0, VE_VSHUFFLE_YUZU, vl) ;
@@ -916,20 +1020,28 @@ static inline void k8y2x2(
 	  else if( w1_valid ) {
 	    int64_t inputIndex_h0w1  = inGroupOffset + ((n * inChannel + c) * inHeight + h0) * inWidth + w1;
 	    int64_t inputIndex_h1w1  = inGroupOffset + ((n * inChannel + c) * inHeight + h1) * inWidth + w1;
-
-	    int64_t kernelIndex = kernGroupOffset + ((k * inChannelGroup + c) * kernHeight + r) * kernWidth + s;
-
 	    __vr vri_h0w1 = _vel_vldu_vssl(4*inHeight*inWidth, &pIn[inputIndex_h0w1], vl) ;
 	    __vr vri_h1w1 = _vel_vldu_vssl(4*inHeight*inWidth, &pIn[inputIndex_h1w1], vl) ;
 
-	    __vr vrk0 = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+0*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrk1 = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+1*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrk2 = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+2*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrk3 = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+3*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrk4 = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+4*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrk5 = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+5*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrk6 = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+6*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrk7 = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+7*inChannelGroup*kernHeight*kernWidth], vl) ;
+	    const float *pKerValue = ( FLAYOUT == VEDNN_FILTER_LAYOUT_NCHW ) ?
+				      pKernel + kernGroupOffset + ((k * inChannelGroup + c) * kernHeight + r) * kernWidth + s :
+				      pKernel + kernGroupOffset + ( ( r * kernWidth + s ) * inChannelGroup + c ) * outChannelGroup + k ;
+
+	    const int64_t kernelDistance = ( FLAYOUT == VEDNN_FILTER_LAYOUT_NCHW ) ?
+					   inChannelGroup * kernHeight * kernWidth :
+					   1 ;
+
+	    const int64_t kernelStride = ( FLAYOUT == VEDNN_FILTER_LAYOUT_NCHW ) ?
+			                 kernHeight * kernWidth :
+					 outChannelGroup ;
+	    __vr vrk0 = _vel_vldu_vssl(4*kernelStride, pKerValue+0*kernelDistance, vl) ;
+	    __vr vrk1 = _vel_vldu_vssl(4*kernelStride, pKerValue+1*kernelDistance, vl) ;
+	    __vr vrk2 = _vel_vldu_vssl(4*kernelStride, pKerValue+2*kernelDistance, vl) ;
+	    __vr vrk3 = _vel_vldu_vssl(4*kernelStride, pKerValue+3*kernelDistance, vl) ;
+	    __vr vrk4 = _vel_vldu_vssl(4*kernelStride, pKerValue+4*kernelDistance, vl) ;
+	    __vr vrk5 = _vel_vldu_vssl(4*kernelStride, pKerValue+5*kernelDistance, vl) ;
+	    __vr vrk6 = _vel_vldu_vssl(4*kernelStride, pKerValue+6*kernelDistance, vl) ;
+	    __vr vrk7 = _vel_vldu_vssl(4*kernelStride, pKerValue+7*kernelDistance, vl) ;
 
 	    __vr vriP_h0w1  = _vel_vshf_vvvsl(vri_h0w1, vri_h0w1, VE_VSHUFFLE_YUZU, vl) ;
 	    __vr vriP_h1w1  = _vel_vshf_vvvsl(vri_h1w1, vri_h1w1, VE_VSHUFFLE_YUZU, vl) ;
@@ -963,20 +1075,28 @@ static inline void k8y2x2(
 	  if( w0_valid && w1_valid ) {
 	    int64_t inputIndex_h0w0  = inGroupOffset + ((n * inChannel + c) * inHeight + h0) * inWidth + w0;
 	    int64_t inputIndex_h0w1  = inGroupOffset + ((n * inChannel + c) * inHeight + h0) * inWidth + w1;
-
-	    int64_t kernelIndex = kernGroupOffset + ((k * inChannelGroup + c) * kernHeight + r) * kernWidth + s;
-
 	    __vr vri_h0w0 = _vel_vldu_vssl(4*inHeight*inWidth, &pIn[inputIndex_h0w0], vl) ;
 	    __vr vri_h0w1 = _vel_vldu_vssl(4*inHeight*inWidth, &pIn[inputIndex_h0w1], vl) ;
 
-	    __vr vrk0 = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+0*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrk1 = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+1*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrk2 = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+2*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrk3 = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+3*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrk4 = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+4*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrk5 = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+5*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrk6 = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+6*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrk7 = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+7*inChannelGroup*kernHeight*kernWidth], vl) ;
+	    const float *pKerValue = ( FLAYOUT == VEDNN_FILTER_LAYOUT_NCHW ) ?
+				      pKernel + kernGroupOffset + ((k * inChannelGroup + c) * kernHeight + r) * kernWidth + s :
+				      pKernel + kernGroupOffset + ( ( r * kernWidth + s ) * inChannelGroup + c ) * outChannelGroup + k ;
+
+	    const int64_t kernelDistance = ( FLAYOUT == VEDNN_FILTER_LAYOUT_NCHW ) ?
+					   inChannelGroup * kernHeight * kernWidth :
+					   1 ;
+
+	    const int64_t kernelStride = ( FLAYOUT == VEDNN_FILTER_LAYOUT_NCHW ) ?
+			                 kernHeight * kernWidth :
+					 outChannelGroup ;
+	    __vr vrk0 = _vel_vldu_vssl(4*kernelStride, pKerValue+0*kernelDistance, vl) ;
+	    __vr vrk1 = _vel_vldu_vssl(4*kernelStride, pKerValue+1*kernelDistance, vl) ;
+	    __vr vrk2 = _vel_vldu_vssl(4*kernelStride, pKerValue+2*kernelDistance, vl) ;
+	    __vr vrk3 = _vel_vldu_vssl(4*kernelStride, pKerValue+3*kernelDistance, vl) ;
+	    __vr vrk4 = _vel_vldu_vssl(4*kernelStride, pKerValue+4*kernelDistance, vl) ;
+	    __vr vrk5 = _vel_vldu_vssl(4*kernelStride, pKerValue+5*kernelDistance, vl) ;
+	    __vr vrk6 = _vel_vldu_vssl(4*kernelStride, pKerValue+6*kernelDistance, vl) ;
+	    __vr vrk7 = _vel_vldu_vssl(4*kernelStride, pKerValue+7*kernelDistance, vl) ;
 
 	    __vr vriP_h0w0  = _vel_vshf_vvvsl(vri_h0w0, vri_h0w0, VE_VSHUFFLE_YUZU, vl) ;
 	    __vr vriP_h0w1  = _vel_vshf_vvvsl(vri_h0w1, vri_h0w1, VE_VSHUFFLE_YUZU, vl) ;
@@ -999,19 +1119,27 @@ static inline void k8y2x2(
 	  }
 	  else if( w0_valid ) {
 	    int64_t inputIndex_h0w0  = inGroupOffset + ((n * inChannel + c) * inHeight + h0) * inWidth + w0;
-
-	    int64_t kernelIndex = kernGroupOffset + ((k * inChannelGroup + c) * kernHeight + r) * kernWidth + s;
-
 	    __vr vri_h0w0 = _vel_vldu_vssl(4*inHeight*inWidth, &pIn[inputIndex_h0w0], vl) ;
 
-	    __vr vrk0 = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+0*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrk1 = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+1*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrk2 = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+2*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrk3 = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+3*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrk4 = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+4*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrk5 = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+5*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrk6 = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+6*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrk7 = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+7*inChannelGroup*kernHeight*kernWidth], vl) ;
+	    const float *pKerValue = ( FLAYOUT == VEDNN_FILTER_LAYOUT_NCHW ) ?
+				      pKernel + kernGroupOffset + ((k * inChannelGroup + c) * kernHeight + r) * kernWidth + s :
+				      pKernel + kernGroupOffset + ( ( r * kernWidth + s ) * inChannelGroup + c ) * outChannelGroup + k ;
+
+	    const int64_t kernelDistance = ( FLAYOUT == VEDNN_FILTER_LAYOUT_NCHW ) ?
+					   inChannelGroup * kernHeight * kernWidth :
+					   1 ;
+
+	    const int64_t kernelStride = ( FLAYOUT == VEDNN_FILTER_LAYOUT_NCHW ) ?
+			                 kernHeight * kernWidth :
+					 outChannelGroup ;
+	    __vr vrk0 = _vel_vldu_vssl(4*kernelStride, pKerValue+0*kernelDistance, vl) ;
+	    __vr vrk1 = _vel_vldu_vssl(4*kernelStride, pKerValue+1*kernelDistance, vl) ;
+	    __vr vrk2 = _vel_vldu_vssl(4*kernelStride, pKerValue+2*kernelDistance, vl) ;
+	    __vr vrk3 = _vel_vldu_vssl(4*kernelStride, pKerValue+3*kernelDistance, vl) ;
+	    __vr vrk4 = _vel_vldu_vssl(4*kernelStride, pKerValue+4*kernelDistance, vl) ;
+	    __vr vrk5 = _vel_vldu_vssl(4*kernelStride, pKerValue+5*kernelDistance, vl) ;
+	    __vr vrk6 = _vel_vldu_vssl(4*kernelStride, pKerValue+6*kernelDistance, vl) ;
+	    __vr vrk7 = _vel_vldu_vssl(4*kernelStride, pKerValue+7*kernelDistance, vl) ;
 
 	    __vr vriP_h0w0  = _vel_vshf_vvvsl(vri_h0w0, vri_h0w0, VE_VSHUFFLE_YUZU, vl) ;
 
@@ -1029,19 +1157,27 @@ static inline void k8y2x2(
 	  }
 	  else if( w1_valid ) {
 	    int64_t inputIndex_h0w1  = inGroupOffset + ((n * inChannel + c) * inHeight + h0) * inWidth + w1;
-
-	    int64_t kernelIndex = kernGroupOffset + ((k * inChannelGroup + c) * kernHeight + r) * kernWidth + s;
-
 	    __vr vri_h0w1 = _vel_vldu_vssl(4*inHeight*inWidth, &pIn[inputIndex_h0w1], vl) ;
 
-	    __vr vrk0 = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+0*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrk1 = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+1*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrk2 = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+2*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrk3 = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+3*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrk4 = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+4*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrk5 = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+5*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrk6 = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+6*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrk7 = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+7*inChannelGroup*kernHeight*kernWidth], vl) ;
+	    const float *pKerValue = ( FLAYOUT == VEDNN_FILTER_LAYOUT_NCHW ) ?
+				      pKernel + kernGroupOffset + ((k * inChannelGroup + c) * kernHeight + r) * kernWidth + s :
+				      pKernel + kernGroupOffset + ( ( r * kernWidth + s ) * inChannelGroup + c ) * outChannelGroup + k ;
+
+	    const int64_t kernelDistance = ( FLAYOUT == VEDNN_FILTER_LAYOUT_NCHW ) ?
+					   inChannelGroup * kernHeight * kernWidth :
+					   1 ;
+
+	    const int64_t kernelStride = ( FLAYOUT == VEDNN_FILTER_LAYOUT_NCHW ) ?
+			                 kernHeight * kernWidth :
+					 outChannelGroup ;
+	    __vr vrk0 = _vel_vldu_vssl(4*kernelStride, pKerValue+0*kernelDistance, vl) ;
+	    __vr vrk1 = _vel_vldu_vssl(4*kernelStride, pKerValue+1*kernelDistance, vl) ;
+	    __vr vrk2 = _vel_vldu_vssl(4*kernelStride, pKerValue+2*kernelDistance, vl) ;
+	    __vr vrk3 = _vel_vldu_vssl(4*kernelStride, pKerValue+3*kernelDistance, vl) ;
+	    __vr vrk4 = _vel_vldu_vssl(4*kernelStride, pKerValue+4*kernelDistance, vl) ;
+	    __vr vrk5 = _vel_vldu_vssl(4*kernelStride, pKerValue+5*kernelDistance, vl) ;
+	    __vr vrk6 = _vel_vldu_vssl(4*kernelStride, pKerValue+6*kernelDistance, vl) ;
+	    __vr vrk7 = _vel_vldu_vssl(4*kernelStride, pKerValue+7*kernelDistance, vl) ;
 
 	    __vr vriP_h0w1  = _vel_vshf_vvvsl(vri_h0w1, vri_h0w1, VE_VSHUFFLE_YUZU, vl) ;
 
@@ -1070,20 +1206,28 @@ static inline void k8y2x2(
 	  if( w0_valid && w1_valid ) {
 	    int64_t inputIndex_h1w0  = inGroupOffset + ((n * inChannel + c) * inHeight + h1) * inWidth + w0;
 	    int64_t inputIndex_h1w1  = inGroupOffset + ((n * inChannel + c) * inHeight + h1) * inWidth + w1;
-
-	    int64_t kernelIndex = kernGroupOffset + ((k * inChannelGroup + c) * kernHeight + r) * kernWidth + s;
-
 	    __vr vri_h1w0 = _vel_vldu_vssl(4*inHeight*inWidth, &pIn[inputIndex_h1w0], vl) ;
 	    __vr vri_h1w1 = _vel_vldu_vssl(4*inHeight*inWidth, &pIn[inputIndex_h1w1], vl) ;
 
-	    __vr vrk0 = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+0*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrk1 = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+1*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrk2 = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+2*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrk3 = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+3*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrk4 = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+4*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrk5 = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+5*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrk6 = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+6*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrk7 = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+7*inChannelGroup*kernHeight*kernWidth], vl) ;
+	    const float *pKerValue = ( FLAYOUT == VEDNN_FILTER_LAYOUT_NCHW ) ?
+				      pKernel + kernGroupOffset + ((k * inChannelGroup + c) * kernHeight + r) * kernWidth + s :
+				      pKernel + kernGroupOffset + ( ( r * kernWidth + s ) * inChannelGroup + c ) * outChannelGroup + k ;
+
+	    const int64_t kernelDistance = ( FLAYOUT == VEDNN_FILTER_LAYOUT_NCHW ) ?
+					   inChannelGroup * kernHeight * kernWidth :
+					   1 ;
+
+	    const int64_t kernelStride = ( FLAYOUT == VEDNN_FILTER_LAYOUT_NCHW ) ?
+			                 kernHeight * kernWidth :
+					 outChannelGroup ;
+	    __vr vrk0 = _vel_vldu_vssl(4*kernelStride, pKerValue+0*kernelDistance, vl) ;
+	    __vr vrk1 = _vel_vldu_vssl(4*kernelStride, pKerValue+1*kernelDistance, vl) ;
+	    __vr vrk2 = _vel_vldu_vssl(4*kernelStride, pKerValue+2*kernelDistance, vl) ;
+	    __vr vrk3 = _vel_vldu_vssl(4*kernelStride, pKerValue+3*kernelDistance, vl) ;
+	    __vr vrk4 = _vel_vldu_vssl(4*kernelStride, pKerValue+4*kernelDistance, vl) ;
+	    __vr vrk5 = _vel_vldu_vssl(4*kernelStride, pKerValue+5*kernelDistance, vl) ;
+	    __vr vrk6 = _vel_vldu_vssl(4*kernelStride, pKerValue+6*kernelDistance, vl) ;
+	    __vr vrk7 = _vel_vldu_vssl(4*kernelStride, pKerValue+7*kernelDistance, vl) ;
 
 	    __vr vriP_h1w0  = _vel_vshf_vvvsl(vri_h1w0, vri_h1w0, VE_VSHUFFLE_YUZU, vl) ;
 	    __vr vriP_h1w1  = _vel_vshf_vvvsl(vri_h1w1, vri_h1w1, VE_VSHUFFLE_YUZU, vl) ;
@@ -1106,19 +1250,27 @@ static inline void k8y2x2(
 	  }
 	  else if( w0_valid ) {
 	    int64_t inputIndex_h1w0  = inGroupOffset + ((n * inChannel + c) * inHeight + h1) * inWidth + w0;
-
-	    int64_t kernelIndex = kernGroupOffset + ((k * inChannelGroup + c) * kernHeight + r) * kernWidth + s;
-
 	    __vr vri_h1w0 = _vel_vldu_vssl(4*inHeight*inWidth, &pIn[inputIndex_h1w0], vl) ;
 
-	    __vr vrk0 = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+0*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrk1 = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+1*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrk2 = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+2*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrk3 = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+3*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrk4 = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+4*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrk5 = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+5*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrk6 = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+6*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrk7 = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+7*inChannelGroup*kernHeight*kernWidth], vl) ;
+	    const float *pKerValue = ( FLAYOUT == VEDNN_FILTER_LAYOUT_NCHW ) ?
+				      pKernel + kernGroupOffset + ((k * inChannelGroup + c) * kernHeight + r) * kernWidth + s :
+				      pKernel + kernGroupOffset + ( ( r * kernWidth + s ) * inChannelGroup + c ) * outChannelGroup + k ;
+
+	    const int64_t kernelDistance = ( FLAYOUT == VEDNN_FILTER_LAYOUT_NCHW ) ?
+					   inChannelGroup * kernHeight * kernWidth :
+					   1 ;
+
+	    const int64_t kernelStride = ( FLAYOUT == VEDNN_FILTER_LAYOUT_NCHW ) ?
+			                 kernHeight * kernWidth :
+					 outChannelGroup ;
+	    __vr vrk0 = _vel_vldu_vssl(4*kernelStride, pKerValue+0*kernelDistance, vl) ;
+	    __vr vrk1 = _vel_vldu_vssl(4*kernelStride, pKerValue+1*kernelDistance, vl) ;
+	    __vr vrk2 = _vel_vldu_vssl(4*kernelStride, pKerValue+2*kernelDistance, vl) ;
+	    __vr vrk3 = _vel_vldu_vssl(4*kernelStride, pKerValue+3*kernelDistance, vl) ;
+	    __vr vrk4 = _vel_vldu_vssl(4*kernelStride, pKerValue+4*kernelDistance, vl) ;
+	    __vr vrk5 = _vel_vldu_vssl(4*kernelStride, pKerValue+5*kernelDistance, vl) ;
+	    __vr vrk6 = _vel_vldu_vssl(4*kernelStride, pKerValue+6*kernelDistance, vl) ;
+	    __vr vrk7 = _vel_vldu_vssl(4*kernelStride, pKerValue+7*kernelDistance, vl) ;
 
 	    __vr vriP_h1w0  = _vel_vshf_vvvsl(vri_h1w0, vri_h1w0, VE_VSHUFFLE_YUZU, vl) ;
 
@@ -1136,19 +1288,27 @@ static inline void k8y2x2(
 	  }
 	  else if( w1_valid ) {
 	    int64_t inputIndex_h1w1  = inGroupOffset + ((n * inChannel + c) * inHeight + h1) * inWidth + w1;
-
-	    int64_t kernelIndex = kernGroupOffset + ((k * inChannelGroup + c) * kernHeight + r) * kernWidth + s;
-
 	    __vr vri_h1w1 = _vel_vldu_vssl(4*inHeight*inWidth, &pIn[inputIndex_h1w1], vl) ;
 
-	    __vr vrk0 = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+0*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrk1 = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+1*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrk2 = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+2*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrk3 = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+3*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrk4 = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+4*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrk5 = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+5*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrk6 = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+6*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrk7 = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+7*inChannelGroup*kernHeight*kernWidth], vl) ;
+	    const float *pKerValue = ( FLAYOUT == VEDNN_FILTER_LAYOUT_NCHW ) ?
+				      pKernel + kernGroupOffset + ((k * inChannelGroup + c) * kernHeight + r) * kernWidth + s :
+				      pKernel + kernGroupOffset + ( ( r * kernWidth + s ) * inChannelGroup + c ) * outChannelGroup + k ;
+
+	    const int64_t kernelDistance = ( FLAYOUT == VEDNN_FILTER_LAYOUT_NCHW ) ?
+					   inChannelGroup * kernHeight * kernWidth :
+					   1 ;
+
+	    const int64_t kernelStride = ( FLAYOUT == VEDNN_FILTER_LAYOUT_NCHW ) ?
+			                 kernHeight * kernWidth :
+					 outChannelGroup ;
+	    __vr vrk0 = _vel_vldu_vssl(4*kernelStride, pKerValue+0*kernelDistance, vl) ;
+	    __vr vrk1 = _vel_vldu_vssl(4*kernelStride, pKerValue+1*kernelDistance, vl) ;
+	    __vr vrk2 = _vel_vldu_vssl(4*kernelStride, pKerValue+2*kernelDistance, vl) ;
+	    __vr vrk3 = _vel_vldu_vssl(4*kernelStride, pKerValue+3*kernelDistance, vl) ;
+	    __vr vrk4 = _vel_vldu_vssl(4*kernelStride, pKerValue+4*kernelDistance, vl) ;
+	    __vr vrk5 = _vel_vldu_vssl(4*kernelStride, pKerValue+5*kernelDistance, vl) ;
+	    __vr vrk6 = _vel_vldu_vssl(4*kernelStride, pKerValue+6*kernelDistance, vl) ;
+	    __vr vrk7 = _vel_vldu_vssl(4*kernelStride, pKerValue+7*kernelDistance, vl) ;
 
 	    __vr vriP_h1w1  = _vel_vshf_vvvsl(vri_h1w1, vri_h1w1, VE_VSHUFFLE_YUZU, vl) ;
 
@@ -1247,10 +1407,11 @@ static inline void k8y2x2(
   }
 }
 
+template<filterLayout_t FLAYOUT>
 static inline void k16y1x1(
-    const float * restrict pIn,
-    const float * restrict pKernel,
-    float * restrict const pOut,
+    const float * __restrict__ pIn,
+    const float * __restrict__ pKernel,
+    float * __restrict__ const pOut,
     const int64_t inChannel,
     const int64_t inWidth,
     const int64_t inHeight,
@@ -1394,10 +1555,11 @@ static inline void k16y1x1(
   }
 }
 
+template<filterLayout_t FLAYOUT>
 static inline void k16y1x2(
-    const float * restrict pIn,
-    const float * restrict pKernel,
-    float * restrict const pOut,
+    const float * __restrict__ pIn,
+    const float * __restrict__ pKernel,
+    float * __restrict__ const pOut,
     const int64_t inChannel,
     const int64_t inWidth,
     const int64_t inHeight,
@@ -1704,11 +1866,11 @@ static inline void k16y1x2(
   }
 }
 
-
+template<filterLayout_t FLAYOUT>
 static inline void k16y2x1(
-    const float * restrict pIn,
-    const float * restrict pKernel,
-    float * restrict const pOut,
+    const float * __restrict__ pIn,
+    const float * __restrict__ pKernel,
+    float * __restrict__ const pOut,
     const int64_t inChannel,
     const int64_t inWidth,
     const int64_t inHeight,
@@ -2031,10 +2193,11 @@ static inline void k16y2x1(
   }
 }
 
+template<filterLayout_t FLAYOUT>
 static inline void k16y2x2(
-    const float * restrict pIn,
-    const float * restrict pKernel,
-    float * restrict const pOut,
+    const float * __restrict__ pIn,
+    const float * __restrict__ pKernel,
+    float * __restrict__ const pOut,
     const int64_t inChannel,
     const int64_t inWidth,
     const int64_t inHeight,
@@ -2815,16 +2978,218 @@ static inline void k16y2x2(
   }
 }
 
+template<filterLayout_t FLAYOUT>
+static inline void convloop(
+    const float * __restrict__ pIn,
+    const float * __restrict__ pKernel,
+    float * __restrict__ const pOut,
+    const int64_t batch,
+    const int64_t group,
+    const int64_t inChannel,
+    const int64_t inWidth,
+    const int64_t inHeight,
+    const int64_t outChannel,
+    const int64_t outWidth,
+    const int64_t outHeight,
+    const int64_t kernWidth,
+    const int64_t kernHeight,
+    const int64_t inChannelGroup,
+    const int64_t outChannelGroup,
+    const int64_t strideHeight,
+    const int64_t strideWidth,
+    const int64_t padHeight,
+    const int64_t padWidth,
+    const int64_t dilationHeight,
+    const int64_t dilationWidth
+)
+{
+  for (int64_t n=0; n<batch; n++) {
+    for (int64_t g = 0; g < group; g++) {
+	int64_t inGroupOffset   = g * inChannelGroup  * inHeight  * inWidth;
+	int64_t outGroupOffset  = g * outChannelGroup * outHeight * outWidth;
+	int64_t kernGroupOffset = g * outChannelGroup * inChannelGroup * kernHeight * kernWidth;
 
-vednnError_t
+	int64_t k=0 ;
+	if( (outChannelGroup & 0x01) == 1 ) {
+	  k1<FLAYOUT>(pIn, pKernel, pOut,
+	     inChannel, inWidth, inHeight,
+	     outChannel, outWidth, outHeight,
+	     kernWidth, kernHeight,
+	     inChannelGroup, outChannelGroup,
+	     strideHeight, strideWidth,
+	     padHeight, padWidth,
+	     dilationHeight, dilationWidth,
+	     inGroupOffset, outGroupOffset, kernGroupOffset,
+	     n, k) ;
+	  k+=1 ;
+	}
+	if( ((outChannelGroup >> 1) & 0x01) == 1 ) {
+	  k2<FLAYOUT>(pIn, pKernel, pOut,
+	     inChannel, inWidth, inHeight,
+	     outChannel, outWidth, outHeight,
+	     kernWidth, kernHeight,
+	     inChannelGroup, outChannelGroup,
+	     strideHeight, strideWidth,
+	     padHeight, padWidth,
+	     dilationHeight, dilationWidth,
+	     inGroupOffset, outGroupOffset, kernGroupOffset,
+	     n, k) ;
+	  k+=2 ;
+	}
+	if( ((outChannelGroup >> 2) & 0x01) == 1 ) {
+	  k4<FLAYOUT>(pIn, pKernel, pOut,
+	     inChannel, inWidth, inHeight,
+	     outChannel, outWidth, outHeight,
+	     kernWidth, kernHeight,
+	     inChannelGroup, outChannelGroup,
+	     strideHeight, strideWidth,
+	     padHeight, padWidth,
+	     dilationHeight, dilationWidth,
+	     inGroupOffset, outGroupOffset, kernGroupOffset,
+	     n, k) ;
+	  k+=4 ;
+	}
+	if( ((outChannelGroup >> 3) & 0x01) == 1 ) {
+	  int64_t y=0 ;
+	  if( (outHeight & 0x01) == 1 ) {
+	    int64_t x=0;
+	    if( (outWidth & 0x01) == 1 ) {
+	      k8y1x1<FLAYOUT>(pIn, pKernel, pOut,
+		 inChannel, inWidth, inHeight,
+		 outChannel, outWidth, outHeight,
+		 kernWidth, kernHeight,
+		 inChannelGroup, outChannelGroup,
+		 strideHeight, strideWidth,
+		 padHeight, padWidth,
+		 dilationHeight, dilationWidth,
+		 inGroupOffset, outGroupOffset, kernGroupOffset,
+		 n, k, y, x) ;
+	      x+=1 ;
+	    }
+	    for (; x<outWidth; ) {
+	      k8y1x2<FLAYOUT>(pIn, pKernel, pOut,
+		 inChannel, inWidth, inHeight,
+		 outChannel, outWidth, outHeight,
+		 kernWidth, kernHeight,
+		 inChannelGroup, outChannelGroup,
+		 strideHeight, strideWidth,
+		 padHeight, padWidth,
+		 dilationHeight, dilationWidth,
+		 inGroupOffset, outGroupOffset, kernGroupOffset,
+		 n, k, y, x) ;
+	      x+=2 ;
+	    } // outWidth
+	    y+=1 ;
+	  }
+	  for (; y<outHeight; ) {
+	    int64_t x=0;
+	    if( (outWidth & 0x01) == 1 ) {
+	      k8y2x1<FLAYOUT>(pIn, pKernel, pOut,
+		 inChannel, inWidth, inHeight,
+		 outChannel, outWidth, outHeight,
+		 kernWidth, kernHeight,
+		 inChannelGroup, outChannelGroup,
+		 strideHeight, strideWidth,
+		 padHeight, padWidth,
+		 dilationHeight, dilationWidth,
+		 inGroupOffset, outGroupOffset, kernGroupOffset,
+		 n, k, y, x) ;
+	      x+=1 ;
+	    }
+	    for (; x<outWidth; ) {
+	      k8y2x2<FLAYOUT>(pIn, pKernel, pOut,
+		 inChannel, inWidth, inHeight,
+		 outChannel, outWidth, outHeight,
+		 kernWidth, kernHeight,
+		 inChannelGroup, outChannelGroup,
+		 strideHeight, strideWidth,
+		 padHeight, padWidth,
+		 dilationHeight, dilationWidth,
+		 inGroupOffset, outGroupOffset, kernGroupOffset,
+		 n, k, y, x) ;
+	      x+=2 ;
+	    } // outWidth
+	    y+=2 ;
+	  } // outHeight
+	  k+=8 ;
+	}
+	for (; k<outChannelGroup; ) {
+	  int64_t y=0 ;
+	  if( (outHeight & 0x01) == 1 ) {
+	    int64_t x=0;
+	    if( (outWidth & 0x01) == 1 ) {
+	      k16y1x1<FLAYOUT>(pIn, pKernel, pOut,
+		 inChannel, inWidth, inHeight,
+		 outChannel, outWidth, outHeight,
+		 kernWidth, kernHeight,
+		 inChannelGroup, outChannelGroup,
+		 strideHeight, strideWidth,
+		 padHeight, padWidth,
+		 dilationHeight, dilationWidth,
+		 inGroupOffset, outGroupOffset, kernGroupOffset,
+		 n, k, y, x) ;
+	      x+=1 ;
+	    }
+	    for (; x<outWidth; ) {
+	      k16y1x2<FLAYOUT>(pIn, pKernel, pOut,
+		 inChannel, inWidth, inHeight,
+		 outChannel, outWidth, outHeight,
+		 kernWidth, kernHeight,
+		 inChannelGroup, outChannelGroup,
+		 strideHeight, strideWidth,
+		 padHeight, padWidth,
+		 dilationHeight, dilationWidth,
+		 inGroupOffset, outGroupOffset, kernGroupOffset,
+		 n, k, y, x) ;
+	      x+=2 ;
+	    } // outWidth
+	    y+=1 ;
+	  }
+	  for (; y<outHeight; ) {
+	    int64_t x=0;
+	    if( (outWidth & 0x01) == 1 ) {
+	      k16y2x1<FLAYOUT>(pIn, pKernel, pOut,
+		 inChannel, inWidth, inHeight,
+		 outChannel, outWidth, outHeight,
+		 kernWidth, kernHeight,
+		 inChannelGroup, outChannelGroup,
+		 strideHeight, strideWidth,
+		 padHeight, padWidth,
+		 dilationHeight, dilationWidth,
+		 inGroupOffset, outGroupOffset, kernGroupOffset,
+		 n, k, y, x) ;
+	      x+=1 ;
+	    }
+	    for (; x<outWidth; ) {
+	      k16y2x2<FLAYOUT>(pIn, pKernel, pOut,
+		 inChannel, inWidth, inHeight,
+		 outChannel, outWidth, outHeight,
+		 kernWidth, kernHeight,
+		 inChannelGroup, outChannelGroup,
+		 strideHeight, strideWidth,
+		 padHeight, padWidth,
+		 dilationHeight, dilationWidth,
+		 inGroupOffset, outGroupOffset, kernGroupOffset,
+		 n, k, y, x) ;
+	      x+=2 ;
+	    } // outWidth
+	    y+=2 ;
+	  } // outHeight
+	  k+=16 ;
+	} // outChannel
+    } // group
+  } // batch
+}
+
+extern "C" vednnError_t
 vednnConvolutionForward_direct_vecC(
-    const vednnTensorParam_t * restrict 	pParamIn,
-    const void * restrict 			pDataIn,
-    const vednnFilterParam_t * restrict 	pParamKernel,
-    const void * restrict 			pDataKernel,
-    const vednnConvolutionParam_t * restrict 	pParamConv,
-    const vednnTensorParam_t * restrict 	pParamOut,
-    void * restrict 				pDataOut
+    const vednnTensorParam_t *  	pParamIn,
+    const void *  			pDataIn,
+    const vednnFilterParam_t *  	pParamKernel,
+    const void *  			pDataKernel,
+    const vednnConvolutionParam_t *  	pParamConv,
+    const vednnTensorParam_t *  	pParamOut,
+    void *  				pDataOut
 )
 {
   const int64_t batch      = pParamIn->batch;
@@ -2837,6 +3202,8 @@ vednnConvolutionForward_direct_vecC(
   const int64_t kernWidth  = pParamKernel->width;
   const int64_t kernHeight = pParamKernel->height;
 
+  const int64_t filter_layout = pParamKernel->layout ;
+
   const int64_t group          = pParamConv->group;
   const int64_t strideWidth    = pParamConv->strideWidth;;
   const int64_t strideHeight   = pParamConv->strideHeight;
@@ -2848,186 +3215,33 @@ vednnConvolutionForward_direct_vecC(
   const int64_t inChannelGroup  = inChannel  / group;   // equal to pDataKernel->inChannel
   const int64_t outChannelGroup = outChannel / group;   // equal to pDataKernel->outChannel
 
-  const float * restrict pIn     = pDataIn;
-  const float * restrict pKernel = pDataKernel;
-  float * restrict const pOut    = pDataOut;
+  const float * pIn     = (const float *) pDataIn;
+  const float * pKernel = (const float *) pDataKernel;
+  float * const pOut    = (float * const) pDataOut;
 
-  for (int64_t n=0; n<batch; n++) {
-    for (int64_t g = 0; g < group; g++) {
-      int64_t inGroupOffset   = g * inChannelGroup  * inHeight  * inWidth;
-      int64_t outGroupOffset  = g * outChannelGroup * outHeight * outWidth;
-      int64_t kernGroupOffset = g * outChannelGroup * inChannelGroup * kernHeight * kernWidth;
+  if( filter_layout == VEDNN_FILTER_LAYOUT_NCHW) {
+    convloop<VEDNN_FILTER_LAYOUT_NCHW>(pIn, pKernel, pOut,
+	         batch, group,
+    		 inChannel, inWidth, inHeight,
+    		 outChannel, outWidth, outHeight,
+    		 kernWidth, kernHeight,
+    		 inChannelGroup, outChannelGroup,
+    		 strideHeight, strideWidth,
+    		 padHeight, padWidth,
+    		 dilationHeight, dilationWidth ) ;
+  }
+  else {
+    convloop<VEDNN_FILTER_LAYOUT_HWCN>(pIn, pKernel, pOut,
+	         batch, group,
+    		 inChannel, inWidth, inHeight,
+    		 outChannel, outWidth, outHeight,
+    		 kernWidth, kernHeight,
+    		 inChannelGroup, outChannelGroup,
+    		 strideHeight, strideWidth,
+    		 padHeight, padWidth,
+    		 dilationHeight, dilationWidth ) ;
+  }
 
-      int64_t k=0 ;
-      if( (outChannelGroup & 0x01) == 1 ) {
-	k1(pIn, pKernel, pOut,
-	   inChannel, inWidth, inHeight,
-	   outChannel, outWidth, outHeight,
-	   kernWidth, kernHeight,
-	   inChannelGroup, outChannelGroup,
-	   strideHeight, strideWidth,
-	   padHeight, padWidth,
-	   dilationHeight, dilationWidth,
-	   inGroupOffset, outGroupOffset, kernGroupOffset,
-	   n, k) ;
-	k+=1 ;
-      }
-      if( ((outChannelGroup >> 1) & 0x01) == 1 ) {
-	k2(pIn, pKernel, pOut,
-	   inChannel, inWidth, inHeight,
-	   outChannel, outWidth, outHeight,
-	   kernWidth, kernHeight,
-	   inChannelGroup, outChannelGroup,
-	   strideHeight, strideWidth,
-	   padHeight, padWidth,
-	   dilationHeight, dilationWidth,
-	   inGroupOffset, outGroupOffset, kernGroupOffset,
-	   n, k) ;
-	k+=2 ;
-      }
-      if( ((outChannelGroup >> 2) & 0x01) == 1 ) {
-	k4(pIn, pKernel, pOut,
-	   inChannel, inWidth, inHeight,
-	   outChannel, outWidth, outHeight,
-	   kernWidth, kernHeight,
-	   inChannelGroup, outChannelGroup,
-	   strideHeight, strideWidth,
-	   padHeight, padWidth,
-	   dilationHeight, dilationWidth,
-	   inGroupOffset, outGroupOffset, kernGroupOffset,
-	   n, k) ;
-	k+=4 ;
-      }
-      if( ((outChannelGroup >> 3) & 0x01) == 1 ) {
-	int64_t y=0 ;
-	if( (outHeight & 0x01) == 1 ) {
-	  int64_t x=0;
-	  if( (outWidth & 0x01) == 1 ) {
-	    k8y1x1(pIn, pKernel, pOut,
-	       inChannel, inWidth, inHeight,
-	       outChannel, outWidth, outHeight,
-	       kernWidth, kernHeight,
-	       inChannelGroup, outChannelGroup,
-	       strideHeight, strideWidth,
-	       padHeight, padWidth,
-	       dilationHeight, dilationWidth,
-	       inGroupOffset, outGroupOffset, kernGroupOffset,
-	       n, k, y, x) ;
-	    x+=1 ;
-	  }
-	  for (; x<outWidth; ) {
-	    k8y1x2(pIn, pKernel, pOut,
-	       inChannel, inWidth, inHeight,
-	       outChannel, outWidth, outHeight,
-	       kernWidth, kernHeight,
-	       inChannelGroup, outChannelGroup,
-	       strideHeight, strideWidth,
-	       padHeight, padWidth,
-	       dilationHeight, dilationWidth,
-	       inGroupOffset, outGroupOffset, kernGroupOffset,
-	       n, k, y, x) ;
-	    x+=2 ;
-	  } // outWidth
-	  y+=1 ;
-	}
-	for (; y<outHeight; ) {
-	  int64_t x=0;
-	  if( (outWidth & 0x01) == 1 ) {
-	    k8y2x1(pIn, pKernel, pOut,
-	       inChannel, inWidth, inHeight,
-	       outChannel, outWidth, outHeight,
-	       kernWidth, kernHeight,
-	       inChannelGroup, outChannelGroup,
-	       strideHeight, strideWidth,
-	       padHeight, padWidth,
-	       dilationHeight, dilationWidth,
-	       inGroupOffset, outGroupOffset, kernGroupOffset,
-	       n, k, y, x) ;
-	    x+=1 ;
-	  }
-	  for (; x<outWidth; ) {
-	    k8y2x2(pIn, pKernel, pOut,
-	       inChannel, inWidth, inHeight,
-	       outChannel, outWidth, outHeight,
-	       kernWidth, kernHeight,
-	       inChannelGroup, outChannelGroup,
-	       strideHeight, strideWidth,
-	       padHeight, padWidth,
-	       dilationHeight, dilationWidth,
-	       inGroupOffset, outGroupOffset, kernGroupOffset,
-	       n, k, y, x) ;
-	    x+=2 ;
-	  } // outWidth
-	  y+=2 ;
-	} // outHeight
-	k+=8 ;
-      }
-      for (; k<outChannelGroup; ) {
-	int64_t y=0 ;
-	if( (outHeight & 0x01) == 1 ) {
-	  int64_t x=0;
-	  if( (outWidth & 0x01) == 1 ) {
-	    k16y1x1(pIn, pKernel, pOut,
-	       inChannel, inWidth, inHeight,
-	       outChannel, outWidth, outHeight,
-	       kernWidth, kernHeight,
-	       inChannelGroup, outChannelGroup,
-	       strideHeight, strideWidth,
-	       padHeight, padWidth,
-	       dilationHeight, dilationWidth,
-	       inGroupOffset, outGroupOffset, kernGroupOffset,
-	       n, k, y, x) ;
-	    x+=1 ;
-	  }
-	  for (; x<outWidth; ) {
-	    k16y1x2(pIn, pKernel, pOut,
-	       inChannel, inWidth, inHeight,
-	       outChannel, outWidth, outHeight,
-	       kernWidth, kernHeight,
-	       inChannelGroup, outChannelGroup,
-	       strideHeight, strideWidth,
-	       padHeight, padWidth,
-	       dilationHeight, dilationWidth,
-	       inGroupOffset, outGroupOffset, kernGroupOffset,
-	       n, k, y, x) ;
-	    x+=2 ;
-	  } // outWidth
-	  y+=1 ;
-	}
-	for (; y<outHeight; ) {
-	  int64_t x=0;
-	  if( (outWidth & 0x01) == 1 ) {
-	    k16y2x1(pIn, pKernel, pOut,
-	       inChannel, inWidth, inHeight,
-	       outChannel, outWidth, outHeight,
-	       kernWidth, kernHeight,
-	       inChannelGroup, outChannelGroup,
-	       strideHeight, strideWidth,
-	       padHeight, padWidth,
-	       dilationHeight, dilationWidth,
-	       inGroupOffset, outGroupOffset, kernGroupOffset,
-	       n, k, y, x) ;
-	    x+=1 ;
-	  }
-	  for (; x<outWidth; ) {
-	    k16y2x2(pIn, pKernel, pOut,
-	       inChannel, inWidth, inHeight,
-	       outChannel, outWidth, outHeight,
-	       kernWidth, kernHeight,
-	       inChannelGroup, outChannelGroup,
-	       strideHeight, strideWidth,
-	       padHeight, padWidth,
-	       dilationHeight, dilationWidth,
-	       inGroupOffset, outGroupOffset, kernGroupOffset,
-	       n, k, y, x) ;
-	    x+=2 ;
-	  } // outWidth
-	  y+=2 ;
-	} // outHeight
-	k+=16 ;
-      } // outChannel
-    } // group
-  } // batch
 
   return VEDNN_SUCCESS;
 }

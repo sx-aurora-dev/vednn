@@ -47,12 +47,18 @@ typedef struct {
     int		channel;
 } vednnBiasParam_t;
 
+typedef enum {
+  VEDNN_FILTER_LAYOUT_NCHW = 0,
+  VEDNN_FILTER_LAYOUT_HWCN = 1	// support group=1 only
+} filterLayout_t;
+
 typedef struct {
-    dataType_t	dtype;
-    int		inChannel;	// inChannel / group
-    int		outChannel;	// outChannel / group
-    int		width;
-    int		height;
+    dataType_t		dtype;
+    filterLayout_t	layout;
+    int			inChannel;	// inChannel / group
+    int			outChannel;	// outChannel / group
+    int			width;
+    int			height;
 } vednnFilterParam_t;
 
 typedef struct {
