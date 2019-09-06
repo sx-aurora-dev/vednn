@@ -1470,22 +1470,33 @@ static inline void k16y1x1(
 
 	    __vr vri_h0w0 = _vel_vldu_vssl(4*inHeight*inWidth, &pIn[inputIndex_h0w0], vl) ;
 
-	    __vr vrk0 = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+0*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrk1 = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+1*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrk2 = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+2*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrk3 = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+3*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrk4 = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+4*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrk5 = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+5*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrk6 = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+6*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrk7 = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+7*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrk8 = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+8*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrk9 = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+9*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrkA = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+10*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrkB = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+11*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrkC = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+12*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrkD = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+13*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrkE = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+14*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrkF = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+15*inChannelGroup*kernHeight*kernWidth], vl) ;
+	    const float *pKerValue = ( FLAYOUT == VEDNN_FILTER_LAYOUT_NCHW ) ?
+				      pKernel + kernGroupOffset + ((k * inChannelGroup + c) * kernHeight + r) * kernWidth + s :
+				      pKernel + kernGroupOffset + ( ( r * kernWidth + s ) * inChannelGroup + c ) * outChannelGroup + k ;
+
+	    const int64_t kernelDistance = ( FLAYOUT == VEDNN_FILTER_LAYOUT_NCHW ) ?
+					   inChannelGroup * kernHeight * kernWidth :
+					   1 ;
+
+	    const int64_t kernelStride = ( FLAYOUT == VEDNN_FILTER_LAYOUT_NCHW ) ?
+			                 kernHeight * kernWidth :
+					 outChannelGroup ;
+	    __vr vrk0 = _vel_vldu_vssl(4*kernelStride, pKerValue+0*kernelDistance, vl) ;
+	    __vr vrk1 = _vel_vldu_vssl(4*kernelStride, pKerValue+1*kernelDistance, vl) ;
+	    __vr vrk2 = _vel_vldu_vssl(4*kernelStride, pKerValue+2*kernelDistance, vl) ;
+	    __vr vrk3 = _vel_vldu_vssl(4*kernelStride, pKerValue+3*kernelDistance, vl) ;
+	    __vr vrk4 = _vel_vldu_vssl(4*kernelStride, pKerValue+4*kernelDistance, vl) ;
+	    __vr vrk5 = _vel_vldu_vssl(4*kernelStride, pKerValue+5*kernelDistance, vl) ;
+	    __vr vrk6 = _vel_vldu_vssl(4*kernelStride, pKerValue+6*kernelDistance, vl) ;
+	    __vr vrk7 = _vel_vldu_vssl(4*kernelStride, pKerValue+7*kernelDistance, vl) ;
+	    __vr vrk8 = _vel_vldu_vssl(4*kernelStride, pKerValue+8*kernelDistance, vl) ;
+	    __vr vrk9 = _vel_vldu_vssl(4*kernelStride, pKerValue+9*kernelDistance, vl) ;
+	    __vr vrkA = _vel_vldu_vssl(4*kernelStride, pKerValue+10*kernelDistance, vl) ;
+	    __vr vrkB = _vel_vldu_vssl(4*kernelStride, pKerValue+11*kernelDistance, vl) ;
+	    __vr vrkC = _vel_vldu_vssl(4*kernelStride, pKerValue+12*kernelDistance, vl) ;
+	    __vr vrkD = _vel_vldu_vssl(4*kernelStride, pKerValue+13*kernelDistance, vl) ;
+	    __vr vrkE = _vel_vldu_vssl(4*kernelStride, pKerValue+14*kernelDistance, vl) ;
+	    __vr vrkF = _vel_vldu_vssl(4*kernelStride, pKerValue+15*kernelDistance, vl) ;
 
 	    __vr vriP_h0w0  = _vel_vshf_vvvsl(vri_h0w0, vri_h0w0, VE_VSHUFFLE_YUZU, vl) ;
 
@@ -1637,22 +1648,33 @@ static inline void k16y1x2(
 	    __vr vri_h0w0 = _vel_vldu_vssl(4*inHeight*inWidth, &pIn[inputIndex_h0w0], vl) ;
 	    __vr vri_h0w1 = _vel_vldu_vssl(4*inHeight*inWidth, &pIn[inputIndex_h0w1], vl) ;
 
-	    __vr vrk0 = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+0*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrk1 = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+1*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrk2 = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+2*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrk3 = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+3*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrk4 = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+4*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrk5 = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+5*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrk6 = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+6*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrk7 = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+7*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrk8 = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+8*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrk9 = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+9*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrkA = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+10*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrkB = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+11*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrkC = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+12*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrkD = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+13*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrkE = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+14*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrkF = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+15*inChannelGroup*kernHeight*kernWidth], vl) ;
+	    const float *pKerValue = ( FLAYOUT == VEDNN_FILTER_LAYOUT_NCHW ) ?
+				      pKernel + kernGroupOffset + ((k * inChannelGroup + c) * kernHeight + r) * kernWidth + s :
+				      pKernel + kernGroupOffset + ( ( r * kernWidth + s ) * inChannelGroup + c ) * outChannelGroup + k ;
+
+	    const int64_t kernelDistance = ( FLAYOUT == VEDNN_FILTER_LAYOUT_NCHW ) ?
+					   inChannelGroup * kernHeight * kernWidth :
+					   1 ;
+
+	    const int64_t kernelStride = ( FLAYOUT == VEDNN_FILTER_LAYOUT_NCHW ) ?
+			                 kernHeight * kernWidth :
+					 outChannelGroup ;
+	    __vr vrk0 = _vel_vldu_vssl(4*kernelStride, pKerValue+0*kernelDistance, vl) ;
+	    __vr vrk1 = _vel_vldu_vssl(4*kernelStride, pKerValue+1*kernelDistance, vl) ;
+	    __vr vrk2 = _vel_vldu_vssl(4*kernelStride, pKerValue+2*kernelDistance, vl) ;
+	    __vr vrk3 = _vel_vldu_vssl(4*kernelStride, pKerValue+3*kernelDistance, vl) ;
+	    __vr vrk4 = _vel_vldu_vssl(4*kernelStride, pKerValue+4*kernelDistance, vl) ;
+	    __vr vrk5 = _vel_vldu_vssl(4*kernelStride, pKerValue+5*kernelDistance, vl) ;
+	    __vr vrk6 = _vel_vldu_vssl(4*kernelStride, pKerValue+6*kernelDistance, vl) ;
+	    __vr vrk7 = _vel_vldu_vssl(4*kernelStride, pKerValue+7*kernelDistance, vl) ;
+	    __vr vrk8 = _vel_vldu_vssl(4*kernelStride, pKerValue+8*kernelDistance, vl) ;
+	    __vr vrk9 = _vel_vldu_vssl(4*kernelStride, pKerValue+9*kernelDistance, vl) ;
+	    __vr vrkA = _vel_vldu_vssl(4*kernelStride, pKerValue+10*kernelDistance, vl) ;
+	    __vr vrkB = _vel_vldu_vssl(4*kernelStride, pKerValue+11*kernelDistance, vl) ;
+	    __vr vrkC = _vel_vldu_vssl(4*kernelStride, pKerValue+12*kernelDistance, vl) ;
+	    __vr vrkD = _vel_vldu_vssl(4*kernelStride, pKerValue+13*kernelDistance, vl) ;
+	    __vr vrkE = _vel_vldu_vssl(4*kernelStride, pKerValue+14*kernelDistance, vl) ;
+	    __vr vrkF = _vel_vldu_vssl(4*kernelStride, pKerValue+15*kernelDistance, vl) ;
 
 	    __vr vriP_h0w0  = _vel_vshf_vvvsl(vri_h0w0, vri_h0w0, VE_VSHUFFLE_YUZU, vl) ;
 	    __vr vriP_h0w1  = _vel_vshf_vvvsl(vri_h0w1, vri_h0w1, VE_VSHUFFLE_YUZU, vl) ;
@@ -1696,22 +1718,33 @@ static inline void k16y1x2(
 
 	    __vr vri_h0w0 = _vel_vldu_vssl(4*inHeight*inWidth, &pIn[inputIndex_h0w0], vl) ;
 
-	    __vr vrk0 = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+0*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrk1 = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+1*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrk2 = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+2*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrk3 = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+3*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrk4 = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+4*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrk5 = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+5*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrk6 = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+6*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrk7 = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+7*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrk8 = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+8*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrk9 = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+9*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrkA = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+10*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrkB = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+11*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrkC = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+12*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrkD = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+13*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrkE = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+14*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrkF = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+15*inChannelGroup*kernHeight*kernWidth], vl) ;
+	    const float *pKerValue = ( FLAYOUT == VEDNN_FILTER_LAYOUT_NCHW ) ?
+				      pKernel + kernGroupOffset + ((k * inChannelGroup + c) * kernHeight + r) * kernWidth + s :
+				      pKernel + kernGroupOffset + ( ( r * kernWidth + s ) * inChannelGroup + c ) * outChannelGroup + k ;
+
+	    const int64_t kernelDistance = ( FLAYOUT == VEDNN_FILTER_LAYOUT_NCHW ) ?
+					   inChannelGroup * kernHeight * kernWidth :
+					   1 ;
+
+	    const int64_t kernelStride = ( FLAYOUT == VEDNN_FILTER_LAYOUT_NCHW ) ?
+			                 kernHeight * kernWidth :
+					 outChannelGroup ;
+	    __vr vrk0 = _vel_vldu_vssl(4*kernelStride, pKerValue+0*kernelDistance, vl) ;
+	    __vr vrk1 = _vel_vldu_vssl(4*kernelStride, pKerValue+1*kernelDistance, vl) ;
+	    __vr vrk2 = _vel_vldu_vssl(4*kernelStride, pKerValue+2*kernelDistance, vl) ;
+	    __vr vrk3 = _vel_vldu_vssl(4*kernelStride, pKerValue+3*kernelDistance, vl) ;
+	    __vr vrk4 = _vel_vldu_vssl(4*kernelStride, pKerValue+4*kernelDistance, vl) ;
+	    __vr vrk5 = _vel_vldu_vssl(4*kernelStride, pKerValue+5*kernelDistance, vl) ;
+	    __vr vrk6 = _vel_vldu_vssl(4*kernelStride, pKerValue+6*kernelDistance, vl) ;
+	    __vr vrk7 = _vel_vldu_vssl(4*kernelStride, pKerValue+7*kernelDistance, vl) ;
+	    __vr vrk8 = _vel_vldu_vssl(4*kernelStride, pKerValue+8*kernelDistance, vl) ;
+	    __vr vrk9 = _vel_vldu_vssl(4*kernelStride, pKerValue+9*kernelDistance, vl) ;
+	    __vr vrkA = _vel_vldu_vssl(4*kernelStride, pKerValue+10*kernelDistance, vl) ;
+	    __vr vrkB = _vel_vldu_vssl(4*kernelStride, pKerValue+11*kernelDistance, vl) ;
+	    __vr vrkC = _vel_vldu_vssl(4*kernelStride, pKerValue+12*kernelDistance, vl) ;
+	    __vr vrkD = _vel_vldu_vssl(4*kernelStride, pKerValue+13*kernelDistance, vl) ;
+	    __vr vrkE = _vel_vldu_vssl(4*kernelStride, pKerValue+14*kernelDistance, vl) ;
+	    __vr vrkF = _vel_vldu_vssl(4*kernelStride, pKerValue+15*kernelDistance, vl) ;
 
 	    __vr vriP_h0w0  = _vel_vshf_vvvsl(vri_h0w0, vri_h0w0, VE_VSHUFFLE_YUZU, vl) ;
 
@@ -1746,22 +1779,33 @@ static inline void k16y1x2(
 
 	    __vr vri_h0w1 = _vel_vldu_vssl(4*inHeight*inWidth, &pIn[inputIndex_h0w1], vl) ;
 
-	    __vr vrk0 = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+0*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrk1 = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+1*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrk2 = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+2*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrk3 = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+3*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrk4 = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+4*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrk5 = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+5*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrk6 = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+6*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrk7 = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+7*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrk8 = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+8*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrk9 = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+9*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrkA = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+10*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrkB = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+11*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrkC = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+12*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrkD = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+13*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrkE = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+14*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrkF = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+15*inChannelGroup*kernHeight*kernWidth], vl) ;
+	    const float *pKerValue = ( FLAYOUT == VEDNN_FILTER_LAYOUT_NCHW ) ?
+				      pKernel + kernGroupOffset + ((k * inChannelGroup + c) * kernHeight + r) * kernWidth + s :
+				      pKernel + kernGroupOffset + ( ( r * kernWidth + s ) * inChannelGroup + c ) * outChannelGroup + k ;
+
+	    const int64_t kernelDistance = ( FLAYOUT == VEDNN_FILTER_LAYOUT_NCHW ) ?
+					   inChannelGroup * kernHeight * kernWidth :
+					   1 ;
+
+	    const int64_t kernelStride = ( FLAYOUT == VEDNN_FILTER_LAYOUT_NCHW ) ?
+			                 kernHeight * kernWidth :
+					 outChannelGroup ;
+	    __vr vrk0 = _vel_vldu_vssl(4*kernelStride, pKerValue+0*kernelDistance, vl) ;
+	    __vr vrk1 = _vel_vldu_vssl(4*kernelStride, pKerValue+1*kernelDistance, vl) ;
+	    __vr vrk2 = _vel_vldu_vssl(4*kernelStride, pKerValue+2*kernelDistance, vl) ;
+	    __vr vrk3 = _vel_vldu_vssl(4*kernelStride, pKerValue+3*kernelDistance, vl) ;
+	    __vr vrk4 = _vel_vldu_vssl(4*kernelStride, pKerValue+4*kernelDistance, vl) ;
+	    __vr vrk5 = _vel_vldu_vssl(4*kernelStride, pKerValue+5*kernelDistance, vl) ;
+	    __vr vrk6 = _vel_vldu_vssl(4*kernelStride, pKerValue+6*kernelDistance, vl) ;
+	    __vr vrk7 = _vel_vldu_vssl(4*kernelStride, pKerValue+7*kernelDistance, vl) ;
+	    __vr vrk8 = _vel_vldu_vssl(4*kernelStride, pKerValue+8*kernelDistance, vl) ;
+	    __vr vrk9 = _vel_vldu_vssl(4*kernelStride, pKerValue+9*kernelDistance, vl) ;
+	    __vr vrkA = _vel_vldu_vssl(4*kernelStride, pKerValue+10*kernelDistance, vl) ;
+	    __vr vrkB = _vel_vldu_vssl(4*kernelStride, pKerValue+11*kernelDistance, vl) ;
+	    __vr vrkC = _vel_vldu_vssl(4*kernelStride, pKerValue+12*kernelDistance, vl) ;
+	    __vr vrkD = _vel_vldu_vssl(4*kernelStride, pKerValue+13*kernelDistance, vl) ;
+	    __vr vrkE = _vel_vldu_vssl(4*kernelStride, pKerValue+14*kernelDistance, vl) ;
+	    __vr vrkF = _vel_vldu_vssl(4*kernelStride, pKerValue+15*kernelDistance, vl) ;
 
 	    __vr vriP_h0w1  = _vel_vshf_vvvsl(vri_h0w1, vri_h0w1, VE_VSHUFFLE_YUZU, vl) ;
 
@@ -1948,22 +1992,33 @@ static inline void k16y2x1(
 	    __vr vri_h0w0 = _vel_vldu_vssl(4*inHeight*inWidth, &pIn[inputIndex_h0w0], vl) ;
 	    __vr vri_h1w0 = _vel_vldu_vssl(4*inHeight*inWidth, &pIn[inputIndex_h1w0], vl) ;
 
-	    __vr vrk0 = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+0*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrk1 = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+1*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrk2 = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+2*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrk3 = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+3*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrk4 = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+4*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrk5 = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+5*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrk6 = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+6*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrk7 = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+7*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrk8 = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+8*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrk9 = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+9*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrkA = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+10*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrkB = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+11*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrkC = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+12*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrkD = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+13*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrkE = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+14*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrkF = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+15*inChannelGroup*kernHeight*kernWidth], vl) ;
+	    const float *pKerValue = ( FLAYOUT == VEDNN_FILTER_LAYOUT_NCHW ) ?
+				      pKernel + kernGroupOffset + ((k * inChannelGroup + c) * kernHeight + r) * kernWidth + s :
+				      pKernel + kernGroupOffset + ( ( r * kernWidth + s ) * inChannelGroup + c ) * outChannelGroup + k ;
+
+	    const int64_t kernelDistance = ( FLAYOUT == VEDNN_FILTER_LAYOUT_NCHW ) ?
+					   inChannelGroup * kernHeight * kernWidth :
+					   1 ;
+
+	    const int64_t kernelStride = ( FLAYOUT == VEDNN_FILTER_LAYOUT_NCHW ) ?
+			                 kernHeight * kernWidth :
+					 outChannelGroup ;
+	    __vr vrk0 = _vel_vldu_vssl(4*kernelStride, pKerValue+0*kernelDistance, vl) ;
+	    __vr vrk1 = _vel_vldu_vssl(4*kernelStride, pKerValue+1*kernelDistance, vl) ;
+	    __vr vrk2 = _vel_vldu_vssl(4*kernelStride, pKerValue+2*kernelDistance, vl) ;
+	    __vr vrk3 = _vel_vldu_vssl(4*kernelStride, pKerValue+3*kernelDistance, vl) ;
+	    __vr vrk4 = _vel_vldu_vssl(4*kernelStride, pKerValue+4*kernelDistance, vl) ;
+	    __vr vrk5 = _vel_vldu_vssl(4*kernelStride, pKerValue+5*kernelDistance, vl) ;
+	    __vr vrk6 = _vel_vldu_vssl(4*kernelStride, pKerValue+6*kernelDistance, vl) ;
+	    __vr vrk7 = _vel_vldu_vssl(4*kernelStride, pKerValue+7*kernelDistance, vl) ;
+	    __vr vrk8 = _vel_vldu_vssl(4*kernelStride, pKerValue+8*kernelDistance, vl) ;
+	    __vr vrk9 = _vel_vldu_vssl(4*kernelStride, pKerValue+9*kernelDistance, vl) ;
+	    __vr vrkA = _vel_vldu_vssl(4*kernelStride, pKerValue+10*kernelDistance, vl) ;
+	    __vr vrkB = _vel_vldu_vssl(4*kernelStride, pKerValue+11*kernelDistance, vl) ;
+	    __vr vrkC = _vel_vldu_vssl(4*kernelStride, pKerValue+12*kernelDistance, vl) ;
+	    __vr vrkD = _vel_vldu_vssl(4*kernelStride, pKerValue+13*kernelDistance, vl) ;
+	    __vr vrkE = _vel_vldu_vssl(4*kernelStride, pKerValue+14*kernelDistance, vl) ;
+	    __vr vrkF = _vel_vldu_vssl(4*kernelStride, pKerValue+15*kernelDistance, vl) ;
 
 	    __vr vriP_h0w0  = _vel_vshf_vvvsl(vri_h0w0, vri_h0w0, VE_VSHUFFLE_YUZU, vl) ;
 	    __vr vriP_h1w0  = _vel_vshf_vvvsl(vri_h1w0, vri_h1w0, VE_VSHUFFLE_YUZU, vl) ;
@@ -2015,22 +2070,33 @@ static inline void k16y2x1(
 
 	    __vr vri_h0w0 = _vel_vldu_vssl(4*inHeight*inWidth, &pIn[inputIndex_h0w0], vl) ;
 
-	    __vr vrk0 = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+0*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrk1 = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+1*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrk2 = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+2*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrk3 = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+3*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrk4 = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+4*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrk5 = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+5*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrk6 = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+6*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrk7 = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+7*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrk8 = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+8*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrk9 = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+9*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrkA = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+10*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrkB = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+11*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrkC = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+12*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrkD = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+13*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrkE = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+14*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrkF = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+15*inChannelGroup*kernHeight*kernWidth], vl) ;
+	    const float *pKerValue = ( FLAYOUT == VEDNN_FILTER_LAYOUT_NCHW ) ?
+				      pKernel + kernGroupOffset + ((k * inChannelGroup + c) * kernHeight + r) * kernWidth + s :
+				      pKernel + kernGroupOffset + ( ( r * kernWidth + s ) * inChannelGroup + c ) * outChannelGroup + k ;
+
+	    const int64_t kernelDistance = ( FLAYOUT == VEDNN_FILTER_LAYOUT_NCHW ) ?
+					   inChannelGroup * kernHeight * kernWidth :
+					   1 ;
+
+	    const int64_t kernelStride = ( FLAYOUT == VEDNN_FILTER_LAYOUT_NCHW ) ?
+			                 kernHeight * kernWidth :
+					 outChannelGroup ;
+	    __vr vrk0 = _vel_vldu_vssl(4*kernelStride, pKerValue+0*kernelDistance, vl) ;
+	    __vr vrk1 = _vel_vldu_vssl(4*kernelStride, pKerValue+1*kernelDistance, vl) ;
+	    __vr vrk2 = _vel_vldu_vssl(4*kernelStride, pKerValue+2*kernelDistance, vl) ;
+	    __vr vrk3 = _vel_vldu_vssl(4*kernelStride, pKerValue+3*kernelDistance, vl) ;
+	    __vr vrk4 = _vel_vldu_vssl(4*kernelStride, pKerValue+4*kernelDistance, vl) ;
+	    __vr vrk5 = _vel_vldu_vssl(4*kernelStride, pKerValue+5*kernelDistance, vl) ;
+	    __vr vrk6 = _vel_vldu_vssl(4*kernelStride, pKerValue+6*kernelDistance, vl) ;
+	    __vr vrk7 = _vel_vldu_vssl(4*kernelStride, pKerValue+7*kernelDistance, vl) ;
+	    __vr vrk8 = _vel_vldu_vssl(4*kernelStride, pKerValue+8*kernelDistance, vl) ;
+	    __vr vrk9 = _vel_vldu_vssl(4*kernelStride, pKerValue+9*kernelDistance, vl) ;
+	    __vr vrkA = _vel_vldu_vssl(4*kernelStride, pKerValue+10*kernelDistance, vl) ;
+	    __vr vrkB = _vel_vldu_vssl(4*kernelStride, pKerValue+11*kernelDistance, vl) ;
+	    __vr vrkC = _vel_vldu_vssl(4*kernelStride, pKerValue+12*kernelDistance, vl) ;
+	    __vr vrkD = _vel_vldu_vssl(4*kernelStride, pKerValue+13*kernelDistance, vl) ;
+	    __vr vrkE = _vel_vldu_vssl(4*kernelStride, pKerValue+14*kernelDistance, vl) ;
+	    __vr vrkF = _vel_vldu_vssl(4*kernelStride, pKerValue+15*kernelDistance, vl) ;
 
 	    __vr vriP_h0w0  = _vel_vshf_vvvsl(vri_h0w0, vri_h0w0, VE_VSHUFFLE_YUZU, vl) ;
 
@@ -2073,22 +2139,33 @@ static inline void k16y2x1(
 
 	    __vr vri_h1w0 = _vel_vldu_vssl(4*inHeight*inWidth, &pIn[inputIndex_h1w0], vl) ;
 
-	    __vr vrk0 = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+0*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrk1 = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+1*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrk2 = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+2*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrk3 = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+3*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrk4 = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+4*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrk5 = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+5*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrk6 = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+6*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrk7 = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+7*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrk8 = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+8*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrk9 = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+9*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrkA = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+10*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrkB = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+11*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrkC = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+12*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrkD = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+13*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrkE = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+14*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrkF = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+15*inChannelGroup*kernHeight*kernWidth], vl) ;
+	    const float *pKerValue = ( FLAYOUT == VEDNN_FILTER_LAYOUT_NCHW ) ?
+				      pKernel + kernGroupOffset + ((k * inChannelGroup + c) * kernHeight + r) * kernWidth + s :
+				      pKernel + kernGroupOffset + ( ( r * kernWidth + s ) * inChannelGroup + c ) * outChannelGroup + k ;
+
+	    const int64_t kernelDistance = ( FLAYOUT == VEDNN_FILTER_LAYOUT_NCHW ) ?
+					   inChannelGroup * kernHeight * kernWidth :
+					   1 ;
+
+	    const int64_t kernelStride = ( FLAYOUT == VEDNN_FILTER_LAYOUT_NCHW ) ?
+			                 kernHeight * kernWidth :
+					 outChannelGroup ;
+	    __vr vrk0 = _vel_vldu_vssl(4*kernelStride, pKerValue+0*kernelDistance, vl) ;
+	    __vr vrk1 = _vel_vldu_vssl(4*kernelStride, pKerValue+1*kernelDistance, vl) ;
+	    __vr vrk2 = _vel_vldu_vssl(4*kernelStride, pKerValue+2*kernelDistance, vl) ;
+	    __vr vrk3 = _vel_vldu_vssl(4*kernelStride, pKerValue+3*kernelDistance, vl) ;
+	    __vr vrk4 = _vel_vldu_vssl(4*kernelStride, pKerValue+4*kernelDistance, vl) ;
+	    __vr vrk5 = _vel_vldu_vssl(4*kernelStride, pKerValue+5*kernelDistance, vl) ;
+	    __vr vrk6 = _vel_vldu_vssl(4*kernelStride, pKerValue+6*kernelDistance, vl) ;
+	    __vr vrk7 = _vel_vldu_vssl(4*kernelStride, pKerValue+7*kernelDistance, vl) ;
+	    __vr vrk8 = _vel_vldu_vssl(4*kernelStride, pKerValue+8*kernelDistance, vl) ;
+	    __vr vrk9 = _vel_vldu_vssl(4*kernelStride, pKerValue+9*kernelDistance, vl) ;
+	    __vr vrkA = _vel_vldu_vssl(4*kernelStride, pKerValue+10*kernelDistance, vl) ;
+	    __vr vrkB = _vel_vldu_vssl(4*kernelStride, pKerValue+11*kernelDistance, vl) ;
+	    __vr vrkC = _vel_vldu_vssl(4*kernelStride, pKerValue+12*kernelDistance, vl) ;
+	    __vr vrkD = _vel_vldu_vssl(4*kernelStride, pKerValue+13*kernelDistance, vl) ;
+	    __vr vrkE = _vel_vldu_vssl(4*kernelStride, pKerValue+14*kernelDistance, vl) ;
+	    __vr vrkF = _vel_vldu_vssl(4*kernelStride, pKerValue+15*kernelDistance, vl) ;
 
 	    __vr vriP_h1w0  = _vel_vshf_vvvsl(vri_h1w0, vri_h1w0, VE_VSHUFFLE_YUZU, vl) ;
 
@@ -2297,22 +2374,33 @@ static inline void k16y2x2(
 	    __vr vri_h1w0 = _vel_vldu_vssl(4*inHeight*inWidth, &pIn[inputIndex_h1w0], vl) ;
 	    __vr vri_h1w1 = _vel_vldu_vssl(4*inHeight*inWidth, &pIn[inputIndex_h1w1], vl) ;
 
-	    __vr vrk0 = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+0*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrk1 = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+1*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrk2 = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+2*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrk3 = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+3*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrk4 = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+4*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrk5 = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+5*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrk6 = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+6*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrk7 = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+7*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrk8 = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+8*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrk9 = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+9*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrkA = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+10*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrkB = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+11*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrkC = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+12*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrkD = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+13*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrkE = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+14*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrkF = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+15*inChannelGroup*kernHeight*kernWidth], vl) ;
+	    const float *pKerValue = ( FLAYOUT == VEDNN_FILTER_LAYOUT_NCHW ) ?
+				      pKernel + kernGroupOffset + ((k * inChannelGroup + c) * kernHeight + r) * kernWidth + s :
+				      pKernel + kernGroupOffset + ( ( r * kernWidth + s ) * inChannelGroup + c ) * outChannelGroup + k ;
+
+	    const int64_t kernelDistance = ( FLAYOUT == VEDNN_FILTER_LAYOUT_NCHW ) ?
+					   inChannelGroup * kernHeight * kernWidth :
+					   1 ;
+
+	    const int64_t kernelStride = ( FLAYOUT == VEDNN_FILTER_LAYOUT_NCHW ) ?
+			                 kernHeight * kernWidth :
+					 outChannelGroup ;
+	    __vr vrk0 = _vel_vldu_vssl(4*kernelStride, pKerValue+0*kernelDistance, vl) ;
+	    __vr vrk1 = _vel_vldu_vssl(4*kernelStride, pKerValue+1*kernelDistance, vl) ;
+	    __vr vrk2 = _vel_vldu_vssl(4*kernelStride, pKerValue+2*kernelDistance, vl) ;
+	    __vr vrk3 = _vel_vldu_vssl(4*kernelStride, pKerValue+3*kernelDistance, vl) ;
+	    __vr vrk4 = _vel_vldu_vssl(4*kernelStride, pKerValue+4*kernelDistance, vl) ;
+	    __vr vrk5 = _vel_vldu_vssl(4*kernelStride, pKerValue+5*kernelDistance, vl) ;
+	    __vr vrk6 = _vel_vldu_vssl(4*kernelStride, pKerValue+6*kernelDistance, vl) ;
+	    __vr vrk7 = _vel_vldu_vssl(4*kernelStride, pKerValue+7*kernelDistance, vl) ;
+	    __vr vrk8 = _vel_vldu_vssl(4*kernelStride, pKerValue+8*kernelDistance, vl) ;
+	    __vr vrk9 = _vel_vldu_vssl(4*kernelStride, pKerValue+9*kernelDistance, vl) ;
+	    __vr vrkA = _vel_vldu_vssl(4*kernelStride, pKerValue+10*kernelDistance, vl) ;
+	    __vr vrkB = _vel_vldu_vssl(4*kernelStride, pKerValue+11*kernelDistance, vl) ;
+	    __vr vrkC = _vel_vldu_vssl(4*kernelStride, pKerValue+12*kernelDistance, vl) ;
+	    __vr vrkD = _vel_vldu_vssl(4*kernelStride, pKerValue+13*kernelDistance, vl) ;
+	    __vr vrkE = _vel_vldu_vssl(4*kernelStride, pKerValue+14*kernelDistance, vl) ;
+	    __vr vrkF = _vel_vldu_vssl(4*kernelStride, pKerValue+15*kernelDistance, vl) ;
 
 	    __vr vriP_h0w0  = _vel_vshf_vvvsl(vri_h0w0, vri_h0w0, VE_VSHUFFLE_YUZU, vl) ;
 	    __vr vriP_h0w1  = _vel_vshf_vvvsl(vri_h0w1, vri_h0w1, VE_VSHUFFLE_YUZU, vl) ;
@@ -2376,22 +2464,33 @@ static inline void k16y2x2(
 	    __vr vri_h0w0 = _vel_vldu_vssl(4*inHeight*inWidth, &pIn[inputIndex_h0w0], vl) ;
 	    __vr vri_h1w0 = _vel_vldu_vssl(4*inHeight*inWidth, &pIn[inputIndex_h1w0], vl) ;
 
-	    __vr vrk0 = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+0*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrk1 = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+1*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrk2 = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+2*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrk3 = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+3*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrk4 = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+4*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrk5 = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+5*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrk6 = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+6*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrk7 = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+7*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrk8 = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+8*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrk9 = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+9*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrkA = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+10*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrkB = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+11*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrkC = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+12*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrkD = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+13*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrkE = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+14*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrkF = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+15*inChannelGroup*kernHeight*kernWidth], vl) ;
+	    const float *pKerValue = ( FLAYOUT == VEDNN_FILTER_LAYOUT_NCHW ) ?
+				      pKernel + kernGroupOffset + ((k * inChannelGroup + c) * kernHeight + r) * kernWidth + s :
+				      pKernel + kernGroupOffset + ( ( r * kernWidth + s ) * inChannelGroup + c ) * outChannelGroup + k ;
+
+	    const int64_t kernelDistance = ( FLAYOUT == VEDNN_FILTER_LAYOUT_NCHW ) ?
+					   inChannelGroup * kernHeight * kernWidth :
+					   1 ;
+
+	    const int64_t kernelStride = ( FLAYOUT == VEDNN_FILTER_LAYOUT_NCHW ) ?
+			                 kernHeight * kernWidth :
+					 outChannelGroup ;
+	    __vr vrk0 = _vel_vldu_vssl(4*kernelStride, pKerValue+0*kernelDistance, vl) ;
+	    __vr vrk1 = _vel_vldu_vssl(4*kernelStride, pKerValue+1*kernelDistance, vl) ;
+	    __vr vrk2 = _vel_vldu_vssl(4*kernelStride, pKerValue+2*kernelDistance, vl) ;
+	    __vr vrk3 = _vel_vldu_vssl(4*kernelStride, pKerValue+3*kernelDistance, vl) ;
+	    __vr vrk4 = _vel_vldu_vssl(4*kernelStride, pKerValue+4*kernelDistance, vl) ;
+	    __vr vrk5 = _vel_vldu_vssl(4*kernelStride, pKerValue+5*kernelDistance, vl) ;
+	    __vr vrk6 = _vel_vldu_vssl(4*kernelStride, pKerValue+6*kernelDistance, vl) ;
+	    __vr vrk7 = _vel_vldu_vssl(4*kernelStride, pKerValue+7*kernelDistance, vl) ;
+	    __vr vrk8 = _vel_vldu_vssl(4*kernelStride, pKerValue+8*kernelDistance, vl) ;
+	    __vr vrk9 = _vel_vldu_vssl(4*kernelStride, pKerValue+9*kernelDistance, vl) ;
+	    __vr vrkA = _vel_vldu_vssl(4*kernelStride, pKerValue+10*kernelDistance, vl) ;
+	    __vr vrkB = _vel_vldu_vssl(4*kernelStride, pKerValue+11*kernelDistance, vl) ;
+	    __vr vrkC = _vel_vldu_vssl(4*kernelStride, pKerValue+12*kernelDistance, vl) ;
+	    __vr vrkD = _vel_vldu_vssl(4*kernelStride, pKerValue+13*kernelDistance, vl) ;
+	    __vr vrkE = _vel_vldu_vssl(4*kernelStride, pKerValue+14*kernelDistance, vl) ;
+	    __vr vrkF = _vel_vldu_vssl(4*kernelStride, pKerValue+15*kernelDistance, vl) ;
 
 	    __vr vriP_h0w0  = _vel_vshf_vvvsl(vri_h0w0, vri_h0w0, VE_VSHUFFLE_YUZU, vl) ;
 	    __vr vriP_h1w0  = _vel_vshf_vvvsl(vri_h1w0, vri_h1w0, VE_VSHUFFLE_YUZU, vl) ;
@@ -2437,22 +2536,33 @@ static inline void k16y2x2(
 	    __vr vri_h0w1 = _vel_vldu_vssl(4*inHeight*inWidth, &pIn[inputIndex_h0w1], vl) ;
 	    __vr vri_h1w1 = _vel_vldu_vssl(4*inHeight*inWidth, &pIn[inputIndex_h1w1], vl) ;
 
-	    __vr vrk0 = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+0*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrk1 = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+1*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrk2 = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+2*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrk3 = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+3*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrk4 = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+4*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrk5 = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+5*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrk6 = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+6*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrk7 = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+7*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrk8 = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+8*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrk9 = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+9*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrkA = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+10*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrkB = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+11*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrkC = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+12*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrkD = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+13*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrkE = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+14*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrkF = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+15*inChannelGroup*kernHeight*kernWidth], vl) ;
+	    const float *pKerValue = ( FLAYOUT == VEDNN_FILTER_LAYOUT_NCHW ) ?
+				      pKernel + kernGroupOffset + ((k * inChannelGroup + c) * kernHeight + r) * kernWidth + s :
+				      pKernel + kernGroupOffset + ( ( r * kernWidth + s ) * inChannelGroup + c ) * outChannelGroup + k ;
+
+	    const int64_t kernelDistance = ( FLAYOUT == VEDNN_FILTER_LAYOUT_NCHW ) ?
+					   inChannelGroup * kernHeight * kernWidth :
+					   1 ;
+
+	    const int64_t kernelStride = ( FLAYOUT == VEDNN_FILTER_LAYOUT_NCHW ) ?
+			                 kernHeight * kernWidth :
+					 outChannelGroup ;
+	    __vr vrk0 = _vel_vldu_vssl(4*kernelStride, pKerValue+0*kernelDistance, vl) ;
+	    __vr vrk1 = _vel_vldu_vssl(4*kernelStride, pKerValue+1*kernelDistance, vl) ;
+	    __vr vrk2 = _vel_vldu_vssl(4*kernelStride, pKerValue+2*kernelDistance, vl) ;
+	    __vr vrk3 = _vel_vldu_vssl(4*kernelStride, pKerValue+3*kernelDistance, vl) ;
+	    __vr vrk4 = _vel_vldu_vssl(4*kernelStride, pKerValue+4*kernelDistance, vl) ;
+	    __vr vrk5 = _vel_vldu_vssl(4*kernelStride, pKerValue+5*kernelDistance, vl) ;
+	    __vr vrk6 = _vel_vldu_vssl(4*kernelStride, pKerValue+6*kernelDistance, vl) ;
+	    __vr vrk7 = _vel_vldu_vssl(4*kernelStride, pKerValue+7*kernelDistance, vl) ;
+	    __vr vrk8 = _vel_vldu_vssl(4*kernelStride, pKerValue+8*kernelDistance, vl) ;
+	    __vr vrk9 = _vel_vldu_vssl(4*kernelStride, pKerValue+9*kernelDistance, vl) ;
+	    __vr vrkA = _vel_vldu_vssl(4*kernelStride, pKerValue+10*kernelDistance, vl) ;
+	    __vr vrkB = _vel_vldu_vssl(4*kernelStride, pKerValue+11*kernelDistance, vl) ;
+	    __vr vrkC = _vel_vldu_vssl(4*kernelStride, pKerValue+12*kernelDistance, vl) ;
+	    __vr vrkD = _vel_vldu_vssl(4*kernelStride, pKerValue+13*kernelDistance, vl) ;
+	    __vr vrkE = _vel_vldu_vssl(4*kernelStride, pKerValue+14*kernelDistance, vl) ;
+	    __vr vrkF = _vel_vldu_vssl(4*kernelStride, pKerValue+15*kernelDistance, vl) ;
 
 	    __vr vriP_h0w1  = _vel_vshf_vvvsl(vri_h0w1, vri_h0w1, VE_VSHUFFLE_YUZU, vl) ;
 	    __vr vriP_h1w1  = _vel_vshf_vvvsl(vri_h1w1, vri_h1w1, VE_VSHUFFLE_YUZU, vl) ;
@@ -2508,22 +2618,33 @@ static inline void k16y2x2(
 	    __vr vri_h0w0 = _vel_vldu_vssl(4*inHeight*inWidth, &pIn[inputIndex_h0w0], vl) ;
 	    __vr vri_h0w1 = _vel_vldu_vssl(4*inHeight*inWidth, &pIn[inputIndex_h0w1], vl) ;
 
-	    __vr vrk0 = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+0*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrk1 = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+1*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrk2 = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+2*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrk3 = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+3*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrk4 = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+4*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrk5 = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+5*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrk6 = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+6*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrk7 = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+7*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrk8 = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+8*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrk9 = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+9*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrkA = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+10*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrkB = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+11*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrkC = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+12*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrkD = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+13*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrkE = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+14*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrkF = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+15*inChannelGroup*kernHeight*kernWidth], vl) ;
+	    const float *pKerValue = ( FLAYOUT == VEDNN_FILTER_LAYOUT_NCHW ) ?
+				      pKernel + kernGroupOffset + ((k * inChannelGroup + c) * kernHeight + r) * kernWidth + s :
+				      pKernel + kernGroupOffset + ( ( r * kernWidth + s ) * inChannelGroup + c ) * outChannelGroup + k ;
+
+	    const int64_t kernelDistance = ( FLAYOUT == VEDNN_FILTER_LAYOUT_NCHW ) ?
+					   inChannelGroup * kernHeight * kernWidth :
+					   1 ;
+
+	    const int64_t kernelStride = ( FLAYOUT == VEDNN_FILTER_LAYOUT_NCHW ) ?
+			                 kernHeight * kernWidth :
+					 outChannelGroup ;
+	    __vr vrk0 = _vel_vldu_vssl(4*kernelStride, pKerValue+0*kernelDistance, vl) ;
+	    __vr vrk1 = _vel_vldu_vssl(4*kernelStride, pKerValue+1*kernelDistance, vl) ;
+	    __vr vrk2 = _vel_vldu_vssl(4*kernelStride, pKerValue+2*kernelDistance, vl) ;
+	    __vr vrk3 = _vel_vldu_vssl(4*kernelStride, pKerValue+3*kernelDistance, vl) ;
+	    __vr vrk4 = _vel_vldu_vssl(4*kernelStride, pKerValue+4*kernelDistance, vl) ;
+	    __vr vrk5 = _vel_vldu_vssl(4*kernelStride, pKerValue+5*kernelDistance, vl) ;
+	    __vr vrk6 = _vel_vldu_vssl(4*kernelStride, pKerValue+6*kernelDistance, vl) ;
+	    __vr vrk7 = _vel_vldu_vssl(4*kernelStride, pKerValue+7*kernelDistance, vl) ;
+	    __vr vrk8 = _vel_vldu_vssl(4*kernelStride, pKerValue+8*kernelDistance, vl) ;
+	    __vr vrk9 = _vel_vldu_vssl(4*kernelStride, pKerValue+9*kernelDistance, vl) ;
+	    __vr vrkA = _vel_vldu_vssl(4*kernelStride, pKerValue+10*kernelDistance, vl) ;
+	    __vr vrkB = _vel_vldu_vssl(4*kernelStride, pKerValue+11*kernelDistance, vl) ;
+	    __vr vrkC = _vel_vldu_vssl(4*kernelStride, pKerValue+12*kernelDistance, vl) ;
+	    __vr vrkD = _vel_vldu_vssl(4*kernelStride, pKerValue+13*kernelDistance, vl) ;
+	    __vr vrkE = _vel_vldu_vssl(4*kernelStride, pKerValue+14*kernelDistance, vl) ;
+	    __vr vrkF = _vel_vldu_vssl(4*kernelStride, pKerValue+15*kernelDistance, vl) ;
 
 	    __vr vriP_h0w0  = _vel_vshf_vvvsl(vri_h0w0, vri_h0w0, VE_VSHUFFLE_YUZU, vl) ;
 	    __vr vriP_h0w1  = _vel_vshf_vvvsl(vri_h0w1, vri_h0w1, VE_VSHUFFLE_YUZU, vl) ;
@@ -2567,22 +2688,33 @@ static inline void k16y2x2(
 
 	    __vr vri_h0w0 = _vel_vldu_vssl(4*inHeight*inWidth, &pIn[inputIndex_h0w0], vl) ;
 
-	    __vr vrk0 = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+0*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrk1 = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+1*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrk2 = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+2*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrk3 = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+3*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrk4 = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+4*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrk5 = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+5*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrk6 = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+6*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrk7 = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+7*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrk8 = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+8*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrk9 = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+9*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrkA = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+10*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrkB = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+11*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrkC = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+12*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrkD = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+13*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrkE = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+14*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrkF = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+15*inChannelGroup*kernHeight*kernWidth], vl) ;
+	    const float *pKerValue = ( FLAYOUT == VEDNN_FILTER_LAYOUT_NCHW ) ?
+				      pKernel + kernGroupOffset + ((k * inChannelGroup + c) * kernHeight + r) * kernWidth + s :
+				      pKernel + kernGroupOffset + ( ( r * kernWidth + s ) * inChannelGroup + c ) * outChannelGroup + k ;
+
+	    const int64_t kernelDistance = ( FLAYOUT == VEDNN_FILTER_LAYOUT_NCHW ) ?
+					   inChannelGroup * kernHeight * kernWidth :
+					   1 ;
+
+	    const int64_t kernelStride = ( FLAYOUT == VEDNN_FILTER_LAYOUT_NCHW ) ?
+			                 kernHeight * kernWidth :
+					 outChannelGroup ;
+	    __vr vrk0 = _vel_vldu_vssl(4*kernelStride, pKerValue+0*kernelDistance, vl) ;
+	    __vr vrk1 = _vel_vldu_vssl(4*kernelStride, pKerValue+1*kernelDistance, vl) ;
+	    __vr vrk2 = _vel_vldu_vssl(4*kernelStride, pKerValue+2*kernelDistance, vl) ;
+	    __vr vrk3 = _vel_vldu_vssl(4*kernelStride, pKerValue+3*kernelDistance, vl) ;
+	    __vr vrk4 = _vel_vldu_vssl(4*kernelStride, pKerValue+4*kernelDistance, vl) ;
+	    __vr vrk5 = _vel_vldu_vssl(4*kernelStride, pKerValue+5*kernelDistance, vl) ;
+	    __vr vrk6 = _vel_vldu_vssl(4*kernelStride, pKerValue+6*kernelDistance, vl) ;
+	    __vr vrk7 = _vel_vldu_vssl(4*kernelStride, pKerValue+7*kernelDistance, vl) ;
+	    __vr vrk8 = _vel_vldu_vssl(4*kernelStride, pKerValue+8*kernelDistance, vl) ;
+	    __vr vrk9 = _vel_vldu_vssl(4*kernelStride, pKerValue+9*kernelDistance, vl) ;
+	    __vr vrkA = _vel_vldu_vssl(4*kernelStride, pKerValue+10*kernelDistance, vl) ;
+	    __vr vrkB = _vel_vldu_vssl(4*kernelStride, pKerValue+11*kernelDistance, vl) ;
+	    __vr vrkC = _vel_vldu_vssl(4*kernelStride, pKerValue+12*kernelDistance, vl) ;
+	    __vr vrkD = _vel_vldu_vssl(4*kernelStride, pKerValue+13*kernelDistance, vl) ;
+	    __vr vrkE = _vel_vldu_vssl(4*kernelStride, pKerValue+14*kernelDistance, vl) ;
+	    __vr vrkF = _vel_vldu_vssl(4*kernelStride, pKerValue+15*kernelDistance, vl) ;
 
 	    __vr vriP_h0w0  = _vel_vshf_vvvsl(vri_h0w0, vri_h0w0, VE_VSHUFFLE_YUZU, vl) ;
 
@@ -2617,22 +2749,33 @@ static inline void k16y2x2(
 
 	    __vr vri_h0w1 = _vel_vldu_vssl(4*inHeight*inWidth, &pIn[inputIndex_h0w1], vl) ;
 
-	    __vr vrk0 = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+0*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrk1 = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+1*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrk2 = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+2*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrk3 = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+3*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrk4 = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+4*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrk5 = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+5*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrk6 = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+6*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrk7 = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+7*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrk8 = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+8*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrk9 = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+9*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrkA = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+10*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrkB = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+11*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrkC = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+12*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrkD = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+13*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrkE = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+14*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrkF = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+15*inChannelGroup*kernHeight*kernWidth], vl) ;
+	    const float *pKerValue = ( FLAYOUT == VEDNN_FILTER_LAYOUT_NCHW ) ?
+				      pKernel + kernGroupOffset + ((k * inChannelGroup + c) * kernHeight + r) * kernWidth + s :
+				      pKernel + kernGroupOffset + ( ( r * kernWidth + s ) * inChannelGroup + c ) * outChannelGroup + k ;
+
+	    const int64_t kernelDistance = ( FLAYOUT == VEDNN_FILTER_LAYOUT_NCHW ) ?
+					   inChannelGroup * kernHeight * kernWidth :
+					   1 ;
+
+	    const int64_t kernelStride = ( FLAYOUT == VEDNN_FILTER_LAYOUT_NCHW ) ?
+			                 kernHeight * kernWidth :
+					 outChannelGroup ;
+	    __vr vrk0 = _vel_vldu_vssl(4*kernelStride, pKerValue+0*kernelDistance, vl) ;
+	    __vr vrk1 = _vel_vldu_vssl(4*kernelStride, pKerValue+1*kernelDistance, vl) ;
+	    __vr vrk2 = _vel_vldu_vssl(4*kernelStride, pKerValue+2*kernelDistance, vl) ;
+	    __vr vrk3 = _vel_vldu_vssl(4*kernelStride, pKerValue+3*kernelDistance, vl) ;
+	    __vr vrk4 = _vel_vldu_vssl(4*kernelStride, pKerValue+4*kernelDistance, vl) ;
+	    __vr vrk5 = _vel_vldu_vssl(4*kernelStride, pKerValue+5*kernelDistance, vl) ;
+	    __vr vrk6 = _vel_vldu_vssl(4*kernelStride, pKerValue+6*kernelDistance, vl) ;
+	    __vr vrk7 = _vel_vldu_vssl(4*kernelStride, pKerValue+7*kernelDistance, vl) ;
+	    __vr vrk8 = _vel_vldu_vssl(4*kernelStride, pKerValue+8*kernelDistance, vl) ;
+	    __vr vrk9 = _vel_vldu_vssl(4*kernelStride, pKerValue+9*kernelDistance, vl) ;
+	    __vr vrkA = _vel_vldu_vssl(4*kernelStride, pKerValue+10*kernelDistance, vl) ;
+	    __vr vrkB = _vel_vldu_vssl(4*kernelStride, pKerValue+11*kernelDistance, vl) ;
+	    __vr vrkC = _vel_vldu_vssl(4*kernelStride, pKerValue+12*kernelDistance, vl) ;
+	    __vr vrkD = _vel_vldu_vssl(4*kernelStride, pKerValue+13*kernelDistance, vl) ;
+	    __vr vrkE = _vel_vldu_vssl(4*kernelStride, pKerValue+14*kernelDistance, vl) ;
+	    __vr vrkF = _vel_vldu_vssl(4*kernelStride, pKerValue+15*kernelDistance, vl) ;
 
 	    __vr vriP_h0w1  = _vel_vshf_vvvsl(vri_h0w1, vri_h0w1, VE_VSHUFFLE_YUZU, vl) ;
 
@@ -2679,22 +2822,33 @@ static inline void k16y2x2(
 	    __vr vri_h1w0 = _vel_vldu_vssl(4*inHeight*inWidth, &pIn[inputIndex_h1w0], vl) ;
 	    __vr vri_h1w1 = _vel_vldu_vssl(4*inHeight*inWidth, &pIn[inputIndex_h1w1], vl) ;
 
-	    __vr vrk0 = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+0*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrk1 = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+1*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrk2 = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+2*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrk3 = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+3*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrk4 = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+4*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrk5 = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+5*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrk6 = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+6*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrk7 = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+7*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrk8 = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+8*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrk9 = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+9*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrkA = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+10*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrkB = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+11*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrkC = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+12*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrkD = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+13*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrkE = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+14*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrkF = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+15*inChannelGroup*kernHeight*kernWidth], vl) ;
+	    const float *pKerValue = ( FLAYOUT == VEDNN_FILTER_LAYOUT_NCHW ) ?
+				      pKernel + kernGroupOffset + ((k * inChannelGroup + c) * kernHeight + r) * kernWidth + s :
+				      pKernel + kernGroupOffset + ( ( r * kernWidth + s ) * inChannelGroup + c ) * outChannelGroup + k ;
+
+	    const int64_t kernelDistance = ( FLAYOUT == VEDNN_FILTER_LAYOUT_NCHW ) ?
+					   inChannelGroup * kernHeight * kernWidth :
+					   1 ;
+
+	    const int64_t kernelStride = ( FLAYOUT == VEDNN_FILTER_LAYOUT_NCHW ) ?
+			                 kernHeight * kernWidth :
+					 outChannelGroup ;
+	    __vr vrk0 = _vel_vldu_vssl(4*kernelStride, pKerValue+0*kernelDistance, vl) ;
+	    __vr vrk1 = _vel_vldu_vssl(4*kernelStride, pKerValue+1*kernelDistance, vl) ;
+	    __vr vrk2 = _vel_vldu_vssl(4*kernelStride, pKerValue+2*kernelDistance, vl) ;
+	    __vr vrk3 = _vel_vldu_vssl(4*kernelStride, pKerValue+3*kernelDistance, vl) ;
+	    __vr vrk4 = _vel_vldu_vssl(4*kernelStride, pKerValue+4*kernelDistance, vl) ;
+	    __vr vrk5 = _vel_vldu_vssl(4*kernelStride, pKerValue+5*kernelDistance, vl) ;
+	    __vr vrk6 = _vel_vldu_vssl(4*kernelStride, pKerValue+6*kernelDistance, vl) ;
+	    __vr vrk7 = _vel_vldu_vssl(4*kernelStride, pKerValue+7*kernelDistance, vl) ;
+	    __vr vrk8 = _vel_vldu_vssl(4*kernelStride, pKerValue+8*kernelDistance, vl) ;
+	    __vr vrk9 = _vel_vldu_vssl(4*kernelStride, pKerValue+9*kernelDistance, vl) ;
+	    __vr vrkA = _vel_vldu_vssl(4*kernelStride, pKerValue+10*kernelDistance, vl) ;
+	    __vr vrkB = _vel_vldu_vssl(4*kernelStride, pKerValue+11*kernelDistance, vl) ;
+	    __vr vrkC = _vel_vldu_vssl(4*kernelStride, pKerValue+12*kernelDistance, vl) ;
+	    __vr vrkD = _vel_vldu_vssl(4*kernelStride, pKerValue+13*kernelDistance, vl) ;
+	    __vr vrkE = _vel_vldu_vssl(4*kernelStride, pKerValue+14*kernelDistance, vl) ;
+	    __vr vrkF = _vel_vldu_vssl(4*kernelStride, pKerValue+15*kernelDistance, vl) ;
 
 	    __vr vriP_h1w0  = _vel_vshf_vvvsl(vri_h1w0, vri_h1w0, VE_VSHUFFLE_YUZU, vl) ;
 	    __vr vriP_h1w1  = _vel_vshf_vvvsl(vri_h1w1, vri_h1w1, VE_VSHUFFLE_YUZU, vl) ;
@@ -2738,22 +2892,33 @@ static inline void k16y2x2(
 
 	    __vr vri_h1w0 = _vel_vldu_vssl(4*inHeight*inWidth, &pIn[inputIndex_h1w0], vl) ;
 
-	    __vr vrk0 = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+0*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrk1 = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+1*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrk2 = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+2*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrk3 = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+3*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrk4 = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+4*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrk5 = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+5*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrk6 = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+6*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrk7 = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+7*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrk8 = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+8*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrk9 = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+9*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrkA = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+10*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrkB = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+11*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrkC = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+12*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrkD = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+13*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrkE = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+14*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrkF = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+15*inChannelGroup*kernHeight*kernWidth], vl) ;
+	    const float *pKerValue = ( FLAYOUT == VEDNN_FILTER_LAYOUT_NCHW ) ?
+				      pKernel + kernGroupOffset + ((k * inChannelGroup + c) * kernHeight + r) * kernWidth + s :
+				      pKernel + kernGroupOffset + ( ( r * kernWidth + s ) * inChannelGroup + c ) * outChannelGroup + k ;
+
+	    const int64_t kernelDistance = ( FLAYOUT == VEDNN_FILTER_LAYOUT_NCHW ) ?
+					   inChannelGroup * kernHeight * kernWidth :
+					   1 ;
+
+	    const int64_t kernelStride = ( FLAYOUT == VEDNN_FILTER_LAYOUT_NCHW ) ?
+			                 kernHeight * kernWidth :
+					 outChannelGroup ;
+	    __vr vrk0 = _vel_vldu_vssl(4*kernelStride, pKerValue+0*kernelDistance, vl) ;
+	    __vr vrk1 = _vel_vldu_vssl(4*kernelStride, pKerValue+1*kernelDistance, vl) ;
+	    __vr vrk2 = _vel_vldu_vssl(4*kernelStride, pKerValue+2*kernelDistance, vl) ;
+	    __vr vrk3 = _vel_vldu_vssl(4*kernelStride, pKerValue+3*kernelDistance, vl) ;
+	    __vr vrk4 = _vel_vldu_vssl(4*kernelStride, pKerValue+4*kernelDistance, vl) ;
+	    __vr vrk5 = _vel_vldu_vssl(4*kernelStride, pKerValue+5*kernelDistance, vl) ;
+	    __vr vrk6 = _vel_vldu_vssl(4*kernelStride, pKerValue+6*kernelDistance, vl) ;
+	    __vr vrk7 = _vel_vldu_vssl(4*kernelStride, pKerValue+7*kernelDistance, vl) ;
+	    __vr vrk8 = _vel_vldu_vssl(4*kernelStride, pKerValue+8*kernelDistance, vl) ;
+	    __vr vrk9 = _vel_vldu_vssl(4*kernelStride, pKerValue+9*kernelDistance, vl) ;
+	    __vr vrkA = _vel_vldu_vssl(4*kernelStride, pKerValue+10*kernelDistance, vl) ;
+	    __vr vrkB = _vel_vldu_vssl(4*kernelStride, pKerValue+11*kernelDistance, vl) ;
+	    __vr vrkC = _vel_vldu_vssl(4*kernelStride, pKerValue+12*kernelDistance, vl) ;
+	    __vr vrkD = _vel_vldu_vssl(4*kernelStride, pKerValue+13*kernelDistance, vl) ;
+	    __vr vrkE = _vel_vldu_vssl(4*kernelStride, pKerValue+14*kernelDistance, vl) ;
+	    __vr vrkF = _vel_vldu_vssl(4*kernelStride, pKerValue+15*kernelDistance, vl) ;
 
 	    __vr vriP_h1w0  = _vel_vshf_vvvsl(vri_h1w0, vri_h1w0, VE_VSHUFFLE_YUZU, vl) ;
 
@@ -2788,22 +2953,33 @@ static inline void k16y2x2(
 
 	    __vr vri_h1w1 = _vel_vldu_vssl(4*inHeight*inWidth, &pIn[inputIndex_h1w1], vl) ;
 
-	    __vr vrk0 = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+0*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrk1 = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+1*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrk2 = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+2*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrk3 = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+3*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrk4 = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+4*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrk5 = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+5*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrk6 = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+6*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrk7 = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+7*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrk8 = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+8*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrk9 = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+9*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrkA = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+10*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrkB = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+11*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrkC = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+12*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrkD = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+13*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrkE = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+14*inChannelGroup*kernHeight*kernWidth], vl) ;
-	    __vr vrkF = _vel_vldu_vssl(4*kernHeight*kernWidth, &pKernel[kernelIndex+15*inChannelGroup*kernHeight*kernWidth], vl) ;
+	    const float *pKerValue = ( FLAYOUT == VEDNN_FILTER_LAYOUT_NCHW ) ?
+				      pKernel + kernGroupOffset + ((k * inChannelGroup + c) * kernHeight + r) * kernWidth + s :
+				      pKernel + kernGroupOffset + ( ( r * kernWidth + s ) * inChannelGroup + c ) * outChannelGroup + k ;
+
+	    const int64_t kernelDistance = ( FLAYOUT == VEDNN_FILTER_LAYOUT_NCHW ) ?
+					   inChannelGroup * kernHeight * kernWidth :
+					   1 ;
+
+	    const int64_t kernelStride = ( FLAYOUT == VEDNN_FILTER_LAYOUT_NCHW ) ?
+			                 kernHeight * kernWidth :
+					 outChannelGroup ;
+	    __vr vrk0 = _vel_vldu_vssl(4*kernelStride, pKerValue+0*kernelDistance, vl) ;
+	    __vr vrk1 = _vel_vldu_vssl(4*kernelStride, pKerValue+1*kernelDistance, vl) ;
+	    __vr vrk2 = _vel_vldu_vssl(4*kernelStride, pKerValue+2*kernelDistance, vl) ;
+	    __vr vrk3 = _vel_vldu_vssl(4*kernelStride, pKerValue+3*kernelDistance, vl) ;
+	    __vr vrk4 = _vel_vldu_vssl(4*kernelStride, pKerValue+4*kernelDistance, vl) ;
+	    __vr vrk5 = _vel_vldu_vssl(4*kernelStride, pKerValue+5*kernelDistance, vl) ;
+	    __vr vrk6 = _vel_vldu_vssl(4*kernelStride, pKerValue+6*kernelDistance, vl) ;
+	    __vr vrk7 = _vel_vldu_vssl(4*kernelStride, pKerValue+7*kernelDistance, vl) ;
+	    __vr vrk8 = _vel_vldu_vssl(4*kernelStride, pKerValue+8*kernelDistance, vl) ;
+	    __vr vrk9 = _vel_vldu_vssl(4*kernelStride, pKerValue+9*kernelDistance, vl) ;
+	    __vr vrkA = _vel_vldu_vssl(4*kernelStride, pKerValue+10*kernelDistance, vl) ;
+	    __vr vrkB = _vel_vldu_vssl(4*kernelStride, pKerValue+11*kernelDistance, vl) ;
+	    __vr vrkC = _vel_vldu_vssl(4*kernelStride, pKerValue+12*kernelDistance, vl) ;
+	    __vr vrkD = _vel_vldu_vssl(4*kernelStride, pKerValue+13*kernelDistance, vl) ;
+	    __vr vrkE = _vel_vldu_vssl(4*kernelStride, pKerValue+14*kernelDistance, vl) ;
+	    __vr vrkF = _vel_vldu_vssl(4*kernelStride, pKerValue+15*kernelDistance, vl) ;
 
 	    __vr vriP_h1w1  = _vel_vshf_vvvsl(vri_h1w1, vri_h1w1, VE_VSHUFFLE_YUZU, vl) ;
 
