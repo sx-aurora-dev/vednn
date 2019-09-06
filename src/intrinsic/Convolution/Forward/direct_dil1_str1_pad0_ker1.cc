@@ -2,6 +2,7 @@
 #include <stdlib.h>
 
 #include "vednn.h"
+#include "vednn_util.h"
 
 #include "velintrin.h"
 #define VLEN	(256)
@@ -34,41 +35,31 @@ static inline void k1(
 
     __vr vrsum = _vel_vbrds_vsl(0.0f, vl) ;
 
-//    const int64_t kernelDistance0 = ( FLAYOUT == VEDNN_FILTER_LAYOUT_NCHW ) ?
-//	                             inChannelGroup :
-//				     1 ;
-    const int64_t kernelDistance1 = ( FLAYOUT == VEDNN_FILTER_LAYOUT_NCHW ) ?
-	                             1 :
-				     outChannelGroup ;
-
     int64_t c = 0 ;
+
     if( ( inChannelGroup & 0x01 ) == 1 ) {
       const float *pInChannel = pIn + inGroupOffset + ((n * inChannel + c) * inHeight * inWidth ) ;
 
-      __vr vrin  = _vel_vldu_vssl(4,&pInChannel[op], vl) ;
 
-      const float *pKerValue = ( FLAYOUT == VEDNN_FILTER_LAYOUT_NCHW ) ?
-			        pKernel + kernGroupOffset + ((k * inChannelGroup + c) * 1 + 0) * 1 + 0 :
-                                pKernel + kernGroupOffset + ( ( 0 * 1 + 0 ) * inChannelGroup + c ) * outChannelGroup + k ;
+      __vr vrin_c0  = _vel_vldu_vssl(4,&pInChannel[op], vl) ;
 
-      vrsum = _vel_vfmads_vvsvl(vrsum, pKerValue[0], vrin, vl) ;
+#define FILTER_OFFSET(k,c) ( kernGroupOffset + filter_index<FLAYOUT>(k,c,0,0, inChannelGroup, outChannelGroup, 1, 1) )
+
+       vrsum = _vel_vfmads_vvsvl(vrsum, pKernel[FILTER_OFFSET(k+ 0, c)], vrin_c0, vl) ;
 
       c++ ;
     }
     for( ; c < inChannelGroup ; c+=2 ) {
       const float *pInChannel = pIn + inGroupOffset + ((n * inChannel + c  ) * inHeight * inWidth ) ;
 
-      __vr vrin0  = _vel_vldu_vssl(4,&pInChannel[op], vl) ;
-      __vr vrin1  = _vel_vldu_vssl(4,&pInChannel[op + inHeight * inWidth ], vl) ;
+      __vr vrin_c0  = _vel_vldu_vssl(4,&pInChannel[op], vl) ;
+      __vr vrin_c1  = _vel_vldu_vssl(4,&pInChannel[op + inHeight * inWidth ], vl) ;
 
-      const float *pKerValue = ( FLAYOUT == VEDNN_FILTER_LAYOUT_NCHW ) ?
-			        pKernel + kernGroupOffset + ((k * inChannelGroup + c) * 1 + 0) * 1 + 0 :
-                                pKernel + kernGroupOffset + ( ( 0 * 1 + 0 ) * inChannelGroup + c ) * outChannelGroup + k ;
+      vrsum = _vel_vfmads_vvsvl(vrsum, pKernel[FILTER_OFFSET(k+ 0, c+0)], vrin_c0, vl) ;
+      vrsum = _vel_vfmads_vvsvl(vrsum, pKernel[FILTER_OFFSET(k+ 0, c+1)], vrin_c1, vl) ;
 
-      vrsum = _vel_vfmads_vvsvl(vrsum, pKerValue[0*kernelDistance1], vrin0, vl) ;
-      vrsum = _vel_vfmads_vvsvl(vrsum, pKerValue[1*kernelDistance1], vrin1, vl) ;
-    } // inChannel
-
+#undef FILTER_OFFSET
+    }// inChannel
     _vel_vstu_vssl(vrsum, 4, pOut+outIndex, vl) ;
 
     outIndex += vl ;
@@ -106,13 +97,6 @@ static inline void k2(
 
     int64_t c = 0 ;
 
-    const int64_t kernelDistance0 = ( FLAYOUT == VEDNN_FILTER_LAYOUT_NCHW ) ?
-	                             inChannelGroup :
-				     1 ;
-    const int64_t kernelDistance1 = ( FLAYOUT == VEDNN_FILTER_LAYOUT_NCHW ) ?
-	                             1 :
-				     outChannelGroup ;
-
     if( ( inChannelGroup & 0x01 ) == 1 ) {
       const float *pInChannel = pIn + inGroupOffset + ((n * inChannel + c) * inHeight * inWidth ) ;
 
@@ -120,12 +104,10 @@ static inline void k2(
       __vr vrin_c0  = _vel_vldu_vssl(4,&pInChannel[op], vl) ;
       __vr vrin_c0P = _vel_vshf_vvvsl(vrin_c0, vrin_c0, VE_VSHUFFLE_YUZU, vl) ;
 
-      const float *pKerValue = ( FLAYOUT == VEDNN_FILTER_LAYOUT_NCHW ) ?
-			        pKernel + kernGroupOffset + ((k * inChannelGroup + c) * 1 + 0) * 1 + 0 :
-                                pKernel + kernGroupOffset + ( ( 0 * 1 + 0 ) * inChannelGroup + c ) * outChannelGroup + k ;
+#define FILTER_OFFSET(k,c) ( kernGroupOffset + filter_index<FLAYOUT>(k,c,0,0, inChannelGroup, outChannelGroup, 1, 1) )
 
-      const uint64_t kerValue01_c0 = _vel_pack_f32p(pKerValue   + 0*kernelDistance0,
-      				                    pKerValue   + 1*kernelDistance0 ) ;
+      const uint64_t kerValue01_c0 = _vel_pack_f32p(pKernel + FILTER_OFFSET(k+ 0, c),
+	                                            pKernel + FILTER_OFFSET(k+ 1, c)) ;
       vrsum01 = _vel_pvfmad_vvsvl(vrsum01, kerValue01_c0, vrin_c0P, vl) ;
 
       c++ ;
@@ -142,13 +124,15 @@ static inline void k2(
 			        pKernel + kernGroupOffset + ((k * inChannelGroup + c) * 1 + 0) * 1 + 0 :
                                 pKernel + kernGroupOffset + ( ( 0 * 1 + 0 ) * inChannelGroup + c ) * outChannelGroup + k ;
 
-      const uint64_t kerValue01_c0 = _vel_pack_f32p(pKerValue+0*kernelDistance1 + 0*kernelDistance0,
-      				                    pKerValue+0*kernelDistance1 + 1*kernelDistance0 ) ;
-      const uint64_t kerValue01_c1 = _vel_pack_f32p(pKerValue+1*kernelDistance1 + 0*kernelDistance0,
-      				                    pKerValue+1*kernelDistance1 + 1*kernelDistance0 ) ;
+      const uint64_t kerValue01_c0 = _vel_pack_f32p(pKernel + FILTER_OFFSET(k+ 0, c+0),
+	                                            pKernel + FILTER_OFFSET(k+ 1, c+0)) ;
+      const uint64_t kerValue01_c1 = _vel_pack_f32p(pKernel + FILTER_OFFSET(k+ 0, c+1),
+	                                            pKernel + FILTER_OFFSET(k+ 1, c+1)) ;
       vrsum01 = _vel_pvfmad_vvsvl(vrsum01, kerValue01_c0, vrin_c0P, vl) ;
       vrsum01 = _vel_pvfmad_vvsvl(vrsum01, kerValue01_c1, vrin_c1P, vl) ;
-    } // inChannel
+
+#undef FILTER_OFFSET
+    }// inChannel
 
     _vel_vstu_vssl(vrsum01, 4, pOut+outIndex, vl) ;
     _vel_vstl_vssl(vrsum01, 4, pOut+outIndex+   oPixels, vl) ;
@@ -188,13 +172,6 @@ static inline void k4(
 
     int64_t c = 0 ;
 
-    const int64_t kernelDistance0 = ( FLAYOUT == VEDNN_FILTER_LAYOUT_NCHW ) ?
-	                             inChannelGroup :
-				     1 ;
-    const int64_t kernelDistance1 = ( FLAYOUT == VEDNN_FILTER_LAYOUT_NCHW ) ?
-	                             1 :
-				     outChannelGroup ;
-
     if( ( inChannelGroup & 0x01 ) == 1 ) {
       const float *pInChannel = pIn + inGroupOffset + ((n * inChannel + c) * inHeight * inWidth ) ;
 
@@ -202,16 +179,14 @@ static inline void k4(
       __vr vrin_c0  = _vel_vldu_vssl(4,&pInChannel[op], vl) ;
       __vr vrin_c0P = _vel_vshf_vvvsl(vrin_c0, vrin_c0, VE_VSHUFFLE_YUZU, vl) ;
 
-      const float *pKerValue = ( FLAYOUT == VEDNN_FILTER_LAYOUT_NCHW ) ?
-			        pKernel + kernGroupOffset + ((k * inChannelGroup + c) * 1 + 0) * 1 + 0 :
-                                pKernel + kernGroupOffset + ( ( 0 * 1 + 0 ) * inChannelGroup + c ) * outChannelGroup + k ;
+#define FILTER_OFFSET(k,c) ( kernGroupOffset + filter_index<FLAYOUT>(k,c,0,0, inChannelGroup, outChannelGroup, 1, 1) )
 
-      const uint64_t kerValue01_c0 = _vel_pack_f32p(pKerValue   + 0*kernelDistance0,
-      				                    pKerValue   + 1*kernelDistance0 ) ;
+      const uint64_t kerValue01_c0 = _vel_pack_f32p(pKernel + FILTER_OFFSET(k+ 0, c),
+	                                            pKernel + FILTER_OFFSET(k+ 1, c)) ;
       vrsum01 = _vel_pvfmad_vvsvl(vrsum01, kerValue01_c0, vrin_c0P, vl) ;
 
-      const uint64_t kerValue23_c0 = _vel_pack_f32p(pKerValue   + 2*kernelDistance0,
-      				                    pKerValue   + 3*kernelDistance0 ) ;
+      const uint64_t kerValue23_c0 = _vel_pack_f32p(pKernel + FILTER_OFFSET(k+ 2, c),
+	                                            pKernel + FILTER_OFFSET(k+ 3, c)) ;
       vrsum23 = _vel_pvfmad_vvsvl(vrsum23, kerValue23_c0, vrin_c0P, vl) ;
 
       c++ ;
@@ -228,21 +203,22 @@ static inline void k4(
 			        pKernel + kernGroupOffset + ((k * inChannelGroup + c) * 1 + 0) * 1 + 0 :
                                 pKernel + kernGroupOffset + ( ( 0 * 1 + 0 ) * inChannelGroup + c ) * outChannelGroup + k ;
 
-      const uint64_t kerValue01_c0 = _vel_pack_f32p(pKerValue+0*kernelDistance1 + 0*kernelDistance0,
-      				                    pKerValue+0*kernelDistance1 + 1*kernelDistance0 ) ;
-      const uint64_t kerValue01_c1 = _vel_pack_f32p(pKerValue+1*kernelDistance1 + 0*kernelDistance0,
-      				                    pKerValue+1*kernelDistance1 + 1*kernelDistance0 ) ;
+      const uint64_t kerValue01_c0 = _vel_pack_f32p(pKernel + FILTER_OFFSET(k+ 0, c+0),
+	                                            pKernel + FILTER_OFFSET(k+ 1, c+0)) ;
+      const uint64_t kerValue01_c1 = _vel_pack_f32p(pKernel + FILTER_OFFSET(k+ 0, c+1),
+	                                            pKernel + FILTER_OFFSET(k+ 1, c+1)) ;
       vrsum01 = _vel_pvfmad_vvsvl(vrsum01, kerValue01_c0, vrin_c0P, vl) ;
       vrsum01 = _vel_pvfmad_vvsvl(vrsum01, kerValue01_c1, vrin_c1P, vl) ;
 
-      const uint64_t kerValue23_c0 = _vel_pack_f32p(pKerValue+0*kernelDistance1 + 2*kernelDistance0,
-      				                    pKerValue+0*kernelDistance1 + 3*kernelDistance0 ) ;
-      const uint64_t kerValue23_c1 = _vel_pack_f32p(pKerValue+1*kernelDistance1 + 2*kernelDistance0,
-      				                    pKerValue+1*kernelDistance1 + 3*kernelDistance0 ) ;
+      const uint64_t kerValue23_c0 = _vel_pack_f32p(pKernel + FILTER_OFFSET(k+ 2, c+0),
+	                                            pKernel + FILTER_OFFSET(k+ 3, c+0)) ;
+      const uint64_t kerValue23_c1 = _vel_pack_f32p(pKernel + FILTER_OFFSET(k+ 2, c+1),
+	                                            pKernel + FILTER_OFFSET(k+ 3, c+1)) ;
       vrsum23 = _vel_pvfmad_vvsvl(vrsum23, kerValue23_c0, vrin_c0P, vl) ;
       vrsum23 = _vel_pvfmad_vvsvl(vrsum23, kerValue23_c1, vrin_c1P, vl) ;
 
-    } // inChannel
+#undef FILTER_OFFSET
+    }// inChannel
 
     _vel_vstu_vssl(vrsum01, 4, pOut+outIndex, vl) ;
     _vel_vstl_vssl(vrsum01, 4, pOut+outIndex+   oPixels, vl) ;
@@ -286,13 +262,6 @@ static inline void k8(
 
     int64_t c = 0 ;
 
-    const int64_t kernelDistance0 = ( FLAYOUT == VEDNN_FILTER_LAYOUT_NCHW ) ?
-	                             inChannelGroup :
-				     1 ;
-    const int64_t kernelDistance1 = ( FLAYOUT == VEDNN_FILTER_LAYOUT_NCHW ) ?
-	                             1 :
-				     outChannelGroup ;
-
     if( ( inChannelGroup & 0x01 ) == 1 ) {
       const float *pInChannel = pIn + inGroupOffset + ((n * inChannel + c) * inHeight * inWidth ) ;
 
@@ -300,24 +269,22 @@ static inline void k8(
       __vr vrin_c0  = _vel_vldu_vssl(4,&pInChannel[op], vl) ;
       __vr vrin_c0P = _vel_vshf_vvvsl(vrin_c0, vrin_c0, VE_VSHUFFLE_YUZU, vl) ;
 
-      const float *pKerValue = ( FLAYOUT == VEDNN_FILTER_LAYOUT_NCHW ) ?
-			        pKernel + kernGroupOffset + ((k * inChannelGroup + c) * 1 + 0) * 1 + 0 :
-                                pKernel + kernGroupOffset + ( ( 0 * 1 + 0 ) * inChannelGroup + c ) * outChannelGroup + k ;
+#define FILTER_OFFSET(k,c) ( kernGroupOffset + filter_index<FLAYOUT>(k,c,0,0, inChannelGroup, outChannelGroup, 1, 1) )
 
-      const uint64_t kerValue01_c0 = _vel_pack_f32p(pKerValue   + 0*kernelDistance0,
-      				                    pKerValue   + 1*kernelDistance0 ) ;
+      const uint64_t kerValue01_c0 = _vel_pack_f32p(pKernel + FILTER_OFFSET(k+ 0, c),
+	                                            pKernel + FILTER_OFFSET(k+ 1, c)) ;
       vrsum01 = _vel_pvfmad_vvsvl(vrsum01, kerValue01_c0, vrin_c0P, vl) ;
 
-      const uint64_t kerValue23_c0 = _vel_pack_f32p(pKerValue   + 2*kernelDistance0,
-      				                    pKerValue   + 3*kernelDistance0 ) ;
+      const uint64_t kerValue23_c0 = _vel_pack_f32p(pKernel + FILTER_OFFSET(k+ 2, c),
+	                                            pKernel + FILTER_OFFSET(k+ 3, c)) ;
       vrsum23 = _vel_pvfmad_vvsvl(vrsum23, kerValue23_c0, vrin_c0P, vl) ;
 
-      const uint64_t kerValue45_c0 = _vel_pack_f32p(pKerValue   + 4*kernelDistance0,
-      				                    pKerValue   + 5*kernelDistance0 ) ;
+      const uint64_t kerValue45_c0 = _vel_pack_f32p(pKernel + FILTER_OFFSET(k+ 4, c),
+	                                            pKernel + FILTER_OFFSET(k+ 5, c)) ;
       vrsum45 = _vel_pvfmad_vvsvl(vrsum45, kerValue45_c0, vrin_c0P, vl) ;
 
-      const uint64_t kerValue67_c0 = _vel_pack_f32p(pKerValue   + 6*kernelDistance0,
-      				                    pKerValue   + 7*kernelDistance0 ) ;
+      const uint64_t kerValue67_c0 = _vel_pack_f32p(pKernel + FILTER_OFFSET(k+ 6, c),
+	                                            pKernel + FILTER_OFFSET(k+ 7, c)) ;
       vrsum67 = _vel_pvfmad_vvsvl(vrsum67, kerValue67_c0, vrin_c0P, vl) ;
 
       c++ ;
@@ -334,35 +301,35 @@ static inline void k8(
 			        pKernel + kernGroupOffset + ((k * inChannelGroup + c) * 1 + 0) * 1 + 0 :
                                 pKernel + kernGroupOffset + ( ( 0 * 1 + 0 ) * inChannelGroup + c ) * outChannelGroup + k ;
 
-      const uint64_t kerValue01_c0 = _vel_pack_f32p(pKerValue+0*kernelDistance1 + 0*kernelDistance0,
-      				                    pKerValue+0*kernelDistance1 + 1*kernelDistance0 ) ;
-      const uint64_t kerValue01_c1 = _vel_pack_f32p(pKerValue+1*kernelDistance1 + 0*kernelDistance0,
-      				                    pKerValue+1*kernelDistance1 + 1*kernelDistance0 ) ;
+      const uint64_t kerValue01_c0 = _vel_pack_f32p(pKernel + FILTER_OFFSET(k+ 0, c+0),
+	                                            pKernel + FILTER_OFFSET(k+ 1, c+0)) ;
+      const uint64_t kerValue01_c1 = _vel_pack_f32p(pKernel + FILTER_OFFSET(k+ 0, c+1),
+	                                            pKernel + FILTER_OFFSET(k+ 1, c+1)) ;
       vrsum01 = _vel_pvfmad_vvsvl(vrsum01, kerValue01_c0, vrin_c0P, vl) ;
       vrsum01 = _vel_pvfmad_vvsvl(vrsum01, kerValue01_c1, vrin_c1P, vl) ;
 
-      const uint64_t kerValue23_c0 = _vel_pack_f32p(pKerValue+0*kernelDistance1 + 2*kernelDistance0,
-      				                    pKerValue+0*kernelDistance1 + 3*kernelDistance0 ) ;
-      const uint64_t kerValue23_c1 = _vel_pack_f32p(pKerValue+1*kernelDistance1 + 2*kernelDistance0,
-      				                    pKerValue+1*kernelDistance1 + 3*kernelDistance0 ) ;
+      const uint64_t kerValue23_c0 = _vel_pack_f32p(pKernel + FILTER_OFFSET(k+ 2, c+0),
+	                                            pKernel + FILTER_OFFSET(k+ 3, c+0)) ;
+      const uint64_t kerValue23_c1 = _vel_pack_f32p(pKernel + FILTER_OFFSET(k+ 2, c+1),
+	                                            pKernel + FILTER_OFFSET(k+ 3, c+1)) ;
       vrsum23 = _vel_pvfmad_vvsvl(vrsum23, kerValue23_c0, vrin_c0P, vl) ;
       vrsum23 = _vel_pvfmad_vvsvl(vrsum23, kerValue23_c1, vrin_c1P, vl) ;
 
-      const uint64_t kerValue45_c0 = _vel_pack_f32p(pKerValue+0*kernelDistance1 + 4*kernelDistance0,
-      				                    pKerValue+0*kernelDistance1 + 5*kernelDistance0 ) ;
-      const uint64_t kerValue45_c1 = _vel_pack_f32p(pKerValue+1*kernelDistance1 + 4*kernelDistance0,
-      				                    pKerValue+1*kernelDistance1 + 5*kernelDistance0 ) ;
+      const uint64_t kerValue45_c0 = _vel_pack_f32p(pKernel + FILTER_OFFSET(k+ 4, c+0),
+	                                            pKernel + FILTER_OFFSET(k+ 5, c+0)) ;
+      const uint64_t kerValue45_c1 = _vel_pack_f32p(pKernel + FILTER_OFFSET(k+ 4, c+1),
+	                                            pKernel + FILTER_OFFSET(k+ 5, c+1)) ;
       vrsum45 = _vel_pvfmad_vvsvl(vrsum45, kerValue45_c0, vrin_c0P, vl) ;
       vrsum45 = _vel_pvfmad_vvsvl(vrsum45, kerValue45_c1, vrin_c1P, vl) ;
 
-      const uint64_t kerValue67_c0 = _vel_pack_f32p(pKerValue+0*kernelDistance1 + 6*kernelDistance0,
-      				                    pKerValue+0*kernelDistance1 + 7*kernelDistance0 ) ;
-      const uint64_t kerValue67_c1 = _vel_pack_f32p(pKerValue+1*kernelDistance1 + 6*kernelDistance0,
-      				                    pKerValue+1*kernelDistance1 + 7*kernelDistance0 ) ;
+      const uint64_t kerValue67_c0 = _vel_pack_f32p(pKernel + FILTER_OFFSET(k+ 6, c+0),
+	                                            pKernel + FILTER_OFFSET(k+ 7, c+0)) ;
+      const uint64_t kerValue67_c1 = _vel_pack_f32p(pKernel + FILTER_OFFSET(k+ 6, c+1),
+	                                            pKernel + FILTER_OFFSET(k+ 7, c+1)) ;
       vrsum67 = _vel_pvfmad_vvsvl(vrsum67, kerValue67_c0, vrin_c0P, vl) ;
       vrsum67 = _vel_pvfmad_vvsvl(vrsum67, kerValue67_c1, vrin_c1P, vl) ;
-
-    } // inChannel
+#undef FILTER_OFFSET
+    }// inChannel
 
     _vel_vstu_vssl(vrsum01, 4, pOut+outIndex, vl) ;
     _vel_vstl_vssl(vrsum01, 4, pOut+outIndex+   oPixels, vl) ;
@@ -414,13 +381,6 @@ static inline void k16(
 
     int64_t c = 0 ;
 
-    const int64_t kernelDistance0 = ( FLAYOUT == VEDNN_FILTER_LAYOUT_NCHW ) ?
-	                             inChannelGroup :
-				     1 ;
-    const int64_t kernelDistance1 = ( FLAYOUT == VEDNN_FILTER_LAYOUT_NCHW ) ?
-	                             1 :
-				     outChannelGroup ;
-
     if( ( inChannelGroup & 0x01 ) == 1 ) {
       const float *pInChannel = pIn + inGroupOffset + ((n * inChannel + c) * inHeight * inWidth ) ;
 
@@ -428,40 +388,38 @@ static inline void k16(
       __vr vrin_c0  = _vel_vldu_vssl(4,&pInChannel[op], vl) ;
       __vr vrin_c0P = _vel_vshf_vvvsl(vrin_c0, vrin_c0, VE_VSHUFFLE_YUZU, vl) ;
 
-      const float *pKerValue = ( FLAYOUT == VEDNN_FILTER_LAYOUT_NCHW ) ?
-			        pKernel + kernGroupOffset + ((k * inChannelGroup + c) * 1 + 0) * 1 + 0 :
-                                pKernel + kernGroupOffset + ( ( 0 * 1 + 0 ) * inChannelGroup + c ) * outChannelGroup + k ;
+#define FILTER_OFFSET(k,c) ( kernGroupOffset + filter_index<FLAYOUT>(k,c,0,0, inChannelGroup, outChannelGroup, 1, 1) )
 
-      const uint64_t kerValue01_c0 = _vel_pack_f32p(pKerValue   + 0*kernelDistance0,
-      				                    pKerValue   + 1*kernelDistance0 ) ;
+      const uint64_t kerValue01_c0 = _vel_pack_f32p(pKernel + FILTER_OFFSET(k+ 0, c),
+	                                            pKernel + FILTER_OFFSET(k+ 1, c)) ;
       vrsum01 = _vel_pvfmad_vvsvl(vrsum01, kerValue01_c0, vrin_c0P, vl) ;
 
-      const uint64_t kerValue23_c0 = _vel_pack_f32p(pKerValue   + 2*kernelDistance0,
-      				                    pKerValue   + 3*kernelDistance0 ) ;
+      const uint64_t kerValue23_c0 = _vel_pack_f32p(pKernel + FILTER_OFFSET(k+ 2, c),
+	                                            pKernel + FILTER_OFFSET(k+ 3, c)) ;
       vrsum23 = _vel_pvfmad_vvsvl(vrsum23, kerValue23_c0, vrin_c0P, vl) ;
 
-      const uint64_t kerValue45_c0 = _vel_pack_f32p(pKerValue   + 4*kernelDistance0,
-      				                    pKerValue   + 5*kernelDistance0 ) ;
+      const uint64_t kerValue45_c0 = _vel_pack_f32p(pKernel + FILTER_OFFSET(k+ 4, c),
+	                                            pKernel + FILTER_OFFSET(k+ 5, c)) ;
       vrsum45 = _vel_pvfmad_vvsvl(vrsum45, kerValue45_c0, vrin_c0P, vl) ;
 
-      const uint64_t kerValue67_c0 = _vel_pack_f32p(pKerValue   + 6*kernelDistance0,
-      				                    pKerValue   + 7*kernelDistance0 ) ;
+      const uint64_t kerValue67_c0 = _vel_pack_f32p(pKernel + FILTER_OFFSET(k+ 6, c),
+	                                            pKernel + FILTER_OFFSET(k+ 7, c)) ;
       vrsum67 = _vel_pvfmad_vvsvl(vrsum67, kerValue67_c0, vrin_c0P, vl) ;
 
-      const uint64_t kerValue89_c0 = _vel_pack_f32p(pKerValue   + 8*kernelDistance0,
-      				                    pKerValue   + 9*kernelDistance0 ) ;
+      const uint64_t kerValue89_c0 = _vel_pack_f32p(pKernel + FILTER_OFFSET(k+ 8, c),
+	                                            pKernel + FILTER_OFFSET(k+ 9, c)) ;
       vrsum89 = _vel_pvfmad_vvsvl(vrsum89, kerValue89_c0, vrin_c0P, vl) ;
 
-      const uint64_t kerValueAB_c0 = _vel_pack_f32p(pKerValue   +10*kernelDistance0,
-      				                    pKerValue   +11*kernelDistance0 ) ;
+      const uint64_t kerValueAB_c0 = _vel_pack_f32p(pKernel + FILTER_OFFSET(k+10, c),
+	                                            pKernel + FILTER_OFFSET(k+11, c)) ;
       vrsumAB = _vel_pvfmad_vvsvl(vrsumAB, kerValueAB_c0, vrin_c0P, vl) ;
 
-      const uint64_t kerValueCD_c0 = _vel_pack_f32p(pKerValue   +12*kernelDistance0,
-      				                    pKerValue   +13*kernelDistance0 ) ;
+      const uint64_t kerValueCD_c0 = _vel_pack_f32p(pKernel + FILTER_OFFSET(k+12, c),
+	                                            pKernel + FILTER_OFFSET(k+13, c)) ;
       vrsumCD = _vel_pvfmad_vvsvl(vrsumCD, kerValueCD_c0, vrin_c0P, vl) ;
 
-      const uint64_t kerValueEF_c0 = _vel_pack_f32p(pKerValue   +14*kernelDistance0,
-      				                    pKerValue   +15*kernelDistance0 ) ;
+      const uint64_t kerValueEF_c0 = _vel_pack_f32p(pKernel + FILTER_OFFSET(k+14, c),
+	                                            pKernel + FILTER_OFFSET(k+15, c)) ;
       vrsumEF = _vel_pvfmad_vvsvl(vrsumEF, kerValueEF_c0, vrin_c0P, vl) ;
 
       c++ ;
@@ -478,61 +436,62 @@ static inline void k16(
 			        pKernel + kernGroupOffset + ((k * inChannelGroup + c) * 1 + 0) * 1 + 0 :
                                 pKernel + kernGroupOffset + ( ( 0 * 1 + 0 ) * inChannelGroup + c ) * outChannelGroup + k ;
 
-      const uint64_t kerValue01_c0 = _vel_pack_f32p(pKerValue+0*kernelDistance1 + 0*kernelDistance0,
-      				                    pKerValue+0*kernelDistance1 + 1*kernelDistance0 ) ;
-      const uint64_t kerValue01_c1 = _vel_pack_f32p(pKerValue+1*kernelDistance1 + 0*kernelDistance0,
-      				                    pKerValue+1*kernelDistance1 + 1*kernelDistance0 ) ;
+      const uint64_t kerValue01_c0 = _vel_pack_f32p(pKernel + FILTER_OFFSET(k+ 0, c+0),
+	                                            pKernel + FILTER_OFFSET(k+ 1, c+0)) ;
+      const uint64_t kerValue01_c1 = _vel_pack_f32p(pKernel + FILTER_OFFSET(k+ 0, c+1),
+	                                            pKernel + FILTER_OFFSET(k+ 1, c+1)) ;
       vrsum01 = _vel_pvfmad_vvsvl(vrsum01, kerValue01_c0, vrin_c0P, vl) ;
       vrsum01 = _vel_pvfmad_vvsvl(vrsum01, kerValue01_c1, vrin_c1P, vl) ;
 
-      const uint64_t kerValue23_c0 = _vel_pack_f32p(pKerValue+0*kernelDistance1 + 2*kernelDistance0,
-      				                    pKerValue+0*kernelDistance1 + 3*kernelDistance0 ) ;
-      const uint64_t kerValue23_c1 = _vel_pack_f32p(pKerValue+1*kernelDistance1 + 2*kernelDistance0,
-      				                    pKerValue+1*kernelDistance1 + 3*kernelDistance0 ) ;
+      const uint64_t kerValue23_c0 = _vel_pack_f32p(pKernel + FILTER_OFFSET(k+ 2, c+0),
+	                                            pKernel + FILTER_OFFSET(k+ 3, c+0)) ;
+      const uint64_t kerValue23_c1 = _vel_pack_f32p(pKernel + FILTER_OFFSET(k+ 2, c+1),
+	                                            pKernel + FILTER_OFFSET(k+ 3, c+1)) ;
       vrsum23 = _vel_pvfmad_vvsvl(vrsum23, kerValue23_c0, vrin_c0P, vl) ;
       vrsum23 = _vel_pvfmad_vvsvl(vrsum23, kerValue23_c1, vrin_c1P, vl) ;
 
-      const uint64_t kerValue45_c0 = _vel_pack_f32p(pKerValue+0*kernelDistance1 + 4*kernelDistance0,
-      				                    pKerValue+0*kernelDistance1 + 5*kernelDistance0 ) ;
-      const uint64_t kerValue45_c1 = _vel_pack_f32p(pKerValue+1*kernelDistance1 + 4*kernelDistance0,
-      				                    pKerValue+1*kernelDistance1 + 5*kernelDistance0 ) ;
+      const uint64_t kerValue45_c0 = _vel_pack_f32p(pKernel + FILTER_OFFSET(k+ 4, c+0),
+	                                            pKernel + FILTER_OFFSET(k+ 5, c+0)) ;
+      const uint64_t kerValue45_c1 = _vel_pack_f32p(pKernel + FILTER_OFFSET(k+ 4, c+1),
+	                                            pKernel + FILTER_OFFSET(k+ 5, c+1)) ;
       vrsum45 = _vel_pvfmad_vvsvl(vrsum45, kerValue45_c0, vrin_c0P, vl) ;
       vrsum45 = _vel_pvfmad_vvsvl(vrsum45, kerValue45_c1, vrin_c1P, vl) ;
 
-      const uint64_t kerValue67_c0 = _vel_pack_f32p(pKerValue+0*kernelDistance1 + 6*kernelDistance0,
-      				                    pKerValue+0*kernelDistance1 + 7*kernelDistance0 ) ;
-      const uint64_t kerValue67_c1 = _vel_pack_f32p(pKerValue+1*kernelDistance1 + 6*kernelDistance0,
-      				                    pKerValue+1*kernelDistance1 + 7*kernelDistance0 ) ;
+      const uint64_t kerValue67_c0 = _vel_pack_f32p(pKernel + FILTER_OFFSET(k+ 6, c+0),
+	                                            pKernel + FILTER_OFFSET(k+ 7, c+0)) ;
+      const uint64_t kerValue67_c1 = _vel_pack_f32p(pKernel + FILTER_OFFSET(k+ 6, c+1),
+	                                            pKernel + FILTER_OFFSET(k+ 7, c+1)) ;
       vrsum67 = _vel_pvfmad_vvsvl(vrsum67, kerValue67_c0, vrin_c0P, vl) ;
       vrsum67 = _vel_pvfmad_vvsvl(vrsum67, kerValue67_c1, vrin_c1P, vl) ;
 
-      const uint64_t kerValue89_c0 = _vel_pack_f32p(pKerValue+0*kernelDistance1 + 8*kernelDistance0,
-      				                    pKerValue+0*kernelDistance1 + 9*kernelDistance0 ) ;
-      const uint64_t kerValue89_c1 = _vel_pack_f32p(pKerValue+1*kernelDistance1 + 8*kernelDistance0,
-      				                    pKerValue+1*kernelDistance1 + 9*kernelDistance0 ) ;
+      const uint64_t kerValue89_c0 = _vel_pack_f32p(pKernel + FILTER_OFFSET(k+ 8, c+0),
+	                                            pKernel + FILTER_OFFSET(k+ 9, c+0)) ;
+      const uint64_t kerValue89_c1 = _vel_pack_f32p(pKernel + FILTER_OFFSET(k+ 8, c+1),
+	                                            pKernel + FILTER_OFFSET(k+ 9, c+1)) ;
       vrsum89 = _vel_pvfmad_vvsvl(vrsum89, kerValue89_c0, vrin_c0P, vl) ;
       vrsum89 = _vel_pvfmad_vvsvl(vrsum89, kerValue89_c1, vrin_c1P, vl) ;
 
-      const uint64_t kerValueAB_c0 = _vel_pack_f32p(pKerValue+0*kernelDistance1 +10*kernelDistance0,
-      				                    pKerValue+0*kernelDistance1 +11*kernelDistance0 ) ;
-      const uint64_t kerValueAB_c1 = _vel_pack_f32p(pKerValue+1*kernelDistance1 +10*kernelDistance0,
-      				                    pKerValue+1*kernelDistance1 +11*kernelDistance0 ) ;
+      const uint64_t kerValueAB_c0 = _vel_pack_f32p(pKernel + FILTER_OFFSET(k+10, c+0),
+	                                            pKernel + FILTER_OFFSET(k+11, c+0)) ;
+      const uint64_t kerValueAB_c1 = _vel_pack_f32p(pKernel + FILTER_OFFSET(k+10, c+1),
+	                                            pKernel + FILTER_OFFSET(k+11, c+1)) ;
       vrsumAB = _vel_pvfmad_vvsvl(vrsumAB, kerValueAB_c0, vrin_c0P, vl) ;
       vrsumAB = _vel_pvfmad_vvsvl(vrsumAB, kerValueAB_c1, vrin_c1P, vl) ;
 
-      const uint64_t kerValueCD_c0 = _vel_pack_f32p(pKerValue+0*kernelDistance1 +12*kernelDistance0,
-      				                    pKerValue+0*kernelDistance1 +13*kernelDistance0 ) ;
-      const uint64_t kerValueCD_c1 = _vel_pack_f32p(pKerValue+1*kernelDistance1 +12*kernelDistance0,
-      				                    pKerValue+1*kernelDistance1 +13*kernelDistance0 ) ;
+      const uint64_t kerValueCD_c0 = _vel_pack_f32p(pKernel + FILTER_OFFSET(k+12, c+0),
+	                                            pKernel + FILTER_OFFSET(k+13, c+0)) ;
+      const uint64_t kerValueCD_c1 = _vel_pack_f32p(pKernel + FILTER_OFFSET(k+12, c+1),
+	                                            pKernel + FILTER_OFFSET(k+13, c+1)) ;
       vrsumCD = _vel_pvfmad_vvsvl(vrsumCD, kerValueCD_c0, vrin_c0P, vl) ;
       vrsumCD = _vel_pvfmad_vvsvl(vrsumCD, kerValueCD_c1, vrin_c1P, vl) ;
 
-      const uint64_t kerValueEF_c0 = _vel_pack_f32p(pKerValue+0*kernelDistance1 +14*kernelDistance0,
-      				                    pKerValue+0*kernelDistance1 +15*kernelDistance0 ) ;
-      const uint64_t kerValueEF_c1 = _vel_pack_f32p(pKerValue+1*kernelDistance1 +14*kernelDistance0,
-      				                    pKerValue+1*kernelDistance1 +15*kernelDistance0 ) ;
+      const uint64_t kerValueEF_c0 = _vel_pack_f32p(pKernel + FILTER_OFFSET(k+14, c+0),
+	                                            pKernel + FILTER_OFFSET(k+15, c+0)) ;
+      const uint64_t kerValueEF_c1 = _vel_pack_f32p(pKernel + FILTER_OFFSET(k+14, c+1),
+	                                            pKernel + FILTER_OFFSET(k+15, c+1)) ;
       vrsumEF = _vel_pvfmad_vvsvl(vrsumEF, kerValueEF_c0, vrin_c0P, vl) ;
       vrsumEF = _vel_pvfmad_vvsvl(vrsumEF, kerValueEF_c1, vrin_c1P, vl) ;
+#undef FILTER_OFFSET
     } // inChannel
 
     _vel_vstu_vssl(vrsum01, 4, pOut+outIndex, vl) ;
