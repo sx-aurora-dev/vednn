@@ -67,10 +67,20 @@ vednnError_t vednnLinearBackwardWeight(
   if( (outDim & 0x01) == 0 &&
 	(((uint64_t)pDataGradWeight) & 0x07) == 0 && (((uint64_t)pDataGradOut) & 0x07) == 0 )
   {
-    return vednnLinearBackwardWeight_wrapper(
-	vednnLinearBackwardWeight_o2X_woaligned,
-	inDim, outDim, nBatch,
-	pDataIn, pDataGradOut, pDataGradWeight ) ;
+
+    if( outDim <= 128 ) {
+      return vednnLinearBackwardWeight_wrapper(
+	  vednnLinearBackwardWeight_o2XU128_woaligned,
+	  inDim, outDim, nBatch,
+	  pDataIn, pDataGradOut, pDataGradWeight ) ;
+    }
+    else
+    {
+      return vednnLinearBackwardWeight_wrapper(
+	  vednnLinearBackwardWeight_o2X_woaligned,
+	  inDim, outDim, nBatch,
+	  pDataIn, pDataGradOut, pDataGradWeight ) ;
+    }
   }
   else
   {
