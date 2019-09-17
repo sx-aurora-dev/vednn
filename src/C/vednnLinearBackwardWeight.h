@@ -19,6 +19,36 @@ vednnError_t (*vednnLinearBackwardWeight_t)(
 #endif
 ) ;
 
+vednnError_t vednnLinearBackwardWeight_o2X_woaligned(
+    const uint64_t			inDim,
+    const uint64_t			outDim,
+    const uint64_t			nBatch,
+    const void * 			pDataIn,
+    const void * 			pDataGradOut,
+    void * 				pDataGradWeight
+#ifdef VEDNN_USE_OPENMP
+    ,
+    const uint64_t			inDimBegin,
+    const uint64_t			inDimEnd
+#endif
+
+) ;
+
+vednnError_t vednnLinearBackwardWeight_o2XU128_woaligned(
+    const uint64_t			inDim,
+    const uint64_t			outDim,
+    const uint64_t			nBatch,
+    const void * 			pDataIn,
+    const void * 			pDataGradOut,
+    void * 				pDataGradWeight
+#ifdef VEDNN_USE_OPENMP
+    ,
+    const uint64_t			inDimBegin,
+    const uint64_t			inDimEnd
+#endif
+
+) ;
+
 vednnError_t vednnLinearBackwardWeight_default(
     const uint64_t			inDim,
     const uint64_t			outDim,
