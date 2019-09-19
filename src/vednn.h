@@ -2,6 +2,11 @@
 #ifndef __VEDNN__
 #define __VEDNN__
 
+#define VEDNN_MAJOR		1
+#define VEDNN_MINOR		0
+#define VEDNN_PATCHLEVEL	1
+#define VEDNN_VERSION	(VEDNN_MAJOR * 1000 + VEDNN_MINOR * 100 + VEDNN_PATCHLEVEL)
+
 #ifdef __cplusplus
 extern "C" {
 #endif
