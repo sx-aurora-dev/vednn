@@ -16,7 +16,6 @@ endif()
 include_directories("../")
 
 add_subdirectory(Convolution/Forward)
-add_subdirectory(Convolution/ForwardAddBias)
 add_subdirectory(Convolution/BackwardData)
 add_subdirectory(Convolution/BackwardFilter)
 add_subdirectory(Linear/Forward)

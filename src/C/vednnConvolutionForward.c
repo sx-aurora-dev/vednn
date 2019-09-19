@@ -1,5 +1,6 @@
 
 #include "vednnConvolutionForward.h"
+#include <stdlib.h>
 #include <stdint.h>
 
 #ifdef VEDNN_USE_OPENMP
@@ -14,6 +15,8 @@ vednnConvolutionForward_wrapper(
     const void 				*pDataIn,
     const vednnFilterParam_t		*pParamKernel,
     const void 				*pDataKernel,
+    const vednnBiasParam_t 		*pParamBias,
+    const void 				*pDataBias,
     const vednnConvolutionParam_t	*pParamConv,
     const vednnTensorParam_t 		*pParamOut,
     void 				*pDataOut
@@ -21,7 +24,7 @@ vednnConvolutionForward_wrapper(
 {
 #ifdef VEDNN_USE_OPENMP
   if ( __vednn_omp_num_threads == 1 ) {
-    return pFunc(pParamIn, pDataIn, pParamKernel, pDataKernel, pParamConv, pParamOut, pDataOut) ;
+    return pFunc(pParamIn, pDataIn, pParamKernel, pDataKernel, pParamBias, pDataBias, pParamConv, pParamOut, pDataOut) ;
   }
   else {
     vednnError_t rc = VEDNN_SUCCESS ;
@@ -48,22 +51,28 @@ vednnConvolutionForward_wrapper(
 	float* _pDataOut = ((float *)pDataOut) + batchBegin * pParamOut->channel * pParamOut->height * pParamOut->width ;
 
 	rc |= pFunc(&_pParamIn, (void*)_pDataIn, pParamKernel, pDataKernel,
+	            pParamBias, pDataBias,
 		    pParamConv, &_pParamOut, (void*) _pDataOut) ;
       }
     }
     return rc ;
   }
 #else
-  return pFunc(pParamIn, pDataIn, pParamKernel, pDataKernel, pParamConv, pParamOut, pDataOut) ;
+  return pFunc(pParamIn, pDataIn, pParamKernel, pDataKernel,
+               pParamBias, pDataBias,
+               pParamConv, pParamOut, pDataOut) ;
 #endif
 }
 
 /* ----------------------------------------------------------------------- */
-vednnError_t vednnConvolutionForward(
+static inline
+vednnError_t vednnConvolutionForwardBody(
     const vednnTensorParam_t 		*pParamIn,
     const void 				*pDataIn,
     const vednnFilterParam_t		*pParamKernel,
     const void 				*pDataKernel,
+    const vednnBiasParam_t 		*pParamBias,
+    const void 				*pDataBias,
     const vednnTensorParam_t 		*pParamOut,
     void 				*pDataOut,
     const vednnConvolutionParam_t	*pParamConv,
@@ -77,6 +86,7 @@ vednnError_t vednnConvolutionForward(
 	return vednnConvolutionForward_wrapper(
 	    vednnConvolutionForward_direct_vecC,
 	    pParamIn, pDataIn, pParamKernel, pDataKernel,
+	    pParamBias, pDataBias,
 	    pParamConv, pParamOut, pDataOut);
     }
     else if (pParamConv->strideHeight == 1 && pParamConv->strideWidth == 1
@@ -89,6 +99,7 @@ vednnError_t vednnConvolutionForward(
 	return vednnConvolutionForward_wrapper(
 	    vednnConvolutionForward_direct_dil1_str1_pad0_ker1,
 	    pParamIn, pDataIn, pParamKernel, pDataKernel,
+	    pParamBias, pDataBias,
 	    pParamConv, pParamOut, pDataOut);
       }
       else if (pParamKernel->height == 3 && pParamKernel->width == 3)
@@ -100,12 +111,14 @@ vednnError_t vednnConvolutionForward(
 	    return vednnConvolutionForward_wrapper(
 		vednnConvolutionForward_direct_dil1_str1_padsame_ker3_c1_owU128,
 		pParamIn, pDataIn, pParamKernel, pDataKernel,
+		pParamBias, pDataBias,
 		pParamConv, pParamOut, pDataOut );
 	  }
 	  else {
 	    return vednnConvolutionForward_wrapper(
 		vednnConvolutionForward_direct_dil1_str1_padsame_ker3_c1,
 		pParamIn, pDataIn, pParamKernel, pDataKernel,
+		pParamBias, pDataBias,
 		pParamConv, pParamOut, pDataOut );
 	  }
 	}
@@ -114,6 +127,7 @@ vednnError_t vednnConvolutionForward(
 	  return vednnConvolutionForward_wrapper(
 	      vednnConvolutionForward_direct_dil1_str1_padsame_ker3,
 	      pParamIn, pDataIn, pParamKernel, pDataKernel,
+	      pParamBias, pDataBias,
 	      pParamConv, pParamOut, pDataOut );
 	}
       }
@@ -123,12 +137,14 @@ vednnError_t vednnConvolutionForward(
 	  return vednnConvolutionForward_wrapper(
 	      vednnConvolutionForward_direct_dil1_str1_padsame_ker5_owU128,
 	      pParamIn, pDataIn, pParamKernel, pDataKernel,
+	      pParamBias, pDataBias,
 	      pParamConv, pParamOut, pDataOut );
 	}
 	else {
 	  return vednnConvolutionForward_wrapper(
 	      vednnConvolutionForward_direct_dil1_str1_padsame_ker5,
 	      pParamIn, pDataIn, pParamKernel, pDataKernel,
+	      pParamBias, pDataBias,
 	      pParamConv, pParamOut, pDataOut );
 	}
       }
@@ -137,6 +153,7 @@ vednnError_t vednnConvolutionForward(
 	return vednnConvolutionForward_wrapper(
 	    vednnConvolutionForward_direct_dil1_str1_padsame_ker2,
 	    pParamIn, pDataIn, pParamKernel, pDataKernel,
+	    pParamBias, pDataBias,
 	    pParamConv, pParamOut, pDataOut );
       }
       else
@@ -144,6 +161,7 @@ vednnError_t vednnConvolutionForward(
 	return vednnConvolutionForward_wrapper(
 	    vednnConvolutionForward_direct_dil1_str1_padsame,
 	    pParamIn, pDataIn, pParamKernel, pDataKernel,
+	    pParamBias, pDataBias,
 	    pParamConv, pParamOut, pDataOut );
       }
     }
@@ -162,6 +180,7 @@ vednnError_t vednnConvolutionForward(
 	  return vednnConvolutionForward_wrapper (
 		  vednnConvolutionForward_direct_dil1_str1_pad0_ker3_iw2XU256_ow2X_ioaligned,
 		  pParamIn, pDataIn, pParamKernel, pDataKernel,
+		  pParamBias, pDataBias,
 		  pParamConv, pParamOut, pDataOut ) ;
 	}
 	else if (pParamOut->width <= 128)
@@ -169,6 +188,7 @@ vednnError_t vednnConvolutionForward(
 	  return vednnConvolutionForward_wrapper (
 	      vednnConvolutionForward_direct_dil1_str1_pad0_owU128,
 	      pParamIn, pDataIn, pParamKernel, pDataKernel,
+	      pParamBias, pDataBias,
 	      pParamConv, pParamOut, pDataOut );
 	}
 	else
@@ -176,6 +196,7 @@ vednnError_t vednnConvolutionForward(
 	  return vednnConvolutionForward_wrapper(
 	      vednnConvolutionForward_direct_dil1_str1_pad0,
 	      pParamIn, pDataIn, pParamKernel, pDataKernel,
+	      pParamBias, pDataBias,
 	      pParamConv, pParamOut, pDataOut );
 	}
       }
@@ -186,12 +207,14 @@ vednnError_t vednnConvolutionForward(
 	    return vednnConvolutionForward_wrapper(
 		vednnConvolutionForward_direct_dil1_pad0_owU128_ker1,
 		pParamIn, pDataIn, pParamKernel, pDataKernel,
+		pParamBias, pDataBias,
 		pParamConv, pParamOut, pDataOut );
 	  }
 	  else {
 	    return vednnConvolutionForward_wrapper(
 		vednnConvolutionForward_direct_dil1_pad0_ker1,
 		pParamIn, pDataIn, pParamKernel, pDataKernel,
+		pParamBias, pDataBias,
 		pParamConv, pParamOut, pDataOut );
 	  }
 	}
@@ -200,12 +223,14 @@ vednnError_t vednnConvolutionForward(
 	    return vednnConvolutionForward_wrapper(
 		vednnConvolutionForward_direct_dil1_pad0_owU128,
 		pParamIn, pDataIn, pParamKernel, pDataKernel,
+		pParamBias, pDataBias,
 		pParamConv, pParamOut, pDataOut );
 	  }
 	  else {
 	    return vednnConvolutionForward_wrapper(
 		vednnConvolutionForward_direct_dil1_pad0,
 		pParamIn, pDataIn, pParamKernel, pDataKernel,
+		pParamBias, pDataBias,
 		pParamConv, pParamOut, pDataOut );
 	  }
 	}
@@ -217,12 +242,14 @@ vednnError_t vednnConvolutionForward(
 	return vednnConvolutionForward_wrapper (
 	    vednnConvolutionForward_direct_owU128,
 	    pParamIn, pDataIn, pParamKernel, pDataKernel,
+	    pParamBias, pDataBias,
 	    pParamConv, pParamOut, pDataOut );
       }
       else {
 	return vednnConvolutionForward_wrapper(
 	    vednnConvolutionForward_direct_default,
 	    pParamIn, pDataIn, pParamKernel, pDataKernel,
+	    pParamBias, pDataBias,
 	    pParamConv, pParamOut, pDataOut );
       }
     }
@@ -232,3 +259,37 @@ vednnError_t vednnConvolutionForward(
   }
 }
 
+/* ----------------------------------------------------------------------- */
+vednnError_t vednnConvolutionForwardAddBias(
+    const vednnTensorParam_t 		*pParamIn,
+    const void 				*pDataIn,
+    const vednnFilterParam_t		*pParamKernel,
+    const void 				*pDataKernel,
+    const vednnBiasParam_t 		*pParamBias,
+    const void 				*pDataBias,
+    const vednnTensorParam_t 		*pParamOut,
+    void 				*pDataOut,
+    const vednnConvolutionParam_t	*pParamConv,
+    vednnConvolutionAlgorithm_t 	algo
+)
+{
+  return vednnConvolutionForwardBody(pParamIn, pDataIn,
+            pParamKernel, pDataKernel, pParamBias, pDataBias,
+	    pParamOut, pDataOut, pParamConv, algo );
+}
+
+vednnError_t vednnConvolutionForward(
+    const vednnTensorParam_t 		*pParamIn,
+    const void 				*pDataIn,
+    const vednnFilterParam_t		*pParamKernel,
+    const void 				*pDataKernel,
+    const vednnTensorParam_t 		*pParamOut,
+    void 				*pDataOut,
+    const vednnConvolutionParam_t	*pParamConv,
+    vednnConvolutionAlgorithm_t 	algo
+)
+{
+  return vednnConvolutionForwardBody(pParamIn, pDataIn,
+            pParamKernel, pDataKernel, NULL, NULL,
+	    pParamOut, pDataOut, pParamConv, algo );
+}

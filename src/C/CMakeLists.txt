@@ -16,7 +16,6 @@ include_directories("../")
 
 add_library(vednn_c_code OBJECT
 	vednnConvolutionForward.c
-	vednnConvolutionForwardAddBias.c
 	vednnConvolutionBackwardData.c
 	vednnConvolutionBackwardFilter.c
 	vednnLinearForward.c

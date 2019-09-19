@@ -10,6 +10,8 @@ vednnError_t (*vednnConvForward_t)(
     const void * restrict 			pDataIn,
     const vednnFilterParam_t * restrict 	pParamKernel,
     const void * restrict 			pDataKernel,
+    const vednnBiasParam_t * restrict		pParamBias,
+    const void * restrict			pDataBias,
     const vednnConvolutionParam_t * restrict 	pParamConv,
     const vednnTensorParam_t * restrict 	pParamOut,
     void * restrict 				pDataOut) ;
@@ -20,6 +22,8 @@ vednnConvolutionForward_direct_default(
     const void * restrict 			pDataIn,
     const vednnFilterParam_t * restrict 	pParamKernel,
     const void * restrict 			pDataKernel,
+    const vednnBiasParam_t * restrict		pParamBias,
+    const void * restrict			pDataBias,
     const vednnConvolutionParam_t * restrict 	pParamConv,
     const vednnTensorParam_t * restrict 	pParamOut,
     void * restrict 				pDataOut
@@ -31,6 +35,8 @@ vednnConvolutionForward_direct_vecC(
     const void * restrict 			pDataIn,
     const vednnFilterParam_t * restrict 	pParamKernel,
     const void * restrict 			pDataKernel,
+    const vednnBiasParam_t * restrict		pParamBias,
+    const void * restrict			pDataBias,
     const vednnConvolutionParam_t * restrict 	pParamConv,
     const vednnTensorParam_t * restrict 	pParamOut,
     void * restrict 				pDataOut
@@ -42,6 +48,8 @@ vednnConvolutionForward_direct_owU128(
     const void * restrict 			pDataIn,
     const vednnFilterParam_t * restrict 	pParamKernel,
     const void * restrict 			pDataKernel,
+    const vednnBiasParam_t * restrict		pParamBias,
+    const void * restrict			pDataBias,
     const vednnConvolutionParam_t * restrict 	pParamConv,
     const vednnTensorParam_t * restrict 	pParamOut,
     void * restrict 				pDataOut
@@ -53,6 +61,8 @@ vednnConvolutionForward_direct_dil1_pad0(
     const void * restrict 			pDataIn,
     const vednnFilterParam_t * restrict 	pParamKernel,
     const void * restrict 			pDataKernel,
+    const vednnBiasParam_t * restrict		pParamBias,
+    const void * restrict			pDataBias,
     const vednnConvolutionParam_t * restrict 	pParamConv,
     const vednnTensorParam_t * restrict 	pParamOut,
     void * restrict 				pDataOut
@@ -64,6 +74,8 @@ vednnConvolutionForward_direct_dil1_pad0_owU128(
     const void * restrict 			pDataIn,
     const vednnFilterParam_t * restrict 	pParamKernel,
     const void * restrict 			pDataKernel,
+    const vednnBiasParam_t * restrict		pParamBias,
+    const void * restrict			pDataBias,
     const vednnConvolutionParam_t * restrict 	pParamConv,
     const vednnTensorParam_t * restrict 	pParamOut,
     void * restrict 				pDataOut
@@ -75,6 +87,8 @@ vednnConvolutionForward_direct_dil1_pad0_ker1(
     const void * restrict 			pDataIn,
     const vednnFilterParam_t * restrict 	pParamKernel,
     const void * restrict 			pDataKernel,
+    const vednnBiasParam_t * restrict		pParamBias,
+    const void * restrict			pDataBias,
     const vednnConvolutionParam_t * restrict 	pParamConv,
     const vednnTensorParam_t * restrict 	pParamOut,
     void * restrict 				pDataOut
@@ -86,6 +100,8 @@ vednnConvolutionForward_direct_dil1_pad0_owU128_ker1(
     const void * restrict 			pDataIn,
     const vednnFilterParam_t * restrict 	pParamKernel,
     const void * restrict 			pDataKernel,
+    const vednnBiasParam_t * restrict		pParamBias,
+    const void * restrict			pDataBias,
     const vednnConvolutionParam_t * restrict 	pParamConv,
     const vednnTensorParam_t * restrict 	pParamOut,
     void * restrict 				pDataOut
@@ -97,6 +113,8 @@ vednnConvolutionForward_direct_dil1_str1_pad0(
     const void * restrict 			pDataIn,
     const vednnFilterParam_t * restrict 	pParamKernel,
     const void * restrict 			pDataKernel,
+    const vednnBiasParam_t * restrict		pParamBias,
+    const void * restrict			pDataBias,
     const vednnConvolutionParam_t * restrict 	pParamConv,
     const vednnTensorParam_t * restrict 	pParamOut,
     void * restrict 				pDataOut
@@ -108,6 +126,8 @@ vednnConvolutionForward_direct_dil1_str1_pad0_owU128(
     const void * restrict 			pDataIn,
     const vednnFilterParam_t * restrict 	pParamKernel,
     const void * restrict 			pDataKernel,
+    const vednnBiasParam_t * restrict		pParamBias,
+    const void * restrict			pDataBias,
     const vednnConvolutionParam_t * restrict 	pParamConv,
     const vednnTensorParam_t * restrict 	pParamOut,
     void * restrict 				pDataOut
@@ -119,6 +139,8 @@ vednnConvolutionForward_direct_dil1_str1_pad0_ker3_iw2XU256_ow2X_ioaligned(
     const void * restrict 			pDataIn,
     const vednnFilterParam_t * restrict 	pParamKernel,
     const void * restrict 			pDataKernel,
+    const vednnBiasParam_t * restrict		pParamBias,
+    const void * restrict			pDataBias,
     const vednnConvolutionParam_t * restrict 	pParamConv,
     const vednnTensorParam_t * restrict 	pParamOut,
     void * restrict 				pDataOut
@@ -130,6 +152,8 @@ vednnConvolutionForward_direct_dil1_str1_pad0_ker1(
     const void * restrict 			pDataIn,
     const vednnFilterParam_t * restrict 	pParamKernel,
     const void * restrict 			pDataKernel,
+    const vednnBiasParam_t * restrict		pParamBias,
+    const void * restrict			pDataBias,
     const vednnConvolutionParam_t * restrict 	pParamConv,
     const vednnTensorParam_t * restrict 	pParamOut,
     void * restrict 				pDataOut
@@ -141,6 +165,8 @@ vednnConvolutionForward_direct_dil1_str1_padsame(
     const void * restrict 			pDataIn,
     const vednnFilterParam_t * restrict 	pParamKernel,
     const void * restrict 			pDataKernel,
+    const vednnBiasParam_t * restrict		pParamBias,
+    const void * restrict			pDataBias,
     const vednnConvolutionParam_t * restrict 	pParamConv,
     const vednnTensorParam_t * restrict 	pParamOut,
     void * restrict 				pDataOut
@@ -152,6 +178,8 @@ vednnConvolutionForward_direct_dil1_str1_padsame_ker3(
     const void * restrict 			pDataIn,
     const vednnFilterParam_t * restrict 	pParamKernel,
     const void * restrict 			pDataKernel,
+    const vednnBiasParam_t * restrict		pParamBias,
+    const void * restrict			pDataBias,
     const vednnConvolutionParam_t * restrict 	pParamConv,
     const vednnTensorParam_t * restrict 	pParamOut,
     void * restrict 				pDataOut
@@ -163,6 +191,8 @@ vednnConvolutionForward_direct_dil1_str1_padsame_ker3_c1(
     const void * restrict 			pDataIn,
     const vednnFilterParam_t * restrict 	pParamKernel,
     const void * restrict 			pDataKernel,
+    const vednnBiasParam_t * restrict		pParamBias,
+    const void * restrict			pDataBias,
     const vednnConvolutionParam_t * restrict 	pParamConv,
     const vednnTensorParam_t * restrict 	pParamOut,
     void * restrict 				pDataOut
@@ -174,6 +204,8 @@ vednnConvolutionForward_direct_dil1_str1_padsame_ker3_c1_owU128(
     const void * restrict 			pDataIn,
     const vednnFilterParam_t * restrict 	pParamKernel,
     const void * restrict 			pDataKernel,
+    const vednnBiasParam_t * restrict		pParamBias,
+    const void * restrict			pDataBias,
     const vednnConvolutionParam_t * restrict 	pParamConv,
     const vednnTensorParam_t * restrict 	pParamOut,
     void * restrict 				pDataOut
@@ -185,6 +217,8 @@ vednnConvolutionForward_direct_dil1_str1_padsame_ker5(
     const void * restrict 			pDataIn,
     const vednnFilterParam_t * restrict 	pParamKernel,
     const void * restrict 			pDataKernel,
+    const vednnBiasParam_t * restrict		pParamBias,
+    const void * restrict			pDataBias,
     const vednnConvolutionParam_t * restrict 	pParamConv,
     const vednnTensorParam_t * restrict 	pParamOut,
     void * restrict 				pDataOut
@@ -196,6 +230,8 @@ vednnConvolutionForward_direct_dil1_str1_padsame_ker5_owU128(
     const void * restrict 			pDataIn,
     const vednnFilterParam_t * restrict 	pParamKernel,
     const void * restrict 			pDataKernel,
+    const vednnBiasParam_t * restrict		pParamBias,
+    const void * restrict			pDataBias,
     const vednnConvolutionParam_t * restrict 	pParamConv,
     const vednnTensorParam_t * restrict 	pParamOut,
     void * restrict 				pDataOut
@@ -207,6 +243,8 @@ vednnConvolutionForward_direct_dil1_str1_padsame_ker2(
     const void * restrict 			pDataIn,
     const vednnFilterParam_t * restrict 	pParamKernel,
     const void * restrict 			pDataKernel,
+    const vednnBiasParam_t * restrict		pParamBias,
+    const void * restrict			pDataBias,
     const vednnConvolutionParam_t * restrict 	pParamConv,
     const vednnTensorParam_t * restrict 	pParamOut,
     void * restrict 				pDataOut
