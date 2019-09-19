@@ -1,6 +1,7 @@
 
 #include "vednnConvolutionBackwardData.h"
 #include <stdint.h>
+#include <stdio.h>
 
 #ifdef VEDNN_USE_OPENMP
 #include <omp.h>
@@ -72,6 +73,25 @@ vednnError_t vednnConvolutionBackwardData(
     vednnConvolutionAlgorithm_t 	algo
 )
 {
+  switch( pParamKernel->layout ) {
+  case VEDNN_FILTER_LAYOUT_NCHW :
+    break ;
+  case VEDNN_FILTER_LAYOUT_HWCN :
+#if 0
+    if( pParamConv->group > 1 ) {
+      fprintf(stderr, "[VEDNN ERROR] VEDNN does not support grouped convolution with filter_hwcn\n") ;
+      return VEDNN_ERROR_INVALID_PARAM ;
+    }
+#else
+    fprintf(stderr, "[VEDNN ERROR] Sorry. Now implementing ConvBackwardData(filter_hwcn)\n") ;
+    return VEDNN_ERROR_INVALID_PARAM ;
+#endif
+    break ;
+  default :
+    fprintf(stderr, "[VEDNN ERROR] Unknown Filter Layout %d\n", pParamKernel->layout) ;
+    return VEDNN_ERROR_INVALID_PARAM ;
+  }
+
   if (algo == VEDNN_CONV_ALGORITHM_DIRECT)
   {
     // [todo] add variations
