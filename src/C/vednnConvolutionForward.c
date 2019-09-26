@@ -251,6 +251,18 @@ vednnError_t vednnConvolutionForwardBody(
 	}
       }
     }
+    else if (pParamConv->strideHeight == 2 && pParamConv->strideWidth == 2
+	&& pParamConv->dilationHeight == 1 && pParamConv->dilationWidth == 1
+	&& pParamConv->padHeight == 1 && pParamConv->padWidth == 1
+	&& pParamKernel->height == 3 && pParamKernel->width == 3
+	&& pParamOut->width <= 128 )
+    {
+	return vednnConvolutionForward_wrapper(
+	    vednnConvolutionForward_direct_dil1_str2_pad1_ker3_owU128,
+	    pParamIn, pDataIn, pParamKernel, pDataKernel,
+	    pParamBias, pDataBias,
+	    pParamConv, pParamOut, pDataOut );
+    }
     else {
       if (pParamOut->width <= 128)
       {

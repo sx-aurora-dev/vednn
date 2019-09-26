@@ -250,4 +250,17 @@ vednnConvolutionForward_direct_dil1_str1_padsame_ker2(
     void * restrict 				pDataOut
 ) ;
 
+vednnError_t
+vednnConvolutionForward_direct_dil1_str2_pad1_ker3_owU128(
+    const vednnTensorParam_t * restrict 	pParamIn,
+    const void * restrict 			pDataIn,
+    const vednnFilterParam_t * restrict 	pParamKernel,
+    const void * restrict 			pDataKernel,
+    const vednnBiasParam_t * restrict		pParamBias,
+    const void * restrict			pDataBias,
+    const vednnConvolutionParam_t * restrict 	pParamConv,
+    const vednnTensorParam_t * restrict 	pParamOut,
+    void * restrict 				pDataOut
+) ;
+
 #endif /* SRC_VEDNNCONVOLUTION_H_ */
