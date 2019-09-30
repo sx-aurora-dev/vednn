@@ -77,15 +77,10 @@ vednnError_t vednnConvolutionBackwardData(
   case VEDNN_FILTER_LAYOUT_NCHW :
     break ;
   case VEDNN_FILTER_LAYOUT_HWCN :
-#if 0
     if( pParamConv->group > 1 ) {
       fprintf(stderr, "[VEDNN ERROR] VEDNN does not support grouped convolution with filter_hwcn\n") ;
       return VEDNN_ERROR_INVALID_PARAM ;
     }
-#else
-    fprintf(stderr, "[VEDNN ERROR] Sorry. Now implementing ConvBackwardData(filter_hwcn)\n") ;
-    return VEDNN_ERROR_INVALID_PARAM ;
-#endif
     break ;
   default :
     fprintf(stderr, "[VEDNN ERROR] Unknown Filter Layout %d\n", pParamKernel->layout) ;
