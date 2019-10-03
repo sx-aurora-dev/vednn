@@ -192,6 +192,17 @@ vednnError_t vednnConvolutionBackwardData(
 	    pParamGradOut, pDataGradOut, pParamKernel, pDataKernel,
 	    pParamConv, pParamGradIn, pDataGradIn );
       }
+      if (pParamConv->strideHeight == 2 && pParamConv->strideWidth == 2
+      	&& pParamConv->dilationHeight == 1 && pParamConv->dilationWidth == 1
+      	&& pParamConv->padHeight == 1 && pParamConv->padWidth == 1
+      	&& pParamKernel->height == 3 && pParamKernel->width == 3
+      	&& pParamGradIn->width <= 128 )
+      {
+	return vednnConvolutionBackwardData_wrapper(
+	    vednnConvolutionBackwardData_direct_dil1_str2_pad1_ker3_iwU128,
+	    pParamGradOut, pDataGradOut, pParamKernel, pDataKernel,
+	    pParamConv, pParamGradIn, pDataGradIn );
+      }
       if( pParamKernel->height == 5 && pParamKernel->width == 5
 	  && pParamConv->dilationHeight == 1 && pParamConv->dilationWidth == 1
 	  && pParamConv->strideHeight == 2 && pParamConv->strideWidth == 2
