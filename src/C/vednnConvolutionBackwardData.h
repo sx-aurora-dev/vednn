@@ -82,7 +82,7 @@ vednnConvolutionBackwardData_direct_iwU128(
 ) ;
 
 vednnError_t
-vednnConvolutionBackwardData_direct_dil1_str2_pad1_ker3_iwU128(
+vednnConvolutionBackwardData_direct_dil1_str2_pad1_ker3_iwU256(
     const vednnTensorParam_t * restrict 	pParamGradOut,
     const void * restrict 			pDataGradOut,
     const vednnFilterParam_t * restrict 	pParamKernel,

@@ -196,10 +196,10 @@ vednnError_t vednnConvolutionBackwardData(
       	&& pParamConv->dilationHeight == 1 && pParamConv->dilationWidth == 1
       	&& pParamConv->padHeight == 1 && pParamConv->padWidth == 1
       	&& pParamKernel->height == 3 && pParamKernel->width == 3
-      	&& pParamGradIn->width <= 128 )
+      	&& pParamGradIn->width <= 256 )
       {
 	return vednnConvolutionBackwardData_wrapper(
-	    vednnConvolutionBackwardData_direct_dil1_str2_pad1_ker3_iwU128,
+	    vednnConvolutionBackwardData_direct_dil1_str2_pad1_ker3_iwU256,
 	    pParamGradOut, pDataGradOut, pParamKernel, pDataKernel,
 	    pParamConv, pParamGradIn, pDataGradIn );
       }
