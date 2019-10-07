@@ -1,24 +1,12 @@
+#include "vednnMaxPoolingBackward.h"
 #include <stdint.h>
-#include <float.h>
-
-#include "vednn.h"
 
 #define VLEN (256)
 #define NCHW_IDX(n,c,h,w,cl,hl,wl) ((((n)*(cl)+(c))*(hl)+(h))*(wl)+(w))
 
 #if 1
 // base version.1
-vednnError_t vednnMaxPoolingBackward_default(
-    const vednnTensorParam_t 		*pParamGradOut,
-    const void 				*pDataGradOut,
-    const vednnTensorParam_t 		*pParamOut,
-    const void 				*pDataOut,
-    const vednnTensorParam_t 		*pParamIn,
-    const void 				*pDataIn,
-    const vednnTensorParam_t 		*pParamGradIn,
-    void 				*pDataGradIn,
-    const vednnPoolingParam_t		*pParamPool
-)
+vednnError_t vednnMaxPoolingBackward_default( VEDNN_MAXPOOLINGBKW_ARGS )
 {
   const int64_t batch      = pParamIn->batch;
   const int64_t inChannel  = pParamIn->channel;
@@ -50,41 +38,41 @@ vednnError_t vednnMaxPoolingBackward_default(
 
     for(int64_t n=0; n<batch; n++) {
       for(int64_t c=0; c<outChannel; c++) {
-	for(int64_t h=0; h<outHeight; h++) {
-	  for(int64_t w0=0; w0<outWidth; w0+=VLEN) {
-	    const int64_t vlen = outWidth-w0 < VLEN ? outWidth-w0 : VLEN ;
+        for(int64_t h=0; h<outHeight; h++) {
+          for(int64_t w0=0; w0<outWidth; w0+=VLEN) {
+            const int64_t vlen = outWidth-w0 < VLEN ? outWidth-w0 : VLEN ;
 
-	    for(int64_t w1=0; w1<vlen; w1++) {
-	      found[w1] = 0 ;
-	    }
+            for(int64_t w1=0; w1<vlen; w1++) {
+              found[w1] = 0 ;
+            }
 
-	    for(int64_t ph=0; ph<windowHeight; ph++) {
-	      const int64_t y = h*strideHeight - padHeight + ph ;
-	      if( y < 0 || inHeight <= y) continue ;
+            for(int64_t ph=0; ph<windowHeight; ph++) {
+              const int64_t y = h*strideHeight - padHeight + ph ;
+              if( y < 0 || inHeight <= y) continue ;
 
-	      for(int64_t pw=0; pw<windowWidth; pw++) {
-		for(int64_t w1=0; w1<vlen; w1++) {
+              for(int64_t pw=0; pw<windowWidth; pw++) {
+                for(int64_t w1=0; w1<vlen; w1++) {
 
-		  const int64_t w = w0 + w1 ;
-		  const int64_t x = w*strideWidth - padWidth + pw ;
-		  if( x < 0 || inWidth <= x) continue ;
+                  const int64_t w = w0 + w1 ;
+                  const int64_t x = w*strideWidth - padWidth + pw ;
+                  if( x < 0 || inWidth <= x) continue ;
 
-		  const int64_t outIndex  = NCHW_IDX(n,c,h,w,outChannel,outHeight,outWidth) ;
-		  const float   maxValue  = pOut[outIndex] ;
-		  const float   gOutValue = pGOut[outIndex] ;
+                  const int64_t outIndex  = NCHW_IDX(n,c,h,w,outChannel,outHeight,outWidth) ;
+                  const float   maxValue  = pOut[outIndex] ;
+                  const float   gOutValue = pGOut[outIndex] ;
 
-		  const int64_t inIndex = NCHW_IDX(n,c,y,x,inChannel,inHeight,inWidth) ;
-		  const float   inValue = pIn[inIndex] ;
+                  const int64_t inIndex = NCHW_IDX(n,c,y,x,inChannel,inHeight,inWidth) ;
+                  const float   inValue = pIn[inIndex] ;
 
-		  if( (found[w1] == 0)  && (inValue == maxValue) ) {
-		    pGIn[inIndex] +=  gOutValue ;
-		    found[w1] = 1 ;
-		  }
-		}
-	      } // windowWidth
-	    } // windowHeight
-	  } // outWidth
-	} // outHeight
+                  if( (found[w1] == 0)  && (inValue == maxValue) ) {
+                    pGIn[inIndex] +=  gOutValue ;
+                    found[w1] = 1 ;
+                  }
+                }
+              } // windowWidth
+            } // windowHeight
+          } // outWidth
+        } // outHeight
       } // channel
     } // batch
   }
@@ -95,17 +83,7 @@ vednnError_t vednnMaxPoolingBackward_default(
 #define NCHW_IDX(n,c,h,w,cl,hl,wl) ((((n)*(cl)+(c))*(hl)+(h))*(wl)+(w))
 
 // base version.0
-vednnError_t vednnMaxPoolingBackward_default(
-    const vednnTensorParam_t 		*pParamGradOut,
-    const void 				*pDataGradOut,
-    const vednnTensorParam_t 		*pParamOut,
-    const void 				*pDataOut,
-    const vednnTensorParam_t 		*pParamIn,
-    const void 				*pDataIn,
-    const vednnTensorParam_t 		*pParamGradIn,
-    void 				*pDataGradIn,
-    const vednnPoolingParam_t		*pParamPool
-)
+vednnError_t vednnMaxPoolingBackward_default( VEDNN_MAXPOOLINGBKW_ARGS )
 {
   const int64_t batch      = pParamIn->batch;
   const int64_t inChannel  = pParamIn->channel;
@@ -135,34 +113,34 @@ vednnError_t vednnMaxPoolingBackward_default(
 
     for(int64_t n=0; n<batch; n++) {
       for(int64_t c=0; c<outChannel; c++) {
-	for(int64_t h=0; h<outHeight; h++) {
-	  for(int64_t w=0; w<outWidth; w++) {
+        for(int64_t h=0; h<outHeight; h++) {
+          for(int64_t w=0; w<outWidth; w++) {
 
-	    const int64_t outIndex  = NCHW_IDX(n,c,h,w,outChannel,outHeight,outWidth) ;
-	    const float   maxValue  = pOut[outIndex] ;
-	    const float   gOutValue = pGOut[outIndex] ;
+            const int64_t outIndex  = NCHW_IDX(n,c,h,w,outChannel,outHeight,outWidth) ;
+            const float   maxValue  = pOut[outIndex] ;
+            const float   gOutValue = pGOut[outIndex] ;
 
-	    int found = 0 ;
+            int found = 0 ;
 
-	    for(int64_t ph=0; ph<windowHeight; ph++) {
-	      const int64_t y = h*strideHeight - padHeight + ph ;
-	      if( y < 0 || inHeight <= y) continue ;
+            for(int64_t ph=0; ph<windowHeight; ph++) {
+              const int64_t y = h*strideHeight - padHeight + ph ;
+              if( y < 0 || inHeight <= y) continue ;
 
-	      for(int64_t pw=0; pw<windowWidth; pw++) {
-		const int64_t x = w*strideWidth - padWidth + pw ;
-		if( x < 0 || inWidth <= x) continue ;
+              for(int64_t pw=0; pw<windowWidth; pw++) {
+                const int64_t x = w*strideWidth - padWidth + pw ;
+                if( x < 0 || inWidth <= x) continue ;
 
-		const int64_t inIndex = NCHW_IDX(n,c,y,x,inChannel,inHeight,inWidth) ;
-		const float   inValue = pIn[inIndex] ;
+                const int64_t inIndex = NCHW_IDX(n,c,y,x,inChannel,inHeight,inWidth) ;
+                const float   inValue = pIn[inIndex] ;
 
-		if( (found == 0)  && (inValue == maxValue) ) {
-		  pGIn[inIndex] +=  gOutValue ;
-		  found = 1 ;
-		}
-	      } // windowWidth
-	    } // windowHeight
-	  } // outWidth
-	} // outHeight
+                if( (found == 0)  && (inValue == maxValue) ) {
+                  pGIn[inIndex] +=  gOutValue ;
+                  found = 1 ;
+                }
+              } // windowWidth
+            } // windowHeight
+          } // outWidth
+        } // outHeight
       } // channel
     } // batch
   }
@@ -170,3 +148,4 @@ vednnError_t vednnMaxPoolingBackward_default(
   return VEDNN_SUCCESS ;
 }
 #endif
+// vim: et sw=2 ts=2

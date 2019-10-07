@@ -1,4 +1,5 @@
-PRJ:=vednn
+PRJ:=vednnx
+CMAKE_ARGS:='-DCMAKE_BUILD_TYPE=Release'
 all: force-build lib${PRJ}.tar.gz lib${PRJ}-ftrace1.tar.gz test
 # unpack one of the distro tarballs only in external projects.
 # -ft1 tarball will need to be linked with veperf library
@@ -41,17 +42,22 @@ lib${PRJ}-ftrace1.tar.gz:
 	rm -f ${PRJ}-ftrace1.tar.gz
 	tar cvzf ${PRJ}-ftrace1.tar.gz ${PRJ} 2>&1 | tee -a mk-ft1-${PRJ}.log
 test: build # default build dir might be an assumed install location for tests/Makefile
-	ls -l build/lib
-	cd test && make realclean
-	cd test && make VERBOSE=1 2>&1 | tee mk-test.log
+	-ls -l build/src
+	-cd test && make realclean
+	{ cd test && make VERBOSE=1 all ve_cmpconv && BIN_MK_VERBOSE=0 ./ve_cmpconv -r 10; } 2>&1 | tee mk-test.log
 force-build:
 	rm -rf build; mkdir build;
-	$(MAKE) build	
+	$(MAKE) build
+# close to default build...
 build: # original tests/Makefile always links against this build directory
 	rm -rf build; mkdir build;
-	cd build && cmake .. 2>&1 | tee ../mk-build.log
-	{ cd build && make VERBOSE=1 install 2>&1 | tee -a ../mk-build.log; } && echo BUILD OK || echo BUILD FAILED, see build/mk-build.log
+	cd build && cmake --trace -DCMAKE_VERBOSE_MAKEFILE:BOOL=ON .. -DCMAKE_INSTALL_PREFIX=../install 2>&1 | tee ../mk-build.log
+	{ { cd build && make VERBOSE=1 install; } && echo BUILD OK || echo BUILD FAILED; } \
+		2>&1 | tee -a mk-build.log; echo 'see mk-build.log'
 clean:
-	rm -rf build-${PRJ}* build-ft1* ${PRJ} mk-build.log mk-${PRJ}.log mk-${PRJ}_omp.log mk-ft1-${PRJ}.log mkft1-${PRJ}_omp.log
+	rm -rf build-${PRJ}* build-ft1* ${PRJ} mk-build.log mk-${PRJ}.log mk-${PRJ}_omp.log mk-ft1-${PRJ}.log mk-ft1-${PRJ}_omp.log
+	$(MAKE) -C test clean
 realclean: clean
-	rm -rf build ${PRJ}.tar.gz ${PRJ}-ftrace1.tar.gz
+	rm -rf build build-vednn build-vednn_omp ${PRJ}.tar.gz ${PRJ}-ftrace1.tar.gz
+	$(MAKE) -C test realclean
+#

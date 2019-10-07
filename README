@@ -29,3 +29,15 @@ $ ./vednn_linear_test -H 0.8e9 -p params/linear/alexnet.txt -T LinearForward
 $ ftrace
 $ ./vednn_pool_test   -H 0.8e9 -p params/pool/alexnet.txt   -T MaxPoolForward
 $ ftrace
+
+## additions:
+- src/wrap/ has:
+  - iteration over low-level impls (support comparing speeds of all applicable impls)
+  - jit API idea
+  - these extensions go into libvednxx ('x' for extensions)
+  - src/test/ codes that use libvednnx still have to be copied over
+
+- src/C/vconv has:
+  - a subset of gen-dnn (v0.16) that supports im2col convolution,
+  - as well as some useful C++ objects like parallel_nd_iterator.
+  - (not fully hooked up to src/C/ yet, mostly for speed comparison)

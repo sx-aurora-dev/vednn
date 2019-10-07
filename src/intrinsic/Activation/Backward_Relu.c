@@ -1,19 +1,16 @@
+#include "vednn.h"
+#include "velintrin.h"
 #include <stdint.h>
 #include <float.h>
+//#include <stdio.h>
 
-#include <stdio.h>
-
-#include "vednn.h"
-
-#include "velintrin.h"
-#define VLEN	(256)
-
+#define VLEN  (256)
 
 vednnError_t vednnActivationBackward_Relu(
-    const void 				*pDataGradOut,
-    const void 				*pDataIn,
-    void 				*pDataGradIn,
-    const uint64_t			nElements
+    const void     *pDataGradOut,
+    const void     *pDataIn,
+    void           *pDataGradIn,
+    const uint64_t nElements
 )
 {
   const float * restrict pGOut   = pDataGradOut;
@@ -84,6 +81,4 @@ vednnError_t vednnActivationBackward_Relu(
 
   return VEDNN_SUCCESS ;
 }
-
-
-
+// vim: sw=2 ts=2 et

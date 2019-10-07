@@ -1,7 +1,6 @@
-
 FTRACE=YES
 OPENMP=YES
-VEDNN_DIR=../build/
+VEDNN_DIR=../install/
 
 # If no tarballs, just use ../build/ as usual
 # Otherwise unpack an appropriate tarball into a local VEDNN_DIR
@@ -18,8 +17,11 @@ endif
 endif
 
 TARGETS	= vednn_conv_test vednn_linear_test vednn_pool_test
-.PHONY: Makefile all
-all: $(VEDNN_DIR) $(TARGETS)
+.PHONY: Makefile all vars
+all: vars $(VEDNN_DIR) $(TARGETS)
+vars:
+	echo 'TGZ = $(TGZ)'
+	echo 'VEDNN_DIR = $(VEDNN_DIR)'
 #$(TARGETS):| $(VEDNN_DIR) # another way to say we need VEDNN_DIR
 
 ./vednn-ftrace1: ../vednn-ftrace1.tar.gz

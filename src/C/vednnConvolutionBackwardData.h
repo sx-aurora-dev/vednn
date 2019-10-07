@@ -1,229 +1,54 @@
-
-#ifndef SRC_VEDNNCONVOLUTION_H_
-#define SRC_VEDNNCONVOLUTION_H_
+#ifndef SRC_VEDNNCONVOLUTIONBACKWARDDATA_H_
+#define SRC_VEDNNCONVOLUTIONBACKWARDDATA_H_
 
 #include "vednn.h"
 
+#ifdef __cplusplus
+extern "C" { //}
+#endif
+
+#define VEDNN_CONVBKD_ARGS \
+  const vednnTensorParam_t * restrict        pParamGradOut, \
+const void * restrict                      pDataGradOut, \
+const vednnFilterParam_t * restrict        pParamKernel, \
+const void * restrict                      pDataKernel, \
+const vednnConvolutionParam_t * restrict   pParamConv, \
+const vednnTensorParam_t * restrict        pParamGradIn, \
+void * restrict                            pDataGradIn
+
+#define VEDNN_CONVBKD_ARGS_LIST pParamGradOut, pDataGradOut, \
+  pParamKernel, pDataKernel, pParamConv, pParamGradIn, pDataGradIn
+
 typedef
-vednnError_t (*vednnConvBackwardData_t) (
-    const vednnTensorParam_t * restrict 	pParamGradOut,
-    const void * restrict 			pDataGradOut,
-    const vednnFilterParam_t * restrict 	pParamKernel,
-    const void * restrict 			pDataKernel,
-    const vednnConvolutionParam_t * restrict 	pParamConv,
-    const vednnTensorParam_t * restrict 	pParamGradIn,
-    void * restrict 				pDataGradIn
-) ;
+vednnError_t (*vednnConvBackwardData_t) ( VEDNN_CONVBKD_ARGS );
 
-vednnError_t
-vednnConvolutionBackwardData_direct_default(
-    const vednnTensorParam_t * restrict 	pParamGradOut,
-    const void * restrict 			pDataGradOut,
-    const vednnFilterParam_t * restrict 	pParamKernel,
-    const void * restrict 			pDataKernel,
-    const vednnConvolutionParam_t * restrict 	pParamConv,
-    const vednnTensorParam_t * restrict 	pParamGradIn,
-    void * restrict 				pDataGradIn
-) ;
+#define VEDNN_CONVBKD_DECL(IMPL) vednnError_t \
+	vednnConvolutionBackwardData_direct_##IMPL( VEDNN_CONVBKD_ARGS );
 
-vednnError_t
-vednnConvolutionBackwardData_direct_vecC(
-    const vednnTensorParam_t * restrict 	pParamGradOut,
-    const void * restrict 			pDataGradOut,
-    const vednnFilterParam_t * restrict 	pParamKernel,
-    const void * restrict 			pDataKernel,
-    const vednnConvolutionParam_t * restrict 	pParamConv,
-    const vednnTensorParam_t * restrict 	pParamGradIn,
-    void * restrict 				pDataGradIn
-) ;
-
-vednnError_t
-vednnConvolutionBackwardData_direct_dil1_str2_pad2_ker5(
-    const vednnTensorParam_t * restrict 	pParamGradOut,
-    const void * restrict 			pDataGradOut,
-    const vednnFilterParam_t * restrict 	pParamKernel,
-    const void * restrict 			pDataKernel,
-    const vednnConvolutionParam_t * restrict 	pParamConv,
-    const vednnTensorParam_t * restrict 	pParamGradIn,
-    void * restrict 				pDataGradIn
-) ;
-vednnError_t
-vednnConvolutionBackwardData_direct_dil1_str2_pad2_ker5_iwU128(
-    const vednnTensorParam_t * restrict 	pParamGradOut,
-    const void * restrict 			pDataGradOut,
-    const vednnFilterParam_t * restrict 	pParamKernel,
-    const void * restrict 			pDataKernel,
-    const vednnConvolutionParam_t * restrict 	pParamConv,
-    const vednnTensorParam_t * restrict 	pParamGradIn,
-    void * restrict 				pDataGradIn
-) ;
-
-vednnError_t
-vednnConvolutionBackwardData_direct_ker5(
-    const vednnTensorParam_t * restrict 	pParamGradOut,
-    const void * restrict 			pDataGradOut,
-    const vednnFilterParam_t * restrict 	pParamKernel,
-    const void * restrict 			pDataKernel,
-    const vednnConvolutionParam_t * restrict 	pParamConv,
-    const vednnTensorParam_t * restrict 	pParamGradIn,
-    void * restrict 				pDataGradIn
-) ;
-
-
-vednnError_t
-vednnConvolutionBackwardData_direct_iwU128(
-    const vednnTensorParam_t * restrict 	pParamGradOut,
-    const void * restrict 			pDataGradOut,
-    const vednnFilterParam_t * restrict 	pParamKernel,
-    const void * restrict 			pDataKernel,
-    const vednnConvolutionParam_t * restrict 	pParamConv,
-    const vednnTensorParam_t * restrict 	pParamGradIn,
-    void * restrict 				pDataGradIn
-) ;
-
-vednnError_t
-vednnConvolutionBackwardData_direct_ker3_iwU128(
-    const vednnTensorParam_t * restrict 	pParamGradOut,
-    const void * restrict 			pDataGradOut,
-    const vednnFilterParam_t * restrict 	pParamKernel,
-    const void * restrict 			pDataKernel,
-    const vednnConvolutionParam_t * restrict 	pParamConv,
-    const vednnTensorParam_t * restrict 	pParamGradIn,
-    void * restrict 				pDataGradIn
-) ;
-
-vednnError_t
-vednnConvolutionBackwardData_direct_ker5_iwU128(
-    const vednnTensorParam_t * restrict 	pParamGradOut,
-    const void * restrict 			pDataGradOut,
-    const vednnFilterParam_t * restrict 	pParamKernel,
-    const void * restrict 			pDataKernel,
-    const vednnConvolutionParam_t * restrict 	pParamConv,
-    const vednnTensorParam_t * restrict 	pParamGradIn,
-    void * restrict 				pDataGradIn
-) ;
-
-vednnError_t
-vednnConvolutionBackwardData_direct_dil1_pad0_ker1_owU128(
-    const vednnTensorParam_t * restrict 	pParamGradOut,
-    const void * restrict 			pDataGradOut,
-    const vednnFilterParam_t * restrict 	pParamKernel,
-    const void * restrict 			pDataKernel,
-    const vednnConvolutionParam_t * restrict 	pParamConv,
-    const vednnTensorParam_t * restrict 	pParamGradIn,
-    void * restrict 				pDataGradIn
-) ;
-
-
-vednnError_t
-vednnConvolutionBackwardData_direct_dil1_str1(
-    const vednnTensorParam_t * restrict 	pParamGradOut,
-    const void * restrict 			pDataGradOut,
-    const vednnFilterParam_t * restrict 	pParamKernel,
-    const void * restrict 			pDataKernel,
-    const vednnConvolutionParam_t * restrict 	pParamConv,
-    const vednnTensorParam_t * restrict 	pParamGradIn,
-    void * restrict 				pDataGradIn
-) ;
-
-vednnError_t
-vednnConvolutionBackwardData_direct_dil1_str1_iwU128(
-    const vednnTensorParam_t * restrict 	pParamGradOut,
-    const void * restrict 			pDataGradOut,
-    const vednnFilterParam_t * restrict 	pParamKernel,
-    const void * restrict 			pDataKernel,
-    const vednnConvolutionParam_t * restrict 	pParamConv,
-    const vednnTensorParam_t * restrict 	pParamGradIn,
-    void * restrict 				pDataGradIn
-) ;
-
-vednnError_t
-vednnConvolutionBackwardData_direct_dil1_str1_pad0_ker3_iwU128(
-    const vednnTensorParam_t * restrict 	pParamGradOut,
-    const void * restrict 			pDataGradOut,
-    const vednnFilterParam_t * restrict 	pParamKernel,
-    const void * restrict 			pDataKernel,
-    const vednnConvolutionParam_t * restrict 	pParamConv,
-    const vednnTensorParam_t * restrict 	pParamGradIn,
-    void * restrict 				pDataGradIn
-) ;
-
-vednnError_t
-vednnConvolutionBackwardData_direct_dil1_str1_pad0_ker3_iw2XU256_ow2X_ioaligned(
-    const vednnTensorParam_t * restrict 	pParamGradOut,
-    const void * restrict 			pDataGradOut,
-    const vednnFilterParam_t * restrict 	pParamKernel,
-    const void * restrict 			pDataKernel,
-    const vednnConvolutionParam_t * restrict 	pParamConv,
-    const vednnTensorParam_t * restrict 	pParamGradIn,
-    void * restrict 				pDataGradIn
-) ;
-
-vednnError_t
-vednnConvolutionBackwardData_direct_dil1_str1_pad0_ker3_iw2XU32_ow2X_ioaligned(
-    const vednnTensorParam_t * restrict 	pParamGradOut,
-    const void * restrict 			pDataGradOut,
-    const vednnFilterParam_t * restrict 	pParamKernel,
-    const void * restrict 			pDataKernel,
-    const vednnConvolutionParam_t * restrict 	pParamConv,
-    const vednnTensorParam_t * restrict 	pParamGradIn,
-    void * restrict 				pDataGradIn
-) ;
-
-
-vednnError_t
-vednnConvolutionBackwardData_direct_dil1_str1_padsame(
-    const vednnTensorParam_t * restrict 	pParamGradOut,
-    const void * restrict 			pDataGradOut,
-    const vednnFilterParam_t * restrict 	pParamKernel,
-    const void * restrict 			pDataKernel,
-    const vednnConvolutionParam_t * restrict 	pParamConv,
-    const vednnTensorParam_t * restrict 	pParamGradIn,
-    void * restrict 				pDataGradIn
-) ;
-
-vednnError_t
-vednnConvolutionBackwardData_direct_dil1_str1_padsame_ker3(
-    const vednnTensorParam_t * restrict 	pParamGradOut,
-    const void * restrict 			pDataGradOut,
-    const vednnFilterParam_t * restrict 	pParamKernel,
-    const void * restrict 			pDataKernel,
-    const vednnConvolutionParam_t * restrict 	pParamConv,
-    const vednnTensorParam_t * restrict 	pParamGradIn,
-    void * restrict 				pDataGradIn
-) ;
-
-vednnError_t
-vednnConvolutionBackwardData_direct_dil1_str1_padsame_ker5(
-    const vednnTensorParam_t * restrict 	pParamGradOut,
-    const void * restrict 			pDataGradOut,
-    const vednnFilterParam_t * restrict 	pParamKernel,
-    const void * restrict 			pDataKernel,
-    const vednnConvolutionParam_t * restrict 	pParamConv,
-    const vednnTensorParam_t * restrict 	pParamGradIn,
-    void * restrict 				pDataGradIn
-) ;
-
-vednnError_t
-vednnConvolutionBackwardData_direct_dil1_str1_padsame_ker2(
-    const vednnTensorParam_t * restrict 	pParamGradOut,
-    const void * restrict 			pDataGradOut,
-    const vednnFilterParam_t * restrict 	pParamKernel,
-    const void * restrict 			pDataKernel,
-    const vednnConvolutionParam_t * restrict 	pParamConv,
-    const vednnTensorParam_t * restrict 	pParamGradIn,
-    void * restrict 				pDataGradIn
-) ;
-
-vednnError_t
-vednnConvolutionBackwardData_direct_dil1_str1_padsame_ker1(
-    const vednnTensorParam_t * restrict 	pParamGradOut,
-    const void * restrict 			pDataGradOut,
-    const vednnFilterParam_t * restrict 	pParamKernel,
-    const void * restrict 			pDataKernel,
-    const vednnConvolutionParam_t * restrict 	pParamConv,
-    const vednnTensorParam_t * restrict 	pParamGradIn,
-    void * restrict 				pDataGradIn
-) ;
-
-#endif /* SRC_VEDNNCONVOLUTION_H_ */
+VEDNN_CONVBKD_DECL(default);
+VEDNN_CONVBKD_DECL(vecC);
+VEDNN_CONVBKD_DECL(iwU128);
+VEDNN_CONVBKD_DECL(dil1_str1);
+VEDNN_CONVBKD_DECL(dil1_str1_iwU128);
+VEDNN_CONVBKD_DECL(dil1_str1_pad0_ker3_iwU128);
+VEDNN_CONVBKD_DECL(dil1_str1_pad0_ker3_iw2XU256_ow2X_ioaligned);
+VEDNN_CONVBKD_DECL(dil1_str1_pad0_ker3_iw2XU32_ow2X_ioaligned);
+VEDNN_CONVBKD_DECL(dil1_str1_padsame);
+VEDNN_CONVBKD_DECL(dil1_str1_padsame_ker1);
+VEDNN_CONVBKD_DECL(dil1_pad0_ker1_owU128);
+VEDNN_CONVBKD_DECL(dil1_str2_pad2_ker5_iwU128);
+VEDNN_CONVBKD_DECL(dil1_str2_pad2_ker5);
+VEDNN_CONVBKD_DECL(dil1_str1_padsame_ker2);
+VEDNN_CONVBKD_DECL(dil1_str1_padsame_ker3);
+VEDNN_CONVBKD_DECL(dil1_str1_padsame_ker5);
+VEDNN_CONVBKD_DECL(ker3_iwU128);
+VEDNN_CONVBKD_DECL(ker5_iwU128);
+VEDNN_CONVBKD_DECL(iwU128);
+VEDNN_CONVBKD_DECL(ker5);
+// extra
+//VEDNN_CONVBKD_DECL(default2);
+#ifdef __cplusplus
+}//extern "C"
+#endif
+// vim: sw=2 ts=2 et ai
+#endif /* SRC_VEDNNCONVOLUTIONBACKWARDDATA_H_ */
