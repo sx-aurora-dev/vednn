@@ -157,6 +157,34 @@ diffData(const vednnTensorParam_t *pParam, const void *pData, const void *pExpec
             const float *pData1 = (float *)pExpectedResult;
             const float *pData2 = (float *)pData;
             for (i=0; i<size; i++) {
+                printf("%lf %lf\n", pData1[i], pData2[i]) ; 
+                double diff = pData1[i] - pData2[i] ;
+                sum += (diff/(fabs(pData1[i])+1e-7)) * (diff/(fabs(pData2[i])+1e-7)) ;
+            }
+        }
+        break;
+    default:
+        assert(0);              /* BUG */
+        break;
+    }
+
+    return sqrt(sum);
+}
+
+double
+diffFilter(const vednnFilterParam_t *pParam, const void *pData, const void *pExpectedResult)
+{
+    int i;
+
+    size_t size = pParam->inChannel * pParam->outChannel * pParam->width * pParam->height ;
+    double sum = 0.0;
+
+    switch(pParam->dtype) {
+    case DTYPE_FLOAT:
+        {
+            const float *pData1 = (float *)pExpectedResult;
+            const float *pData2 = (float *)pData;
+            for (i=0; i<size; i++) {
                 double diff = pData1[i] - pData2[i] ;
                 sum += (diff/(fabs(pData1[i])+1e-7)) * (diff/(fabs(pData2[i])+1e-7)) ;
             }
@@ -827,7 +855,7 @@ void testBackwardFilter(struct param *pNetwork, int nEntry, double HZ, int flagC
 		   pNw->padHeight, pNw->padWidth );
 	}
 
-	double diff = diffData((vednnTensorParam_t*)(pConv->pParamGradKernel), pConv->pDataGradKernel, pConv->pBufRef);
+	double diff = diffFilter(pConv->pParamGradKernel, pConv->pDataGradKernel, pConv->pBufRef);
 
 	double time = pConv->cycle * 1.0e3 / HZ;
 	if (flagCSV) {
