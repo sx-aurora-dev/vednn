@@ -132,7 +132,7 @@ void generateKdata(enum Kinit const ki, vednnFilterParam_t const * const tpKrn, 
     }
 }
 
-void testForward(struct param *pNetwork, int nEntry, double HZ, int flagBias, int flagCSV, int reps)
+void testForward(struct param *pNetwork, int nEntry, double HZ, int flagBias, int flagCSV, int reps, filterLayout_t filter_layout)
 {
     static int const doRef = 1; // do ref gemm calc
     static int const doStd = 1; // do libvednn default calc
@@ -157,7 +157,7 @@ void testForward(struct param *pNetwork, int nEntry, double HZ, int flagBias, in
         conv *pConv = &pConvBuff[i];
         struct param *pNw = &pNetwork[i];
 
-        testconvForward_alloc( pConv, pNw, flagBias );
+        testconvForward_alloc( pConv, pNw, flagBias, filter_layout );
 
         // Generate Data
         if ( pNetwork == &simpleParam[0] ) {
@@ -427,7 +427,7 @@ void testForward(struct param *pNetwork, int nEntry, double HZ, int flagBias, in
     free(pConvBuff);
 }
 
-void testBackwardData(struct param *pNetwork, int nEntry, double HZ, int flagCSV, int reps)
+void testBackwardData(struct param *pNetwork, int nEntry, double HZ, int flagCSV, int reps, filterLayout_t filter_layout)
 {
     int i;
     typedef struct testconvBackwardData conv;
@@ -491,7 +491,7 @@ void testBackwardData(struct param *pNetwork, int nEntry, double HZ, int flagCSV
     free(pConvBuff);
 }
 
-void testBackwardFilter(struct param *pNetwork, int nEntry, double HZ, int flagCSV, int reps)
+void testBackwardFilter(struct param *pNetwork, int nEntry, double HZ, int flagCSV, int reps, filterLayout_t filter_layout)
 {
     int i;
     typedef struct testconvBackwardFilter conv;
@@ -567,17 +567,28 @@ static struct {
     //    { "BackwardBias", CONV_TEST_BACKWARD_BIAS } ,   // not implemented
 };
 
+static struct {
+    char *pName;
+    filterLayout_t   layouttype;
+} filterLayout[] = {
+    { "filter_nchw",    VEDNN_FILTER_LAYOUT_NCHW } ,
+    { "filter_hwcn",    VEDNN_FILTER_LAYOUT_HWCN }
+};
+
 static void help(){
-    printf( "\nve_cmpconv:"
+    printf( "\nve_simpleconv: demo of 'C' access to iterator API"
             "\n   -p PATH   convolution parameter file"
             "\n optional:"
             "\n   -C        CSV output"
-            "\n   -T STRING test type [Forward] ForwardAddBias"
-            "\n                       BackwardData BackwardFilter"
+            "\n   -T STRING test type: [Forward] ForwardAddBias"
+            "\n                        BackwardData BackwardFilter"
             "\n   -r INT    reps [1]"
             "\n   -H FLOAT  Timer register speed (Hz) [0.8e9]"
             "\n   -t N      omp_set_num_threads(N), then run"
             "\n             N < 0 means repeat for N=0..8 (don't use ftrace output)"
+            "\n   -i N      select image initialization method [sequential]"
+            "\n   -k N      select kernel initialization method [all ones]"
+            "\n   -f STRING filter layout: [filter_nchw] filter_hwcn"
             "\n");
 }
 int main(int argc, char **argv)
@@ -608,7 +619,7 @@ int main(int argc, char **argv)
             " You should be able to visually check for correctness of ref (gemm) output.\n"
             " Then we run all available impls (fwd) and report DIFF from ref calc.\n"
           );
-    while ((opt = getopt(argc, argv, "p:CH:T:t:r:i:k:")) != -1) {
+    while ((opt = getopt(argc, argv, "p:CH:T:t:r:i:k:f:")) != -1) {
         switch (opt) {
         case 'p':
             pParamPath = optarg;
@@ -634,6 +645,21 @@ int main(int argc, char **argv)
                          }
                      }
                      break;
+        case 'f' :
+                     {
+                         int found = 0;
+                         for (int i=0; i<sizeof(filterLayout)/sizeof(filterLayout[0]); i++) {
+                             if (strcasecmp(optarg, filterLayout[i].pName) == 0) {
+                                 filter_layout= filterLayout[i].layouttype ;
+                                 found = 1;
+                                 break;
+                             }
+                         }
+                         if (! found )  {
+                             fprintf(stderr, "Invalid filter layout.\n");
+                             exit(1);
+                         }
+                     }
         case 't':    threads = atof(optarg);
                      if(threads > 16) threads = 16;
                      if(threads < 0 ) threads = -1;
@@ -668,6 +694,7 @@ int main(int argc, char **argv)
     }
     printf("CONVOLUTION TEST TYPE    = %s\n",      tests[testtype].pName) ;
     printf("PROCESSOR CORE FREQUENCY = %.3e HZ\n", HZ);
+    printf("FILTER LAYOUT            = %s\n",      filterLayout[filter_layout].pName) ;
     printf("PARAMETER FILE           = %s\n",      pParamPath);
     printf(" Image data              = %s\n",      itp2str(itp));
     printf(" Kernel data             = %s\n",      ktp2str(ktp));
@@ -714,16 +741,16 @@ int main(int argc, char **argv)
 #endif
         switch(testtype) {
         case CONV_TEST_FORWARD :
-            testForward(pParams, nParams, HZ, 0, flagCSV, reps);
+            testForward(pParams, nParams, HZ, 0, flagCSV, reps, filter_layout);
             break ;
         case CONV_TEST_FORWARD_ADDBIAS :
-            testForward(pParams, nParams, HZ, 1, flagCSV, reps);
+            testForward(pParams, nParams, HZ, 1, flagCSV, reps, filter_layout);
             break ;
         case CONV_TEST_BACKWARD_DATA :
-            testBackwardData(pParams, nParams, HZ, flagCSV, reps);
+            testBackwardData(pParams, nParams, HZ, flagCSV, reps, filter_layout);
             break ;
         case CONV_TEST_BACKWARD_FILTER :
-            testBackwardFilter(pParams, nParams, HZ, flagCSV, reps);
+            testBackwardFilter(pParams, nParams, HZ, flagCSV, reps, filter_layout);
             break ;
         default :
             break ;

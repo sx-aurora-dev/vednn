@@ -39,9 +39,12 @@ vars:
 	cd tmp-v && tar xzmf ../$^
 	rm -rf $@; mv tmp-v/vednn $@; rm -rf tmp-v
 	ls -l $@/lib $^
+.PRECIOUS: ../build ../install
 ../build:
+	@echo '../build does not exist. Running cmake build of libvednn.'
 	(cd .. && mkdir build && cd build && cmake ..)
 ../install: ../build
+	@echo 'Local ../install out-of-date. Running local install from ../build dir.'
 	-$(MAKE) -C ../build -j6 install PREFIX=$@
 	-ls -l $@
 
@@ -76,8 +79,6 @@ ifeq ($(FTRACE),YES)
 CFLAGS		+= -DFTRACE
 LDLIBS		+= -ftrace
 endif
-
-
 
 vednn_conv_test : vednn_conv_test.o vednn_helper.o convolution_gemm.o
 vednn_linear_test : vednn_linear_test.o vednn_helper.o linear_gemm.o

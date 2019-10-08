@@ -46,7 +46,6 @@ add_library(${LIBWRAP} ${LIB_MODE}
     $<TARGET_OBJECTS:vednn_wrap>
     $<TARGET_OBJECTS:vconv_code>
     )
-#add_dependencies(${LIBWRAP} vconv_unPack)
 
 if(USE_FTRACE)
 	target_link_libraries(${LIBNAME} veperf)

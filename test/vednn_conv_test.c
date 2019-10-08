@@ -156,7 +156,7 @@ diffData(const vednnTensorParam_t *pParam, const void *pData, const void *pExpec
             const float *pData1 = (float *)pExpectedResult;
             const float *pData2 = (float *)pData;
             for (i=0; i<size; i++) {
-                printf("%lf %lf\n", pData1[i], pData2[i]) ; 
+                //printf("%lf %lf\n", pData1[i], pData2[i]) ; 
                 double diff = pData1[i] - pData2[i] ;
                 sum += (diff/(fabs(pData1[i])+1e-7)) * (diff/(fabs(pData2[i])+1e-7)) ;
             }

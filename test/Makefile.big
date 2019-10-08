@@ -1,7 +1,9 @@
 # This Makefile relies on vednn*.tar.gz having been built in project root.
 # It also supports jit implementations using a vejit.tar.gz library.
+# It applies this Makefile's FTRACE and OPENMP settings to select the correct
+# version of libvednn (libvednnx) to link against.
 #
-# (Makefile.tiny can build a few tests directly from ../build/)
+# (Makefile.tiny can build a few tests directly from ../build or ../install)
 # When changing the following, you should set up to rebuild
 # using correct external libraries with:
 # 	make clean unpack
@@ -32,8 +34,8 @@ mkfile_dir:=$(dir $(mkfile_path))
 ifeq ($(CC:ncc%=ncc),ncc)
 # Default to "left-over" build directories (historical default)
 # If you REMOVE the tarballs, we'll try an existing build as follows:
-VEDNN_DIR=$(realpath $(mkfile_dir)../build/)
-VEDNNX_DIR:=$(realpath $(mkfile_dir)../vednnx)
+VEDNN_DIR=$(realpath $(mkfile_dir)../install/)
+VEDNNX_DIR:=$(VEDNN_DIR)
 
 VE_BIN_DIR := /opt/nec/ve/bin
 AR := $(VE_BIN_DIR)/nar
@@ -70,7 +72,7 @@ TARGETS:=vejit-unpack vednn-unpack cjitConv00-x86 cjitConv01-x86
 ifeq ($(CC:ncc%=ncc),ncc)
 TARGETS+=vednn_conv_test vednn_linear_test vednn_pool_test
 # The following were all affected by the API change (filterLayout_t)
-#TARGETS+=ve_simpleconv
+TARGETS+=ve_simpleconv
 #TARGETS+=ve_cmpconv
 #TARGETS+=cjitConv01
 #TARGETS+=jitconv
@@ -97,6 +99,7 @@ help:
 	@echo '               tests [lengthy]'
 	
 ifeq ($(CC:ncc%=ncc),ncc)
+ifneq ($(TGZ),)	 #
 ./vednn: ../vednnx.tar.gz
 	rm -rf tmp-v; mkdir tmp-v
 	cd tmp-v && tar xzmf ../$^
@@ -109,6 +112,16 @@ ifeq ($(CC:ncc%=ncc),ncc)
 	rm -rf $@; mv tmp-vft1/vednnx $@; rm -rf tmp-vft1
 	touch $@; chmod -R ugo-w $@;
 	ls -l $@/lib $^
+else # use the default ../build of libvednn + libvednnx
+.PRECIOUS: ../build ../install
+../build:
+	@echo '../build does not exist. Running cmake build of libvednn.'
+	(cd .. && mkdir build && cd build && cmake ..)
+../install: ../build
+	@echo 'Local ../install out-of-date. Running local install from ../build dir.'
+	-$(MAKE) -C ../build -j6 install PREFIX=$@
+	-ls -l $@
+endif	
 else
 ./vednn:
 	echo "------- x86 version of vednn/ ---------------- "
