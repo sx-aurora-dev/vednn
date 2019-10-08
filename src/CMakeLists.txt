@@ -45,7 +45,6 @@ add_library(${LIBNAME} ${LIB_MODE}
 )
 
 # vconv and vednnx extensions
-add_dependencies(${LIBNAME} unPack)
 if(BUILD_SHARED)
     set_target_properties(${LIBNAME} PROPERTIES
         INSTALL_RPATH "\$ORIGIN/../lib"
@@ -53,16 +52,18 @@ if(BUILD_SHARED)
 endif()
 add_library(${LIBWRAP} ${LIB_MODE}
         $<TARGET_OBJECTS:vednn_wrap>)
+add_dependencies(${LIBWRAP} unPack)
+
 if(USE_FTRACE)
 	target_link_libraries(${LIBNAME} veperf)
 	target_link_libraries(${LIBWRAP} ${LIBNAME} veperf)
 endif()
 if(USE_OPENMP)
     #target_link_libraries(${LIBNAME} ${NLCDIR}/libcblas ${NLCDIR}/libblas_openmp.so)
-    target_link_libraries(${LIBNAME} -L${NLCDIR}
+    target_link_libraries(${LIBWRAP} -L${NLCDIR}
         -lcblas -lcblas_openmp)
 else()
-    target_link_libraries(${LIBNAME}
+    target_link_libraries(${LIBWRAP}
         ${NLCDIR}/libcblas.so ${NLCDIR}/libblas_sequential.so)
 endif()
 #

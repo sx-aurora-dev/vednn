@@ -1,5 +1,7 @@
 cmake_minimum_required(VERSION 3.0)
 
+project(vednn)
+
 if(DEFINED ENV{NCC})
     set(NCC ENV{NCC} CACHE FILEPATH "ncc command")
     # TODO set(NCXX ENV{NCC} CACHE FILEPATH "nc++ command")
@@ -40,7 +42,7 @@ endif()
 message(STATUS "LLVM_TOOLS_BINARY_DIR : ${LLVM_TOOLS_BINARY_DIR}")
 
 if(NOT USE_FTRACE) # enforce 0 or 1 or 2
-    set(USE_FTRACE "1")
+    set(USE_FTRACE "0")
 else() # specify USE_FTRACE 2 to instrument EVERY function, else just selected regions are ftraced
     if(USE_FTRACE STREQUAL "0")
     else()
