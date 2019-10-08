@@ -48,7 +48,7 @@ vednnError_t vednnActivationBackward(
     VEDNN_ACTIVATIONBKW_ARGS)
 {
 #define OMPWRAP( IMPL ) WRAP_RET(IMPL, \
-    vednnConvolutionForward_wrapper, VEDNN_ACTIVATIONBKW_ARGS_LIST)
+  vednnActivationBackward_wrapper, VEDNN_ACTIVATIONBKW_ARGS_LIST)
   switch(mode) {
     case VEDNN_ACTIVATION_RELU :
       OMPWRAP( vednnActivationBackward_Relu );

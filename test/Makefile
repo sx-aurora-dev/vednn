@@ -6,7 +6,7 @@
 # using correct external libraries with:
 # 	make clean unpack
 FTRACE=YES
-OPENMP=NO
+OPENMP=YES
 
 LIBSUFFIX:=
 VEDNN_SUFFIX:=
@@ -29,14 +29,6 @@ LIBVEDNN=vednn${VEDNN_SUFFIX}
 
 mkfile_path:=$(abspath $(lastword $(MAKEFILE_LIST)))
 mkfile_dir:=$(dir $(mkfile_path))
-# testing [optional]
-#CONVGEMM := ejk_convolution_gemm
-#SRCS	+= $(CONVGEMM).c
-#mkfile_path := $(abspath $(lastword $(MAKEFILE_LIST)))
-#current_dir := $(notdir $(patsubst %/,%,$(dir $(mkfile_path))))
-#VEDNN_SRC?=$(abspath $(current_dir)/../src)
-#VEDNN_DIR?= ../build/
-
 ifeq ($(CC:ncc%=ncc),ncc)
 # Default to "left-over" build directories (historical default)
 # If you REMOVE the tarballs, we'll try an existing build as follows:
