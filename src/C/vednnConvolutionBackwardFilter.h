@@ -7,200 +7,6 @@
 #include <stdint.h>
 #endif
 
-<<<<<<< HEAD
-typedef
-vednnError_t (*vednnConvBackwardFilter_t) (
-    const vednnTensorParam_t * restrict 	pParamIn,
-    const void * restrict 			pDataIn,
-    const vednnTensorParam_t * restrict 	pParamGradOut,
-    const void * restrict 			pDataGradOut,
-    const vednnConvolutionParam_t * restrict 	pParamConv,
-    const vednnFilterParam_t * restrict 	pParamGradKernel,
-    void * restrict 				pDataGradKernel
-#ifdef VEDNN_USE_OPENMP
-    ,
-    const int64_t				beginOChannel,
-    const int64_t				nOChannel
-#endif
-) ;
-
-vednnError_t
-vednnConvolutionBackwardFilter_direct_default(
-    const vednnTensorParam_t * restrict 	pParamIn,
-    const void * restrict 			pDataIn,
-    const vednnTensorParam_t * restrict 	pParamGradOut,
-    const void * restrict 			pDataGradOut,
-    const vednnConvolutionParam_t * restrict 	pParamConv,
-    const vednnFilterParam_t * restrict 	pParamGradKernel,
-    void * restrict 				pDataGradKernel
-#ifdef VEDNN_USE_OPENMP
-    ,
-    const int64_t				beginOChannel,
-    const int64_t				nOChannel
-#endif
-) ;
-
-vednnError_t
-vednnConvolutionBackwardFilter_direct_vecC(
-    const vednnTensorParam_t * restrict 	pParamIn,
-    const void * restrict 			pDataIn,
-    const vednnTensorParam_t * restrict 	pParamGradOut,
-    const void * restrict 			pDataGradOut,
-    const vednnConvolutionParam_t * restrict 	pParamConv,
-    const vednnFilterParam_t * restrict 	pParamGradKernel,
-    void * restrict 				pDataGradKernel
-#ifdef VEDNN_USE_OPENMP
-    ,
-    const int64_t				beginOChannel,
-    const int64_t				nOChannel
-#endif
-) ;
-
-
-vednnError_t
-vednnConvolutionBackwardFilter_direct_dil1_pad0(
-    const vednnTensorParam_t * restrict 	pParamIn,
-    const void * restrict 			pDataIn,
-    const vednnTensorParam_t * restrict 	pParamGradOut,
-    const void * restrict 			pDataGradOut,
-    const vednnConvolutionParam_t * restrict 	pParamConv,
-    const vednnFilterParam_t * restrict 	pParamGradKernel,
-    void * restrict 				pDataGradKernel
-#ifdef VEDNN_USE_OPENMP
-    ,
-    const int64_t				beginOChannel,
-    const int64_t				nOChannel
-#endif
-) ;
-
-vednnError_t
-vednnConvolutionBackwardFilter_direct_dil1_pad0_ker1(
-    const vednnTensorParam_t * restrict 	pParamIn,
-    const void * restrict 			pDataIn,
-    const vednnTensorParam_t * restrict 	pParamGradOut,
-    const void * restrict 			pDataGradOut,
-    const vednnConvolutionParam_t * restrict 	pParamConv,
-    const vednnFilterParam_t * restrict 	pParamGradKernel,
-    void * restrict 				pDataGradKernel
-#ifdef VEDNN_USE_OPENMP
-    ,
-    const int64_t				beginOChannel,
-    const int64_t				nOChannel
-#endif
-) ;
-
-vednnError_t
-vednnConvolutionBackwardFilter_direct_dil1_pad0_ker1_owU32(
-    const vednnTensorParam_t * restrict 	pParamIn,
-    const void * restrict 			pDataIn,
-    const vednnTensorParam_t * restrict 	pParamGradOut,
-    const void * restrict 			pDataGradOut,
-    const vednnConvolutionParam_t * restrict 	pParamConv,
-    const vednnFilterParam_t * restrict 	pParamGradKernel,
-    void * restrict 				pDataGradKernel
-#ifdef VEDNN_USE_OPENMP
-    ,
-    const int64_t				beginOChannel,
-    const int64_t				nOChannel
-#endif
-) ;
-
-vednnError_t
-vednnConvolutionBackwardFilter_direct_dil1_pad0_ker1_ohwU64(
-    const vednnTensorParam_t * restrict 	pParamIn,
-    const void * restrict 			pDataIn,
-    const vednnTensorParam_t * restrict 	pParamGradOut,
-    const void * restrict 			pDataGradOut,
-    const vednnConvolutionParam_t * restrict 	pParamConv,
-    const vednnFilterParam_t * restrict 	pParamGradKernel,
-    void * restrict 				pDataGradKernel
-#ifdef VEDNN_USE_OPENMP
-    ,
-    const int64_t				beginOChannel,
-    const int64_t				nOChannel
-#endif
-) ;
-
-vednnError_t
-vednnConvolutionBackwardFilter_direct_dil1_pad0_ker1_ohwU128(
-    const vednnTensorParam_t * restrict 	pParamIn,
-    const void * restrict 			pDataIn,
-    const vednnTensorParam_t * restrict 	pParamGradOut,
-    const void * restrict 			pDataGradOut,
-    const vednnConvolutionParam_t * restrict 	pParamConv,
-    const vednnFilterParam_t * restrict 	pParamGradKernel,
-    void * restrict 				pDataGradKernel
-#ifdef VEDNN_USE_OPENMP
-    ,
-    const int64_t				beginOChannel,
-    const int64_t				nOChannel
-#endif
-) ;
-
-vednnError_t
-vednnConvolutionBackwardFilter_direct_dil1_pad0_owU32(
-    const vednnTensorParam_t * restrict 	pParamIn,
-    const void * restrict 			pDataIn,
-    const vednnTensorParam_t * restrict 	pParamGradOut,
-    const void * restrict 			pDataGradOut,
-    const vednnConvolutionParam_t * restrict 	pParamConv,
-    const vednnFilterParam_t * restrict 	pParamGradKernel,
-    void * restrict 				pDataGradKernel
-#ifdef VEDNN_USE_OPENMP
-    ,
-    const int64_t				beginOChannel,
-    const int64_t				nOChannel
-#endif
-) ;
-
-vednnError_t
-vednnConvolutionBackwardFilter_direct_ker3_owU128(
-    const vednnTensorParam_t * restrict 	pParamIn,
-    const void * restrict 			pDataIn,
-    const vednnTensorParam_t * restrict 	pParamGradOut,
-    const void * restrict 			pDataGradOut,
-    const vednnConvolutionParam_t * restrict 	pParamConv,
-    const vednnFilterParam_t * restrict 	pParamGradKernel,
-    void * restrict 				pDataGradKernel
-#ifdef VEDNN_USE_OPENMP
-    ,
-    const int64_t				beginOChannel,
-    const int64_t				nOChannel
-#endif
-) ;
-
-vednnError_t
-vednnConvolutionBackwardFilter_direct_owU128(
-    const vednnTensorParam_t * restrict 	pParamIn,
-    const void * restrict 			pDataIn,
-    const vednnTensorParam_t * restrict 	pParamGradOut,
-    const void * restrict 			pDataGradOut,
-    const vednnConvolutionParam_t * restrict 	pParamConv,
-    const vednnFilterParam_t * restrict 	pParamGradKernel,
-    void * restrict 				pDataGradKernel
-#ifdef VEDNN_USE_OPENMP
-    ,
-    const int64_t				beginOChannel,
-    const int64_t				nOChannel
-#endif
-) ;
-
-vednnError_t
-vednnConvolutionBackwardFilter_direct_dil1_pad0_ker3_owU128(
-    const vednnTensorParam_t * restrict 	pParamIn,
-    const void * restrict 			pDataIn,
-    const vednnTensorParam_t * restrict 	pParamGradOut,
-    const void * restrict 			pDataGradOut,
-    const vednnConvolutionParam_t * restrict 	pParamConv,
-    const vednnFilterParam_t * restrict 	pParamGradKernel,
-    void * restrict 				pDataGradKernel
-#ifdef VEDNN_USE_OPENMP
-    ,
-    const int64_t				beginOChannel,
-    const int64_t				nOChannel
-#endif
-) ;
-=======
 #ifdef __cplusplus
 extern "C" { //}
 #endif
@@ -228,7 +34,6 @@ const int64_t nOChannel      /* openmp only */
 #define VEDNN_CONVBKF_OMPARGS_LIST pParamIn, pDataIn, pParamGradOut, pDataGradOut, \
     pParamConv, pParamGradKernel, pDataGradKernel, beginOChannel, nOChannel
 #endif // VEDNN_USE_OPENMP
->>>>>>> 5547392796048fc953c746fa87cae7cce77508e3
 
 typedef
 vednnError_t (*vednnConvBackwardFilter_t) ( VEDNN_CONVBKF_OMPARGS );
@@ -256,6 +61,7 @@ VEDNN_CONVBKF_DECL(dil1_str1_padsame_ker5);
 VEDNN_CONVBKF_DECL(dil1_str1_padsame_ker5_owU128);
 VEDNN_CONVBKF_DECL(dil1_str1_padsame_ker2);
 VEDNN_CONVBKF_DECL(dil1_str1_padsame_ker2_owU128);
+VEDNN_CONVBKF_DECL(ker3_owU128) ;
 // extra
 //VEDNN_CONVBKF_DECL(default2);
 //VEDNN_CONVBKF_DECL(dil1_pad0_owU128);

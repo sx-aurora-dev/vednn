@@ -1,6 +1,6 @@
 FTRACE=YES
 OPENMP=YES
-VEDNN_DIR=../install/
+VEDNN_DIR=../build/
 
 # If no tarballs, just use ../build/ as usual
 # Otherwise unpack an appropriate tarball into a local VEDNN_DIR

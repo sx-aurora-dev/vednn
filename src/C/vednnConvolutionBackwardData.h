@@ -6,7 +6,6 @@
 #ifdef __cplusplus
 extern "C" { //}
 #endif
->>>>>>> 5547392796048fc953c746fa87cae7cce77508e3
 
 #define VEDNN_CONVBKD_ARGS \
   const vednnTensorParam_t * restrict        pParamGradOut, \
