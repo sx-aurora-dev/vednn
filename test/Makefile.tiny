@@ -1,6 +1,6 @@
 FTRACE=YES
 OPENMP=YES
-VEDNN_DIR=../install/
+VEDNN_DIR=../install
 
 # If no tarballs, just use ../build/ as usual
 # Otherwise unpack an appropriate tarball into a local VEDNN_DIR
@@ -16,9 +16,14 @@ VEDNN_DIR:=./vednn
 endif
 endif
 
-TARGETS	= vednn_conv_test vednn_linear_test vednn_pool_test
+TARGETS:=vednn_conv_test vednn_linear_test vednn_pool_test
 .PHONY: Makefile all vars
 all: vars $(VEDNN_DIR) $(TARGETS)
+demo: all
+	{ ./vednn_conv_test -H 8e8 -p params/conv/alexnet.txt -T ConvForward; ftrace; \
+		./vednn_linear_test -H 0.8e9 -p params/linear/alexnet.txt -T LinearForward; ftrace; \
+		./vednn_pool_test   -H 0.8e9 -p params/pool/alexnet.txt   -T MaxPoolForward; ftrace; \
+		} 2>&1 | tee mk-test.log
 vars:
 	echo 'TGZ = $(TGZ)'
 	echo 'VEDNN_DIR = $(VEDNN_DIR)'
@@ -34,6 +39,11 @@ vars:
 	cd tmp-v && tar xzmf ../$^
 	rm -rf $@; mv tmp-v/vednn $@; rm -rf tmp-v
 	ls -l $@/lib $^
+../build:
+	(cd .. && mkdir build && cd build && cmake ..)
+../install: ../build
+	-$(MAKE) -C ../build -j6 install PREFIX=$@
+	-ls -l $@
 
 SRCS	= vednn_conv_test.c vednn_linear_test.c vednn_pool_test.c vednn_helper.c convolution_gemm.c linear_gemm.c maxpooling.c
 OBJS	= $(SRCS:%.c=%.o)

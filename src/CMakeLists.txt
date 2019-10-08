@@ -23,36 +23,30 @@ else()
 	set(LIB_MODE STATIC)
 endif()
 
-# for vconv (does it need to be here?) XXX
-set(NLCDIR "/opt/nec/ve/nlc/2.0.0")
-set(CMAKE_CFLAGS     "${CMAKE_CFLAGS} -I${NLCDIR}/include")
-set(CMAKE_CXXFLAGS "${CMAKE_CXXFLAGS} -I${NLCDIR}/include")
-#set(CMAKE_BUILD_RPATH "${CMAKE_BUILD_RPATH} ${NLCDIR}/lib")
-#set(CMAKE_INSTALL_RPATH "${CMAKE_INSTALL_RPATH} ${NLCDIR}/lib")
-set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -Wl,-rpath,${NLCDIR}/lib")
-
 add_library(${LIBNAME} ${LIB_MODE}
-        $<TARGET_OBJECTS:vednn_c_code>
-        $<TARGET_OBJECTS:vednn_intrinsic_convolution_forward>
-        $<TARGET_OBJECTS:vednn_intrinsic_convolution_backward_data>
-        $<TARGET_OBJECTS:vednn_intrinsic_convolution_backward_filter>
-        $<TARGET_OBJECTS:vednn_intrinsic_linear_forward>
-        $<TARGET_OBJECTS:vednn_intrinsic_linear_backward_data>
-        $<TARGET_OBJECTS:vednn_intrinsic_linear_backward_weight>        
-        $<TARGET_OBJECTS:vednn_intrinsic_maxpooling_backward>
-        $<TARGET_OBJECTS:vednn_intrinsic_maxpooling_forward>
-        $<TARGET_OBJECTS:vednn_intrinsic_activation>
-)
-
-# vconv and vednnx extensions
+    $<TARGET_OBJECTS:vednn_c_code>
+    $<TARGET_OBJECTS:vednn_intrinsic_convolution_forward>
+    $<TARGET_OBJECTS:vednn_intrinsic_convolution_backward_data>
+    $<TARGET_OBJECTS:vednn_intrinsic_convolution_backward_filter>
+    $<TARGET_OBJECTS:vednn_intrinsic_linear_forward>
+    $<TARGET_OBJECTS:vednn_intrinsic_linear_backward_data>
+    $<TARGET_OBJECTS:vednn_intrinsic_linear_backward_weight>        
+    $<TARGET_OBJECTS:vednn_intrinsic_maxpooling_backward>
+    $<TARGET_OBJECTS:vednn_intrinsic_maxpooling_forward>
+    $<TARGET_OBJECTS:vednn_intrinsic_activation>
+    )
 if(BUILD_SHARED)
     set_target_properties(${LIBNAME} PROPERTIES
         INSTALL_RPATH "\$ORIGIN/../lib"
         )
 endif()
+
+# vednnx extensions: iterator and jit api, gen-dnn subset
 add_library(${LIBWRAP} ${LIB_MODE}
-        $<TARGET_OBJECTS:vednn_wrap>)
-add_dependencies(${LIBWRAP} unPack)
+    $<TARGET_OBJECTS:vednn_wrap>
+    $<TARGET_OBJECTS:vconv_code>
+    )
+#add_dependencies(${LIBWRAP} vconv_unPack)
 
 if(USE_FTRACE)
 	target_link_libraries(${LIBNAME} veperf)

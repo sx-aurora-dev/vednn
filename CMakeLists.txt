@@ -53,6 +53,8 @@ else() # specify USE_FTRACE 2 to instrument EVERY function, else just selected r
     endif()
 endif()
 message(STATUS "USE_FTRACE --------> ${USE_FTRACE}")
+message(STATUS "USE_OPENMP --------> ${USE_OPENMP}")
+message(STATUS "BUILD_SHARED ------> ${BUILD_SHARED}")
 if(USE_FTRACE)
 	# ftrace/veperf location
 	find_file(found_VEPERF_H NAME veperf.h
@@ -91,9 +93,12 @@ if(USE_FTRACE)
     find_library(veperf NAMES veperf.a PATHS ${VE_VEPERF_DIR}/lib NO_DEFAULT_PATH)
 endif()
 
+# vednnx may link to blas libraries (for gen-dnn im2col in 'src/wrap/vconv')
+set(NLCDIR "/opt/nec/ve/nlc/2.0.0" CACHE STRING "VE blas install directory")
+
 message(STATUS "PROJECT_ROOT/ CMAKE_C_FLAGS=${CMAKE_C_FLAGS}")
 add_subdirectory(src)
-add_subdirectory(src/intrinsic)
-add_subdirectory(src/C)
 add_subdirectory(src/wrap)
+add_subdirectory(src/C)
+add_subdirectory(src/intrinsic)
 # vim: et ts=4 sw=4 ai

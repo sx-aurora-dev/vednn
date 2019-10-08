@@ -22,10 +22,19 @@ message(STATUS "src/wrap/ CMAKE_C_FLAGS=${CMAKE_C_FLAGS}")
 
 include_directories(".." "../C")
 
+set(CMAKE_CFLAGS     "${CMAKE_CFLAGS} -I${NLCDIR}/include")
+set(CMAKE_CXXFLAGS "${CMAKE_CXXFLAGS} -I${NLCDIR}/include")
+#set(CMAKE_BUILD_RPATH "${CMAKE_BUILD_RPATH} ${NLCDIR}/lib")
+#set(CMAKE_INSTALL_RPATH "${CMAKE_INSTALL_RPATH} ${NLCDIR}/lib")
+set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -Wl,-rpath,${NLCDIR}/lib")
+
 add_library(vednn_wrap OBJECT
     vednnConvolutionLists.c
     vednnConvolution_ok.c
     )
+
+add_subdirectory(vconv)
+
 install(FILES vednnx.h DESTINATION include)
 # TODO modify vednnx.h public API to pull in the wrap/ headers so all
 #      external projects may need to call 'ok' functions and access
