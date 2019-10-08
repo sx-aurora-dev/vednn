@@ -61,6 +61,7 @@ VEDNN_CONVBKF_DECL(dil1_str1_padsame_ker5);
 VEDNN_CONVBKF_DECL(dil1_str1_padsame_ker5_owU128);
 VEDNN_CONVBKF_DECL(dil1_str1_padsame_ker2);
 VEDNN_CONVBKF_DECL(dil1_str1_padsame_ker2_owU128);
+VEDNN_CONVBKF_DECL(dil1_str2_pad1_ker3_owU128);
 VEDNN_CONVBKF_DECL(ker3_owU128) ;
 // extra
 //VEDNN_CONVBKF_DECL(default2);
