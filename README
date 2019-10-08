@@ -22,7 +22,7 @@ $ make && make install
 
 ## Run some tests
 $ cd ../test
-$ make
+$ CC=ncc CXX=nC++ make
 $ ./vednn_conv_test   -H 0.8e9 -p params/conv/alexnet.txt   -T ConvForward
 $ ftrace
 $ ./vednn_linear_test -H 0.8e9 -p params/linear/alexnet.txt -T LinearForward
