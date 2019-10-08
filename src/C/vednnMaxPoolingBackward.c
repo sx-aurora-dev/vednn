@@ -1,35 +1,17 @@
-
-#include <stdint.h>
-
 #include "vednnMaxPoolingBackward.h"
-
-#ifdef VEDNN_USE_OPENMP
+#include "vednn-def.h"
 #include <stdint.h>
-#include <omp.h>
-extern int __vednn_omp_num_threads ;
-#endif
 
 static inline vednnError_t
-vednnMaxPoolingForward_wrapper(
-    vednnMaxPoolBackward_t		 pFunc,
-    const vednnTensorParam_t 		*pParamGradOut,
-    const void 				*pDataGradOut,
-    const vednnTensorParam_t 		*pParamOut,
-    const void 				*pDataOut,
-    const vednnTensorParam_t 		*pParamIn,
-    const void 				*pDataIn,
-    const vednnTensorParam_t 		*pParamGradIn,
-    void 				*pDataGradIn,
-    const vednnPoolingParam_t		*pParamPool
-)
+vednnMaxPoolingBackward_wrapper(
+    vednnMaxPoolBackward_t pFunc,
+    VEDNN_MAXPOOLINGBKW_ARGS )
 {
-#ifdef VEDNN_USE_OPENMP
+#ifndef VEDNN_USE_OPENMP
+  return pFunc(VEDNN_MAXPOOLINGBKW_ARGS_LIST);
+#else
   if ( __vednn_omp_num_threads == 1 ) {
-    return pFunc(pParamGradOut, pDataGradOut,
-  	       pParamOut,     pDataOut,
-  	       pParamIn,      pDataIn,
-  	       pParamGradIn, pDataGradIn,
-  	       pParamPool ) ;
+    return pFunc(VEDNN_MAXPOOLINGBKW_ARGS_LIST);
   }
   else {
     vednnError_t rc = VEDNN_SUCCESS ;
@@ -47,54 +29,38 @@ vednnMaxPoolingForward_wrapper(
       int64_t myBatch = nBatch + ( threadid < remain ? 1 : 0 ) ;
 
       if( myBatch == 0 ) {
-	rc |= VEDNN_SUCCESS ;
+        rc |= VEDNN_SUCCESS ;
       }
       else {
-	vednnTensorParam_t _pParamGradOut = *pParamGradOut ; _pParamGradOut.batch = myBatch ;
-	vednnTensorParam_t _pParamOut = *pParamOut ; _pParamOut.batch = myBatch ;
-	vednnTensorParam_t _pParamIn  = *pParamIn  ; _pParamIn.batch = myBatch ;
-	vednnTensorParam_t _pParamGradIn  = *pParamGradIn  ; _pParamGradIn.batch = myBatch ;
+        vednnTensorParam_t _pParamGradOut = *pParamGradOut ; _pParamGradOut.batch = myBatch ;
+        vednnTensorParam_t _pParamOut = *pParamOut ; _pParamOut.batch = myBatch ;
+        vednnTensorParam_t _pParamIn  = *pParamIn  ; _pParamIn.batch = myBatch ;
+        vednnTensorParam_t _pParamGradIn  = *pParamGradIn  ; _pParamGradIn.batch = myBatch ;
 
-	float* _pDataGradOut = ((float *)pDataGradOut) + batchBegin * pParamGradOut->channel * pParamGradOut->height * pParamGradOut->width ;
-	float* _pDataOut = ((float *)pDataOut) + batchBegin * pParamOut->channel * pParamOut->height * pParamOut->width ;
-	float* _pDataIn  = ((float *)pDataIn) + batchBegin * pParamIn->channel * pParamIn->height * pParamIn->width ;
-	float* _pDataGradIn  = ((float *)pDataGradIn) + batchBegin * pParamGradIn->channel * pParamGradIn->height * pParamGradIn->width ;
+        float* _pDataGradOut = ((float *)pDataGradOut) + batchBegin * pParamGradOut->channel * pParamGradOut->height * pParamGradOut->width ;
+        float* _pDataOut = ((float *)pDataOut) + batchBegin * pParamOut->channel * pParamOut->height * pParamOut->width ;
+        float* _pDataIn  = ((float *)pDataIn) + batchBegin * pParamIn->channel * pParamIn->height * pParamIn->width ;
+        float* _pDataGradIn  = ((float *)pDataGradIn) + batchBegin * pParamGradIn->channel * pParamGradIn->height * pParamGradIn->width ;
 
 
-	rc |= pFunc(&_pParamGradOut, (void*) _pDataGradOut,
-		    &_pParamOut,     (void*) _pDataOut,
-		    &_pParamIn,      (void*) _pDataIn,
-		    &_pParamGradIn,  (void*) _pDataGradIn,
-		    pParamPool ) ;
+        rc |= pFunc(&_pParamGradOut, (void*) _pDataGradOut,
+            &_pParamOut,     (void*) _pDataOut,
+            &_pParamIn,      (void*) _pDataIn,
+            &_pParamGradIn,  (void*) _pDataGradIn,
+            pParamPool ) ;
       }
     }
     return rc ;
   }
-#else
-  return pFunc(pParamGradOut, pDataGradOut,
-	       pParamOut,     pDataOut,
-	       pParamIn,      pDataIn,
-	       pParamGradIn, pDataGradIn,
-	       pParamPool ) ;
 #endif
 }
 
 /* ----------------------------------------------------------------------- */
-
 vednnError_t vednnMaxPoolingBackward(
-    const vednnTensorParam_t 		*pParamGradOut,
-    const void 				*pDataGradOut,
-    const vednnTensorParam_t 		*pParamOut,
-    const void 				*pDataOut,
-    const vednnTensorParam_t 		*pParamIn,
-    const void 				*pDataIn,
-    const vednnTensorParam_t 		*pParamGradIn,
-    void 				*pDataGradIn,
-    const vednnPoolingParam_t		*pParamPool
-)
+    VEDNN_MAXPOOLINGBKW_ARGS )
 {
-
-  // [todo] add variations
+#define OMPWRAP( IMPL ) WRAP_RET(vednnMaxPoolingBackward_##IMPL, \
+    vednnMaxPoolingBackward_wrapper, VEDNN_MAXPOOLINGBKW_ARGS_LIST)
   if( pParamPool->padHeight == 0 && pParamPool->padWidth == 0
       && pParamPool->strideHeight == pParamPool->windowHeight
       && pParamPool->strideWidth == pParamPool->windowWidth
@@ -105,47 +71,16 @@ vednnError_t vednnMaxPoolingBackward(
     if( pParamOut->width <= 128 )
     {
       if( (pParamPool->windowWidth & 0x01) == 0
-	  && (((uint64_t)pDataIn) & 0x07) == 0
-	  && (((uint64_t)pDataGradIn) & 0x07) == 0 )
-      {
-	return vednnMaxPoolingForward_wrapper(
-	    vednnMaxPoolingBackward_regular_ww2X_owU128_ialigned,
-	    pParamGradOut, pDataGradOut,
-	    pParamOut,     pDataOut,
-	    pParamIn,      pDataIn,
-	    pParamGradIn, pDataGradIn,
-	    pParamPool ) ;
-      }
+          && (((uint64_t)pDataIn) & 0x07) == 0
+          && (((uint64_t)pDataGradIn) & 0x07) == 0 )
+        OMPWRAP(regular_ww2X_owU128_ialigned);
       else
-      {
-	return vednnMaxPoolingForward_wrapper(
-	    vednnMaxPoolingBackward_regular_owU128,
-	    pParamGradOut, pDataGradOut,
-	    pParamOut,     pDataOut,
-	    pParamIn,      pDataIn,
-	    pParamGradIn, pDataGradIn,
-	    pParamPool ) ;
-      }
+        OMPWRAP(regular_owU128);
     }
     else
-    {
-      return vednnMaxPoolingForward_wrapper(
-	  vednnMaxPoolingBackward_regular,
-	  pParamGradOut, pDataGradOut,
-	  pParamOut,     pDataOut,
-	  pParamIn,      pDataIn,
-	  pParamGradIn, pDataGradIn,
-	  pParamPool ) ;
-    }
+      OMPWRAP(regular);
   }
   else
-  {
-    return vednnMaxPoolingForward_wrapper(
-	vednnMaxPoolingBackward_default,
-	pParamGradOut, pDataGradOut,
-	pParamOut,     pDataOut,
-	pParamIn,      pDataIn,
-	pParamGradIn, pDataGradIn,
-	pParamPool ) ;
-  }
+  OMPWRAP(default);
 }
+// vim: et sw=2 ts=2

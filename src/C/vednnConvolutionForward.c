@@ -1,33 +1,26 @@
-
 #include "vednnConvolutionForward.h"
-#include <stdlib.h>
+#include "vednn-def.h"
 #include <stdint.h>
-#include <stdio.h>
+#include <assert.h>
 
-#ifdef VEDNN_USE_OPENMP
-#include <omp.h>
-extern int __vednn_omp_num_threads ;
-#endif
+/** There was an error in here for d1s1pSk3c1, DBG helped track
+ * which impl was (wrongly) being called -- libvednnx "ok" had
+ * the correct test. */
+#define DBG(...)
+//#define DBG(...) printf(__VA_ARGS__)
+#include <stdio.h>    // fprintf
 
 static inline vednnError_t
 vednnConvolutionForward_wrapper(
     vednnConvForward_t			pFunc,
-    const vednnTensorParam_t 		*pParamIn,
-    const void 				*pDataIn,
-    const vednnFilterParam_t		*pParamKernel,
-    const void 				*pDataKernel,
-    const vednnBiasParam_t 		*pParamBias,
-    const void 				*pDataBias,
-    const vednnConvolutionParam_t	*pParamConv,
-    const vednnTensorParam_t 		*pParamOut,
-    void 				*pDataOut
-)
+    VEDNN_CONVFWD_ARGS )
 {
-#ifdef VEDNN_USE_OPENMP
+#ifndef VEDNN_USE_OPENMP
+  return pFunc(VEDNN_CONVFWD_ARGS_LIST);
+#else
   if ( __vednn_omp_num_threads == 1 ) {
-    return pFunc(pParamIn, pDataIn, pParamKernel, pDataKernel, pParamBias, pDataBias, pParamConv, pParamOut, pDataOut) ;
-  }
-  else {
+    return pFunc(VEDNN_CONVFWD_ARGS_LIST);
+  }else{
     vednnError_t rc = VEDNN_SUCCESS ;
 #pragma omp parallel reduction(|:rc)
     {
@@ -43,30 +36,25 @@ vednnConvolutionForward_wrapper(
       int64_t myBatch = nBatch + ( threadid < remain ? 1 : 0 ) ;
 
       if( myBatch == 0 ) {
-	rc |= VEDNN_SUCCESS ;
-      }
-      else {
-	vednnTensorParam_t _pParamIn  = *pParamIn  ; _pParamIn.batch = myBatch ;
-	vednnTensorParam_t _pParamOut = *pParamOut ; _pParamOut.batch = myBatch ;
-	float* _pDataIn  = ((float *)pDataIn) + batchBegin * pParamIn->channel * pParamIn->height * pParamIn->width ;
-	float* _pDataOut = ((float *)pDataOut) + batchBegin * pParamOut->channel * pParamOut->height * pParamOut->width ;
+        rc |= VEDNN_SUCCESS ;
+      }else{
+        vednnTensorParam_t _pParamIn  = *pParamIn  ; _pParamIn.batch = myBatch ;
+        vednnTensorParam_t _pParamOut = *pParamOut ; _pParamOut.batch = myBatch ;
+        float* _pDataIn  = ((float *)pDataIn) + batchBegin * pParamIn->channel * pParamIn->height * pParamIn->width ;
+        float* _pDataOut = ((float *)pDataOut) + batchBegin * pParamOut->channel * pParamOut->height * pParamOut->width ;
 
-	rc |= pFunc(&_pParamIn, (void*)_pDataIn, pParamKernel, pDataKernel,
-	            pParamBias, pDataBias,
-		    pParamConv, &_pParamOut, (void*) _pDataOut) ;
+        rc |= pFunc(&_pParamIn, (void*)_pDataIn, pParamKernel, pDataKernel,
+            pParamBias, pDataBias,
+            pParamConv, &_pParamOut, (void*) _pDataOut) ;
       }
     }
     return rc ;
   }
-#else
-  return pFunc(pParamIn, pDataIn, pParamKernel, pDataKernel,
-               pParamBias, pDataBias,
-               pParamConv, pParamOut, pDataOut) ;
 #endif
 }
 
 /* ----------------------------------------------------------------------- */
-static inline
+  static inline
 vednnError_t vednnConvolutionForwardBody(
     const vednnTensorParam_t 		*pParamIn,
     const void 				*pDataIn,
@@ -78,213 +66,99 @@ vednnError_t vednnConvolutionForwardBody(
     void 				*pDataOut,
     const vednnConvolutionParam_t	*pParamConv,
     vednnConvolutionAlgorithm_t 	algo
-)
+    )
 {
   switch( pParamKernel->layout ) {
-  case VEDNN_FILTER_LAYOUT_NCHW :
-    break ;
-  case VEDNN_FILTER_LAYOUT_HWCN :
-    if( pParamConv->group > 1 ) {
-      fprintf(stderr, "[VEDNN ERROR] VEDNN does not support grouped convolution with filter_hwcn\n") ;
+    case VEDNN_FILTER_LAYOUT_NCHW :
+      break ;
+    case VEDNN_FILTER_LAYOUT_HWCN :
+      if( pParamConv->group > 1 ) {
+        fprintf(stderr, "[VEDNN ERROR] VEDNN does not support grouped convolution with filter_hwcn\n") ;
+        return VEDNN_ERROR_INVALID_PARAM ;
+      }
+      break ;
+    default :
+      fprintf(stderr, "[VEDNN ERROR] Unknown Filter Layout %d\n", pParamKernel->layout) ;
       return VEDNN_ERROR_INVALID_PARAM ;
-    }
-    break ;
-  default :
-    fprintf(stderr, "[VEDNN ERROR] Unknown Filter Layout %d\n", pParamKernel->layout) ;
-    return VEDNN_ERROR_INVALID_PARAM ;
   }
 
+#define OMPWRAP( IMPL ) WRAP_RET(vednnConvolutionForward_direct_##IMPL, \
+    vednnConvolutionForward_wrapper, VEDNN_CONVFWD_ARGS_LIST)
   if (algo == VEDNN_CONV_ALGORITHM_DIRECT)
   {
-    // [todo] add variations
-    if ( pParamOut->height * pParamOut->width <= 16  ) {
-	return vednnConvolutionForward_wrapper(
-	    vednnConvolutionForward_direct_vecC,
-	    pParamIn, pDataIn, pParamKernel, pDataKernel,
-	    pParamBias, pDataBias,
-	    pParamConv, pParamOut, pDataOut);
-    }
+    if ( pParamOut->height * pParamOut->width <= 16  )
+      OMPWRAP(vecC);
     else if (pParamConv->strideHeight == 1 && pParamConv->strideWidth == 1
-	&& pParamConv->dilationHeight == 1 && pParamConv->dilationWidth == 1
-	&& pParamIn->height == pParamOut->height
-	&& pParamIn->width == pParamOut->width )
-    {
+        && pParamConv->dilationHeight == 1 && pParamConv->dilationWidth == 1
+        && pParamIn->height == pParamOut->height
+        && pParamIn->width == pParamOut->width )
+    { // d1s1pS
       if (pParamKernel->width == 1 && pParamKernel->height == 1)
-      {
-	return vednnConvolutionForward_wrapper(
-	    vednnConvolutionForward_direct_dil1_str1_pad0_ker1,
-	    pParamIn, pDataIn, pParamKernel, pDataKernel,
-	    pParamBias, pDataBias,
-	    pParamConv, pParamOut, pDataOut);
-      }
+        OMPWRAP(dil1_str1_pad0_ker1);
       else if (pParamKernel->height == 3 && pParamKernel->width == 3)
       {
-	if (pParamIn->channel == pParamConv->group) // aka inputChannelGroup==1
-	{
-	  if (pParamOut->width <= 128)
-	  {
-	    return vednnConvolutionForward_wrapper(
-		vednnConvolutionForward_direct_dil1_str1_padsame_ker3_c1_owU128,
-		pParamIn, pDataIn, pParamKernel, pDataKernel,
-		pParamBias, pDataBias,
-		pParamConv, pParamOut, pDataOut );
-	  }
-	  else {
-	    return vednnConvolutionForward_wrapper(
-		vednnConvolutionForward_direct_dil1_str1_padsame_ker3_c1,
-		pParamIn, pDataIn, pParamKernel, pDataKernel,
-		pParamBias, pDataBias,
-		pParamConv, pParamOut, pDataOut );
-	  }
-	}
-	else
-	{
-	  return vednnConvolutionForward_wrapper(
-	      vednnConvolutionForward_direct_dil1_str1_padsame_ker3,
-	      pParamIn, pDataIn, pParamKernel, pDataKernel,
-	      pParamBias, pDataBias,
-	      pParamConv, pParamOut, pDataOut );
-	}
-      }
-      else if (pParamKernel->height == 5 && pParamKernel->width == 5)
-      {
-	if( pParamOut->width <= 128 ) {
-	  return vednnConvolutionForward_wrapper(
-	      vednnConvolutionForward_direct_dil1_str1_padsame_ker5_owU128,
-	      pParamIn, pDataIn, pParamKernel, pDataKernel,
-	      pParamBias, pDataBias,
-	      pParamConv, pParamOut, pDataOut );
-	}
-	else {
-	  return vednnConvolutionForward_wrapper(
-	      vednnConvolutionForward_direct_dil1_str1_padsame_ker5,
-	      pParamIn, pDataIn, pParamKernel, pDataKernel,
-	      pParamBias, pDataBias,
-	      pParamConv, pParamOut, pDataOut );
-	}
-      }
-      else if (pParamKernel->height == 2 && pParamKernel->width == 2)
-      {
-	return vednnConvolutionForward_wrapper(
-	    vednnConvolutionForward_direct_dil1_str1_padsame_ker2,
-	    pParamIn, pDataIn, pParamKernel, pDataKernel,
-	    pParamBias, pDataBias,
-	    pParamConv, pParamOut, pDataOut );
-      }
+        if (pParamIn->channel == pParamConv->group) // aka inputChannelGroup==1
+        {
+          if (pParamOut->width <= 128)
+            OMPWRAP(dil1_str1_padsame_ker3_c1_owU128);
+          else
+            OMPWRAP(dil1_str1_padsame_ker3_c1);
+        }else
+          OMPWRAP(dil1_str1_padsame_ker3);
+      }else if (pParamKernel->height == 5 && pParamKernel->width == 5){
+        if( pParamOut->width <= 128 )
+          OMPWRAP(dil1_str1_padsame_ker5_owU128);
+        else
+          OMPWRAP(dil1_str1_padsame_ker5);
+      }else if (pParamKernel->height == 2 && pParamKernel->width == 2)
+        OMPWRAP(dil1_str1_padsame_ker2);
       else
-      {
-	return vednnConvolutionForward_wrapper(
-	    vednnConvolutionForward_direct_dil1_str1_padsame,
-	    pParamIn, pDataIn, pParamKernel, pDataKernel,
-	    pParamBias, pDataBias,
-	    pParamConv, pParamOut, pDataOut );
-      }
-    }
-    else if ( pParamConv->dilationHeight == 1 && pParamConv->dilationWidth == 1
-	&& pParamConv->padHeight == 0  && pParamConv->padWidth == 0
-	&& pParamOut->height == (pParamIn->height - pParamKernel->height) / pParamConv->strideHeight + 1
-	&& pParamOut->width == (pParamIn->width - pParamKernel->width) / pParamConv->strideWidth + 1 )
-    {
+        OMPWRAP(dil1_str1_padsame);
+    }else if ( pParamConv->dilationHeight == 1 && pParamConv->dilationWidth == 1
+        && pParamConv->padHeight == 0  && pParamConv->padWidth == 0
+        && pParamOut->height == (pParamIn->height - pParamKernel->height) / pParamConv->strideHeight + 1
+        && pParamOut->width == (pParamIn->width - pParamKernel->width) / pParamConv->strideWidth + 1 )
+    { // d1p0 and oh expected value
       if (pParamConv->strideHeight == 1 && pParamConv->strideWidth == 1 )
       {
-	if ( pParamKernel->height == 3 && pParamKernel->width == 3
-	    && (pParamIn->width <= 256)
-	    && (pParamIn->width & 0x1) == 0  && (((uint64_t)pDataIn) & 0x7) == 0
-	    && (pParamOut->width & 0x1) == 0 && (((uint64_t)pDataOut) & 0x7) == 0 )
-	{
-	  return vednnConvolutionForward_wrapper (
-		  vednnConvolutionForward_direct_dil1_str1_pad0_ker3_iw2XU256_ow2X_ioaligned,
-		  pParamIn, pDataIn, pParamKernel, pDataKernel,
-		  pParamBias, pDataBias,
-		  pParamConv, pParamOut, pDataOut ) ;
-	}
-	else if (pParamOut->width <= 128)
-	{
-	  return vednnConvolutionForward_wrapper (
-	      vednnConvolutionForward_direct_dil1_str1_pad0_owU128,
-	      pParamIn, pDataIn, pParamKernel, pDataKernel,
-	      pParamBias, pDataBias,
-	      pParamConv, pParamOut, pDataOut );
-	}
-	else
-	{
-	  return vednnConvolutionForward_wrapper(
-	      vednnConvolutionForward_direct_dil1_str1_pad0,
-	      pParamIn, pDataIn, pParamKernel, pDataKernel,
-	      pParamBias, pDataBias,
-	      pParamConv, pParamOut, pDataOut );
-	}
+        if ( pParamKernel->height == 3 && pParamKernel->width == 3
+            && (pParamIn->width <= 256)
+            && (pParamIn->width & 0x1) == 0  && (((uint64_t)pDataIn) & 0x7) == 0
+            && (pParamOut->width & 0x1) == 0 && (((uint64_t)pDataOut) & 0x7) == 0 )
+          OMPWRAP(dil1_str1_pad0_ker3_iw2XU256_ow2X_ioaligned);
+        else if (pParamOut->width <= 128)
+          OMPWRAP(dil1_str1_pad0_owU128);
+        else
+          OMPWRAP(dil1_str1_pad0);
+      }else if( pParamKernel->width == 1 && pParamKernel->height == 1 ){
+        if (pParamOut->width <= 128)
+          OMPWRAP(dil1_pad0_owU128_ker1);
+        else
+          OMPWRAP(dil1_pad0_ker1);
+      }else{
+        if (pParamOut->width <= 128)
+          OMPWRAP(dil1_pad0_owU128);
+        else
+          OMPWRAP(dil1_pad0);
       }
-      else {
-	if( pParamKernel->width == 1 && pParamKernel->height == 1 )
-	{
-	  if (pParamOut->width <= 128) {
-	    return vednnConvolutionForward_wrapper(
-		vednnConvolutionForward_direct_dil1_pad0_owU128_ker1,
-		pParamIn, pDataIn, pParamKernel, pDataKernel,
-		pParamBias, pDataBias,
-		pParamConv, pParamOut, pDataOut );
-	  }
-	  else {
-	    return vednnConvolutionForward_wrapper(
-		vednnConvolutionForward_direct_dil1_pad0_ker1,
-		pParamIn, pDataIn, pParamKernel, pDataKernel,
-		pParamBias, pDataBias,
-		pParamConv, pParamOut, pDataOut );
-	  }
-	}
-	else {
-	  if (pParamOut->width <= 128) {
-	    return vednnConvolutionForward_wrapper(
-		vednnConvolutionForward_direct_dil1_pad0_owU128,
-		pParamIn, pDataIn, pParamKernel, pDataKernel,
-		pParamBias, pDataBias,
-		pParamConv, pParamOut, pDataOut );
-	  }
-	  else {
-	    return vednnConvolutionForward_wrapper(
-		vednnConvolutionForward_direct_dil1_pad0,
-		pParamIn, pDataIn, pParamKernel, pDataKernel,
-		pParamBias, pDataBias,
-		pParamConv, pParamOut, pDataOut );
-	  }
-	}
-      }
-    }
-    else if (pParamConv->strideHeight == 2 && pParamConv->strideWidth == 2
-	&& pParamConv->dilationHeight == 1 && pParamConv->dilationWidth == 1
-	&& pParamConv->padHeight == 1 && pParamConv->padWidth == 1
-	&& pParamKernel->height == 3 && pParamKernel->width == 3
-	&& pParamOut->width <= 128 )
-    {
-	return vednnConvolutionForward_wrapper(
-	    vednnConvolutionForward_direct_dil1_str2_pad1_ker3_owU128,
-	    pParamIn, pDataIn, pParamKernel, pDataKernel,
-	    pParamBias, pDataBias,
-	    pParamConv, pParamOut, pDataOut );
-    }
-    else {
+    }else if (pParamConv->strideHeight == 2 && pParamConv->strideWidth == 2
+        && pParamConv->dilationHeight == 1 && pParamConv->dilationWidth == 1
+        && pParamConv->padHeight == 1 && pParamConv->padWidth == 1
+        && pParamKernel->height == 3 && pParamKernel->width == 3
+        && pParamOut->width <= 128 )
+      OMPWRAP(dil1_str2_pad1_ker3_owU128); // N/A
+    else{
       if (pParamOut->width <= 128)
-      {
-	return vednnConvolutionForward_wrapper (
-	    vednnConvolutionForward_direct_owU128,
-	    pParamIn, pDataIn, pParamKernel, pDataKernel,
-	    pParamBias, pDataBias,
-	    pParamConv, pParamOut, pDataOut );
-      }
-      else {
-	return vednnConvolutionForward_wrapper(
-	    vednnConvolutionForward_direct_default,
-	    pParamIn, pDataIn, pParamKernel, pDataKernel,
-	    pParamBias, pDataBias,
-	    pParamConv, pParamOut, pDataOut );
-      }
+        OMPWRAP(owU128);
+      else
+        OMPWRAP(default);
     }
   }
-  else {
+  else{
     return VEDNN_ERROR_INVALID_PARAM ;
   }
 }
+#undef OMPWRAP
 
 /* ----------------------------------------------------------------------- */
 vednnError_t vednnConvolutionForwardAddBias(
@@ -298,11 +172,11 @@ vednnError_t vednnConvolutionForwardAddBias(
     void 				*pDataOut,
     const vednnConvolutionParam_t	*pParamConv,
     vednnConvolutionAlgorithm_t 	algo
-)
+    )
 {
   return vednnConvolutionForwardBody(pParamIn, pDataIn,
-            pParamKernel, pDataKernel, pParamBias, pDataBias,
-	    pParamOut, pDataOut, pParamConv, algo );
+      pParamKernel, pDataKernel, pParamBias, pDataBias,
+      pParamOut, pDataOut, pParamConv, algo );
 }
 
 vednnError_t vednnConvolutionForward(
@@ -314,9 +188,10 @@ vednnError_t vednnConvolutionForward(
     void 				*pDataOut,
     const vednnConvolutionParam_t	*pParamConv,
     vednnConvolutionAlgorithm_t 	algo
-)
+    )
 {
   return vednnConvolutionForwardBody(pParamIn, pDataIn,
-            pParamKernel, pDataKernel, NULL, NULL,
-	    pParamOut, pDataOut, pParamConv, algo );
+      pParamKernel, pDataKernel, NULL, NULL,
+      pParamOut, pDataOut, pParamConv, algo );
 }
+// vim: et sw=2 ts=2

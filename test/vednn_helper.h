@@ -7,6 +7,10 @@
 #include <stddef.h>
 #include <stdio.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 vednnError_t
 createTensorParam(vednnTensorParam_t **ppParam, dataType_t dtype,
                   int batch, int channel, int width, int height);
@@ -98,4 +102,8 @@ createPoolingParam(vednnPoolingParam_t **ppParam,
 
 void destroyPoolingParam(vednnPoolingParam_t *pParam) ;
 
+#ifdef __cplusplus
+}//extern "C"
+#endif
+// vim: et ts=4 sw=4 cindent cino=^=l0,\:0,N-s syntax=cpp.doxygen
 #endif /* TEST_VEDNN_HELPER_H_ */

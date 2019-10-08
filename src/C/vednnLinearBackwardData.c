@@ -1,27 +1,17 @@
-
-#include <stdint.h>
 #include "vednnLinearBackwardData.h"
-
-#ifdef VEDNN_USE_OPENMP
-#include <omp.h>
-extern int __vednn_omp_num_threads ;
-#endif
-
+#include "vednn-def.h"
 
 static inline vednnError_t
 vednnLinearBackwardData_wrapper(
-    vednnLinearBackwardData_t		pFunc,
-    const uint64_t			inDim,
-    const uint64_t			outDim,
-    const uint64_t			nBatch,
-    const void 				*pDataGradOut,
-    const void 				*pDataWeight,
-    void 				*pDataGradIn
+    vednnLinearBackwardData_t pFunc,
+    VEDNN_LINEARBKD_ARGS
 )
 {
-#ifdef VEDNN_USE_OPENMP
+#ifndef VEDNN_USE_OPENMP
+  return pFunc(VEDNN_LINEARBKD_ARGS_LIST);
+#else
   if ( __vednn_omp_num_threads == 1 ) {
-    return pFunc(inDim, outDim, nBatch, pDataGradOut, pDataWeight, pDataGradIn ) ;
+    return pFunc(VEDNN_LINEARBKD_ARGS_LIST);
   }
   else {
     vednnError_t rc = VEDNN_SUCCESS ;
@@ -37,73 +27,47 @@ vednnLinearBackwardData_wrapper(
       uint64_t myBatch    = nBatchEach + ( threadid < remain ? 1 : 0 ) ;
 
       if( myBatch == 0 ) {
-	rc |= VEDNN_SUCCESS ;
+        rc |= VEDNN_SUCCESS ;
       }
       else {
-	float* _pDataGradOut = ((float *)pDataGradOut) + batchBegin * outDim ;
-	float* _pDataGradIn  = ((float *)pDataGradIn) + batchBegin * inDim ;
+        float* _pDataGradOut = ((float *)pDataGradOut) + batchBegin * outDim ;
+        float* _pDataGradIn  = ((float *)pDataGradIn) + batchBegin * inDim ;
 
-	rc |= pFunc(inDim, outDim, myBatch, _pDataGradOut, pDataWeight, _pDataGradIn ) ;
+        rc |= pFunc(inDim, outDim, myBatch, _pDataGradOut, pDataWeight, _pDataGradIn ) ;
       }
     }
     return rc ;
   }
-#else
-  return pFunc(inDim, outDim, nBatch, pDataGradOut, pDataWeight, pDataGradIn ) ;
 #endif
 }
 
 /* ----------------------------------------------------------------------- */
 vednnError_t vednnLinearBackwardData(
-    const uint64_t			inDim,
-    const uint64_t			outDim,
-    const uint64_t			nBatch,
-    const void 				*pDataGradOut,
-    const void 				*pDataWeight,
-    void 				*pDataGradIn
+    const uint64_t      inDim,
+    const uint64_t      outDim,
+    const uint64_t      nBatch,
+    const void         *pDataGradOut,
+    const void         *pDataWeight,
+    void         *pDataGradIn
 )
 {
-  // [todo] add variations
+#define OMPWRAP( IMPL ) WRAP_RET(vednnLinearBackwardData_##IMPL, \
+    vednnLinearBackwardData_wrapper, VEDNN_LINEARBKD_ARGS_LIST)
   if( outDim<=128 && inDim >=256 )
   {
     if( ((outDim&0x1))==0 && ((((uint64_t)pDataWeight)&0x7)==0) )
-    {
-      return vednnLinearBackwardData_wrapper(
-	  vednnLinearBackwardData_o2XU128_waligned,
-	  inDim, outDim, nBatch,
-	  pDataGradOut, pDataWeight, pDataGradIn ) ;
-    }
-    else {
-      return vednnLinearBackwardData_wrapper(
-	  vednnLinearBackwardData_oU128,
-	  inDim, outDim, nBatch,
-	  pDataGradOut, pDataWeight, pDataGradIn ) ;
-    }
+      OMPWRAP(o2XU128_waligned);
+    else
+      OMPWRAP(oU128);
   }
   else if( outDim <= 256 )
-  {
-    return vednnLinearBackwardData_wrapper(
-	vednnLinearBackwardData_oU256,
-	inDim, outDim, nBatch,
-	pDataGradOut, pDataWeight, pDataGradIn ) ;
-  }
+    OMPWRAP(oU256);
   else if( ((outDim & 0x1) == 0)
-	  && ((((uint64_t)pDataWeight)&0x7)==0)
-	  && ((((uint64_t)pDataGradOut)&0x7)==0) )
-
-  {
-    return vednnLinearBackwardData_wrapper(
-	vednnLinearBackwardData_o2X_woaligned,
-	inDim, outDim, nBatch,
-	pDataGradOut, pDataWeight, pDataGradIn ) ;
-  }
+      && ((((uint64_t)pDataWeight)&0x7)==0)
+      && ((((uint64_t)pDataGradOut)&0x7)==0) )
+    OMPWRAP(o2X_woaligned);
   else
-  {
-    return vednnLinearBackwardData_wrapper(
-	vednnLinearBackwardData_default,
-	inDim, outDim, nBatch,
-	pDataGradOut, pDataWeight, pDataGradIn ) ;
-  }
-
+    OMPWRAP(default);
+#undef OMPWRAP
 }
-
+// vim: et sw=2 ts=2

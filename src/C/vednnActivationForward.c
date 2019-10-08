@@ -1,26 +1,17 @@
-
-#include <stdio.h>
-#include <stdint.h>
-
 #include "vednnActivationForward.h"
-
-#ifdef VEDNN_USE_OPENMP
-#include <stdint.h>
-#include <omp.h>
-extern int __vednn_omp_num_threads ;
-#endif
+#include "vednn-def.h"
+#include <stdio.h>
 
 static inline vednnError_t
 vednnActivationForward_wrapper(
-    vednnActivationForward_t	pFunc,
-    const void 			*pDataIn,
-    void 			*pDataOut,
-    const uint64_t		nElements
-)
+    vednnActivationForward_t  pFunc,
+    VEDNN_ACTIVATIONFWD_ARGS )
 {
-#ifdef VEDNN_USE_OPENMP
+#ifndef VEDNN_USE_OPENMP
+  return pFunc(VEDNN_ACTIVATIONFWD_ARGS_LIST);
+#else
   if ( __vednn_omp_num_threads == 1 ) {
-    return pFunc(pDataIn, pDataOut, nElements) ;
+    return pFunc(VEDNN_ACTIVATIONFWD_ARGS_LIST);
   }
   else {
     vednnError_t rc = VEDNN_SUCCESS ;
@@ -36,43 +27,33 @@ vednnActivationForward_wrapper(
       int64_t myElement    = eachNElement + ( threadid < remain ? 1 : 0 ) ;
 
       if( myElement == 0 ) {
-	rc |= VEDNN_SUCCESS ;
+        rc |= VEDNN_SUCCESS ;
       }
       else {
-	float* _pDataIn  = ((float *)pDataIn) + elementBegin ;
-	float* _pDataOut = ((float *)pDataOut) + elementBegin ;
+        float* _pDataIn  = ((float *)pDataIn) + elementBegin ;
+        float* _pDataOut = ((float *)pDataOut) + elementBegin ;
 
-	rc |= pFunc((void*)_pDataIn, (void*) _pDataOut, myElement) ;
+        rc |= pFunc((void*)_pDataIn, (void*) _pDataOut, myElement) ;
       }
     }
     return rc ;
   }
-#else
-  return pFunc(pDataIn, pDataOut, nElements) ;
 #endif
 }
 
 /* ----------------------------------------------------------------------- */
-
 vednnError_t vednnActivationForward(
-    const vednnActivationMode_t		mode,
-    const void 				*pDataIn,
-    void 				*pDataOut,
-    const uint64_t			nElements
-)
+    const vednnActivationMode_t mode,
+    VEDNN_ACTIVATIONFWD_ARGS )
 {
-
+#define OMPWRAP( IMPL ) WRAP_RET(vednnActivationForward_##IMPL, \
+    vednnActivationForward_wrapper, VEDNN_ACTIVATIONFWD_ARGS_LIST )
   switch(mode) {
-
   case VEDNN_ACTIVATION_RELU :
-    return vednnActivationForward_wrapper(
-	vednnActivationForward_Relu,
-	pDataIn, pDataOut, nElements ) ;
-
-  default :
-    fprintf(stderr, "VEDNN Error : vednnActivationForward : Invalid Parameter !!\n") ;
-    return VEDNN_ERROR_INVALID_PARAM ;
+    OMPWRAP(Relu);
   }
-
+  fprintf(stderr, "VEDNN Error : vednnActivationForward : Invalid Parameter !!\n") ;
+  return VEDNN_ERROR_INVALID_PARAM ;
+#undef OMPWRAP
 }
-
+// vim: et sw=2 ts=2
