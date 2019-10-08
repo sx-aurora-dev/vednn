@@ -60,8 +60,6 @@ add_library(vednn_c_code OBJECT
 	vednnInit.c
 )
 
-add_subdirectory(vconv)
-
 # libvednnx iterator exposes low-level calls (with different parameter ordering)
 # Some external projects may want to directly access the low-level libvednn
 # impls, with their slightly different parameter ordering... for now.
