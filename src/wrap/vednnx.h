@@ -1,7 +1,6 @@
 #ifndef VEDNNX_H_
 #define VEDNNX_H_
 
-
 #if defined(__cplusplus) && !defined(restrict)
 //#if !define(__ve)
 #define restrict __restrict__

@@ -1,16 +1,25 @@
 /* -*- Mode: C; c-basic-offset:4 ; indent-tabs-mode:nil ; -*- */
-
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-
-#include <vednn.h>
 #include "vednn_helper.h"
+#include "convolution_gemm.h"
+#include <string.h>
+#include <stdlib.h>
+
+#define LOCAL_FTRACE 1
+#if LOCAL_FTRACE
+#include "conv_test_param.h" // just for FTRACE macros
+#define LFTRACE_BEGIN(...) FTRACE_BEGIN(__VA_ARGS__)
+#define LFTRACE_END(...) FTRACE_END(__VA_ARGS__)
+#define LFTRACE_IF(...) FTRACE_IF(__VA_ARGS__)
+#else
+#define LFTRACE_BEGIN(...) do{}while(0)
+#define LFTRACE_END(...) do{}while(0)
+#define LFTRACE_IF(...) do{}while(0)
+#endif // LOCAL_FTRACE
 
 #define SGEMM	sgemm_
 void sgemm_(char *TRANSA, char *TRANSB, int *M, int *N, int *K,
-            float *ALPHA, float *A,  int *LDA, float *B, int *LDB,
-            float *BETA, float *C, int *LDC ) ;
+    float *ALPHA, float *A,  int *LDA, float *B, int *LDB,
+    float *BETA, float *C, int *LDC ) ;
 
 static char  TRANS   = 'T';
 static char  NOTRANS = 'N';
@@ -20,7 +29,8 @@ static int   IONE    = 1;
 
 /* ----------------------------------------------------------------------- */
 static inline int is_a_ge_zero_and_a_lt_b(int a, int b) {
-    return (unsigned)a < (unsigned)b;
+  //return (unsigned)a < (unsigned)b;
+  return a>=0  && a<b; // for ncc auto vectorization, this is better
 }
 
 static void
@@ -32,6 +42,7 @@ im2col_cpu(const float * restrict data_im, const int channels,
            const int dilation_h, const int dilation_w,
            float * restrict data_col)
 {
+  LFTRACE_BEGIN("im2col_cpu");
 #if 0
     const int output_h = (height + 2 * pad_h - (dilation_h * (kernel_h - 1) + 1)) / stride_h + 1;
     const int output_w = (width + 2 * pad_w -  (dilation_w * (kernel_w - 1) + 1)) / stride_w + 1;
@@ -58,13 +69,10 @@ im2col_cpu(const float * restrict data_im, const int channels,
                     } else {
                         int input_col = -pad_w + kernel_col * dilation_w;
                         for (output_col = output_w; output_col; output_col--) {	// outWidth
-                            if (is_a_ge_zero_and_a_lt_b(input_col, width)) {
-                                // *(data_col++) = data_im[input_row * width + input_col];
-                                data_col[outOffset++] = data_im[inOffset + input_row * width + input_col];
-                            } else {
-                                // *(data_col++) = 0;
-                                data_col[outOffset++] = 0;
-                            }
+                          data_col[outOffset++] //*(data_col++)
+                            = (is_a_ge_zero_and_a_lt_b(input_col, width)
+                                ? data_im[inOffset + input_row * width + input_col]
+                                : 0.f);
                             input_col += stride_w;
                         }
                     }
@@ -73,6 +81,7 @@ im2col_cpu(const float * restrict data_im, const int channels,
             }
         }
     }
+  LFTRACE_END("im2col_cpu");
 }
 
 static void
@@ -85,12 +94,14 @@ col2im_cpu(
     const int dilation_h, const int dilation_w,
     float* data_im) {
 
+  LFTRACE_BEGIN("col2im_cpu");
   memset(data_im, 0, sizeof(float)*height*width*channels) ;
 
 #if 0
   const int output_h = (height + 2 * pad_h - (dilation_h * (kernel_h - 1) + 1)) / stride_h + 1;
   const int output_w = (width + 2 * pad_w -  (dilation_w * (kernel_w - 1) + 1)) / stride_w + 1;
 #endif
+
   const int channel_size = height * width;
 
   int channel;
@@ -128,6 +139,7 @@ col2im_cpu(
           }
       }
   }
+  LFTRACE_END("col2im_cpu");
 }
 
 vednnError_t
@@ -139,6 +151,9 @@ convolution_forward_gemm(
     const float * restrict pOne,  float * restrict pColBuff,
     const vednnConvolutionParam_t * restrict pParamConv )
 {
+    LFTRACE_BEGIN("convolution_forward_gemm");
+    int n, g;
+
     int batch		= pParamIn->batch;
     int inChannel	= pParamIn->channel;
     int inWidth		= pParamIn->width;
@@ -160,38 +175,18 @@ convolution_forward_gemm(
     int inChannelGroup	= inChannel  / group;	// pParamKernel->inChannel と同じ
     int outChannelGroup	= outChannel / group;	// pParamKernel->outChannel と同じ
 
-    int no_im2col = (kernWidth == 1 && kernHeight == 1 && strideWidth == 1 && strideHeight == 1 && padWidth == 0 && padHeight == 0);
-
-    float * transformed_filter = NULL ;
-    if( pParamKernel->layout == VEDNN_FILTER_LAYOUT_HWCN ) { // only support group=1
-
-      const int N = outChannel ;
-      const int C = inChannel ;
-      const int H = kernHeight ;
-      const int W = kernWidth ;
-
-      float * filter = (float *) pDataKernel ;
-      transformed_filter = (float *) malloc(sizeof(float)*N*C*H*W) ;
-#pragma omp parallel for
-      for(int n=0; n<N ; n++) {
-        for(int c=0; c<C ; c++) {
-          for(int hw=0; hw<H*W ; hw++) {
-            transformed_filter[((n*C+c)*H)*W+hw] = filter[((hw)*C+c)*N+n] ;
-          }
-        }
-      }
-    }
-
     const float * restrict pIn     = pDataIn;
     const float * restrict pBias   = pDataBias;
-    const float * restrict pKernel = transformed_filter == NULL ? pDataKernel : transformed_filter ;
+    const float * restrict pKernel = pDataKernel;
           float * restrict pOut    = pDataOut;
 
-    for (int n = 0; n < batch; n++) { // this->num_
+    int no_im2col = (kernWidth == 1 && kernHeight == 1 && strideWidth == 1 && strideHeight == 1 && padWidth == 0 && padHeight == 0);
+
+    for (n = 0; n < batch; n++) { // this->num_
         int inBatchOffset  = n * inChannel  * inWidth  * inHeight;
         int outBatchOffset = n * outChannel * outWidth * outHeight;
 
-        for (int g = 0; g < group; g++) {
+        for (g = 0; g < group; g++) {
             int inGroupOffset   = g * inChannelGroup                   * inHeight   * inWidth;
             int outGroupOffset  = g * outChannelGroup                  * outHeight  * outWidth;
             int kernGroupOffset = g * outChannelGroup * inChannelGroup * kernHeight * kernWidth;
@@ -245,8 +240,7 @@ convolution_forward_gemm(
         } // group
     } // batch
 
-    if( transformed_filter != NULL ) free(transformed_filter) ;
-
+    LFTRACE_END("convolution_forward_gemm");
     return VEDNN_SUCCESS;
 }
 
@@ -258,6 +252,7 @@ convolution_backward_data_gemm(
     float * restrict pColBuff,
     const vednnConvolutionParam_t * restrict pParamConv )
 {
+    LFTRACE_BEGIN("convolution_backward_data_gemm");
     int n, g;
 
     int batch		= pParamGradOut->batch;
@@ -281,32 +276,11 @@ convolution_backward_data_gemm(
     int gOutChannelGroup = gOutChannel  / group;
     int gInChannelGroup	 = gInChannel / group;
 
+    const float * restrict pGradOut = pDataGradOut;
+    const float * restrict pKernel  = pDataKernel;
+          float * restrict pGradIn  = pDataGradIn;
 
     int no_im2col = (kernWidth == 1 && kernHeight == 1 && strideWidth == 1 && strideHeight == 1 && padWidth == 0 && padHeight == 0);
-    
-    float * transformed_filter = NULL ;
-    if( pParamKernel->layout == VEDNN_FILTER_LAYOUT_HWCN ) { // only support group=1
-
-      const int N = gOutChannel ;
-      const int C = gInChannel ;
-      const int H = kernHeight ;
-      const int W = kernWidth ;
-
-      float * filter = (float *) pDataKernel ;
-      transformed_filter = (float *) malloc(sizeof(float)*N*C*H*W) ;
-#pragma omp parallel for
-      for(int n=0; n<N ; n++) {
-        for(int c=0; c<C ; c++) {
-          for(int hw=0; hw<H*W ; hw++) {
-            transformed_filter[((n*C+c)*H)*W+hw] = filter[((hw)*C+c)*N+n] ;
-          }
-        }
-      }
-    }
-    
-    const float * restrict pGradOut = pDataGradOut;
-    const float * restrict pKernel  = transformed_filter == NULL ? pDataKernel : transformed_filter ;
-          float * restrict pGradIn  = pDataGradIn;
 
     for (n = 0; n < batch; n++) { // this->num_
         int gOutBatchOffset  = n * gOutChannel  * gOutWidth  * gOutHeight;
@@ -343,9 +317,7 @@ convolution_backward_data_gemm(
             }
         } // group
     } // batch
-    
-    if( transformed_filter != NULL ) free(transformed_filter) ;
-
+    LFTRACE_END("convolution_backward_data_gemm");
     return VEDNN_SUCCESS;
 }
 
@@ -357,6 +329,7 @@ convolution_backward_filter_gemm(
     float * restrict pColBuff,
     const vednnConvolutionParam_t * restrict pParamConv )
 {
+    LFTRACE_BEGIN("convolution_backward_filter_gemm");
     int n, g;
 
     int batch		= pParamIn->batch;
@@ -425,7 +398,7 @@ convolution_backward_filter_gemm(
             }
         } // group
     } // batch
-
+    LFTRACE_END("convolution_backward_filter_gemm");
     return VEDNN_SUCCESS;
 }
-
+// vim: et ts=2 sw=2 cindent cino=^0,=0,l0,\:0,N-s syntax=cpp.doxygen

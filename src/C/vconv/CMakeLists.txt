@@ -38,7 +38,7 @@ add_custom_command(TARGET unPack PRE_BUILD
     COMMENT "Unpacking vconv-ve.tar.gz into ${CMAKE_SOURCE_DIR}"
     VERBATIM)
 
-include_directories("../.." "../../wrap" "./include/gen-dnn/vconv" "./include/gen-dnn/vgemm" "/opt/nec/ve/nlc/2.0.0/include")
+include_directories(".." "../.." "../../wrap" "./include/gen-dnn/vconv" "./include/gen-dnn/vgemm" "/opt/nec/ve/nlc/2.0.0/include")
 
 file(GLOB_RECURSE VCONV_HEADERS
     ${CMAKE_BINARY_DIR}/include/*.h

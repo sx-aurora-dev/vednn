@@ -6,22 +6,25 @@ set(CMAKE_CXX_COMPILER ${CMAKE_C_COMPILER})
 set(CMAKE_CXX_FLAGS ${CMAKE_C_FLAGS})
 
 if(USE_OPENMP)
-	add_definitions(-DVEDNN_USE_OPENMP)
+    add_definitions(-DVEDNN_USE_OPENMP)
 endif()
 
 if(BUILD_SHARED_LIB)
-	set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fPIC")
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fPIC")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fPIC")
 endif()
+message(STATUS "libvednn intrinsics using CMAKE_C_COMPILER    : ${CMAKE_C_COMPILER}")
+message(STATUS "src/intrinsics/ CMAKE_C_FLAGS=${CMAKE_C_FLAGS}")
 
 include_directories("../")
 
-add_subdirectory(Convolution/Forward)
-add_subdirectory(Convolution/BackwardData)
-add_subdirectory(Convolution/BackwardFilter)
 add_subdirectory(Linear/Forward)
 add_subdirectory(Linear/BackwardData)
 add_subdirectory(Linear/BackwardWeight)
+add_subdirectory(Convolution/Forward)
+add_subdirectory(Convolution/BackwardData)
+add_subdirectory(Convolution/BackwardFilter)
 add_subdirectory(MaxPooling/Backward)
 add_subdirectory(MaxPooling/Forward)
 add_subdirectory(Activation)
-
+# vim: et ts=4 sw=4 ai

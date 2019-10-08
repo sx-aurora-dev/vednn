@@ -2,6 +2,7 @@
 #define __TIMER_H__
 
 #include <sys/time.h>
+#include <stdlib.h>	// exit
 
 
 #ifdef __ve__

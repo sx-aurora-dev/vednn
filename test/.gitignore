@@ -5,3 +5,9 @@ vednn_conv_test
 vednn_linear_test
 vednn_pool_test
 
+mnist
+*.i
+*.lo
+*-x86
+*-ve
+*-x86.log

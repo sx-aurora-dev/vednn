@@ -1,5 +1,7 @@
 
-#include "vednn.h"
+#include "vednnConvolutionForward.h"
+#include "vednnConvolutionBackwardData.h"
+#include "vednnConvolutionBackwardFilter.h"
 #include "vednn2gendnn.h"
 
 #include "gemm_convolution.hpp"

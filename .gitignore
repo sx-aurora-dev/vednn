@@ -26,3 +26,5 @@ mk-build.log
 vejit-ncc*gz
 install
 **/ftrace.out
+mk*.log
+?.log

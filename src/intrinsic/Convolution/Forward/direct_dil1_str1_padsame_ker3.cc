@@ -2,7 +2,6 @@
 #include <stdlib.h>
 
 #include "vednn.h"
-#include "vednn_util.h"
 
 #include "velintrin.h"
 #define VLEN	(256)

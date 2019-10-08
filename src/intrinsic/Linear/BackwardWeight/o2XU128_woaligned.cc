@@ -1,21 +1,19 @@
+#include "vednn.h"
+#include "velintrin.h"
 #include <stdint.h>
 #include <float.h>
-
 #include <stdio.h>
 
-#include "vednn.h"
-
-#include "velintrin.h"
-#define VLEN	(256)
+#define VLEN    (256)
 
 template <int BATCH, bool UPDATE>
 static inline void func(
-  const uint64_t	inDim,
-  const uint64_t	outDim,
-  const uint64_t	nInDim,
-  const float * 	pIn,
-  const float * 	pGOut,
-  float * 		pGWeight
+  const uint64_t inDim,
+  const uint64_t outDim,
+  const uint64_t nInDim,
+  const float *  restrict pIn,
+  const float *  restrict pGOut,
+  float *        restrict pGWeight
 )
 {
   const int64_t vl  = outDim >> 1 ;
@@ -462,16 +460,16 @@ static inline void func(
 
 extern "C"
 vednnError_t vednnLinearBackwardWeight_o2XU128_woaligned(
-    const uint64_t			inDim,
-    const uint64_t			outDim,
-    const uint64_t			nBatch,
-    const void * 			pDataIn,
-    const void * 			pDataGradOut,
-    void * 				pDataGradWeight
+    const uint64_t          inDim,
+    const uint64_t          outDim,
+    const uint64_t          nBatch,
+    const void *            pDataIn,
+    const void *            pDataGradOut,
+    void *              pDataGradWeight
 #ifdef VEDNN_USE_OPENMP
     ,
-    const uint64_t			inDimBegin,
-    const uint64_t			inDimEnd
+    const uint64_t          inDimBegin,
+    const uint64_t          inDimEnd
 #endif
 )
 {
@@ -490,43 +488,43 @@ vednnError_t vednnLinearBackwardWeight_o2XU128_woaligned(
   switch( batchRemain ) {
   case 1 :
     func<1,false>(inDim, outDim, inDimEnd-inDimBegin,
-	          pIn+inDimBegin+n*inDim, pGOut+n*outDim, pGWeight+inDimBegin*outDim) ;
+              pIn+inDimBegin+n*inDim, pGOut+n*outDim, pGWeight+inDimBegin*outDim) ;
     n+=1 ;
     break ;
   case 2 :
    func<2,false>(inDim, outDim, inDimEnd-inDimBegin,
-	         pIn+inDimBegin+n*inDim, pGOut+n*outDim, pGWeight+inDimBegin*outDim) ;
+             pIn+inDimBegin+n*inDim, pGOut+n*outDim, pGWeight+inDimBegin*outDim) ;
     n+=2 ;
     break ;
   case 3 :
     func<3,false>(inDim, outDim, inDimEnd-inDimBegin,
-	          pIn+inDimBegin+n*inDim, pGOut+n*outDim, pGWeight+inDimBegin*outDim) ;
+              pIn+inDimBegin+n*inDim, pGOut+n*outDim, pGWeight+inDimBegin*outDim) ;
     n+=3 ;
     break ;
   case 4 :
     func<4,false>(inDim, outDim, inDimEnd-inDimBegin,
-	          pIn+inDimBegin+n*inDim, pGOut+n*outDim, pGWeight+inDimBegin*outDim) ;
+              pIn+inDimBegin+n*inDim, pGOut+n*outDim, pGWeight+inDimBegin*outDim) ;
     n+=4 ;
     break ;
   case 5 :
     func<5,false>(inDim, outDim, inDimEnd-inDimBegin,
-	          pIn+inDimBegin+n*inDim, pGOut+n*outDim, pGWeight+inDimBegin*outDim) ;
+              pIn+inDimBegin+n*inDim, pGOut+n*outDim, pGWeight+inDimBegin*outDim) ;
     n+=5 ;
     break ;
   case 6 :
     func<6,false>(inDim, outDim, inDimEnd-inDimBegin,
-	          pIn+inDimBegin+n*inDim, pGOut+n*outDim, pGWeight+inDimBegin*outDim) ;
+              pIn+inDimBegin+n*inDim, pGOut+n*outDim, pGWeight+inDimBegin*outDim) ;
     n+=6 ;
     break ;
   case 7 :
     func<7,false>(inDim, outDim, inDimEnd-inDimBegin,
-	          pIn+inDimBegin+n*inDim, pGOut+n*outDim, pGWeight+inDimBegin*outDim) ;
+              pIn+inDimBegin+n*inDim, pGOut+n*outDim, pGWeight+inDimBegin*outDim) ;
     n+=7 ;
     break ;
   default :
     if( nBatch >= 8 ) {
       func<8,false>(inDim, outDim, inDimEnd-inDimBegin,
-		    pIn+inDimBegin+n*inDim, pGOut+n*outDim, pGWeight+inDimBegin*outDim) ;
+            pIn+inDimBegin+n*inDim, pGOut+n*outDim, pGWeight+inDimBegin*outDim) ;
       n+=8 ;
     }
     break ;
@@ -534,8 +532,9 @@ vednnError_t vednnLinearBackwardWeight_o2XU128_woaligned(
 
   for(; n<nBatch; n+=8) {
     func<8,true>(inDim, outDim, inDimEnd-inDimBegin,
-		 pIn+inDimBegin+n*inDim, pGOut+n*outDim, pGWeight+inDimBegin*outDim) ;
+         pIn+inDimBegin+n*inDim, pGOut+n*outDim, pGWeight+inDimBegin*outDim) ;
   }
 
   return VEDNN_SUCCESS ;
 }
+// vim: sw=2 ts=2 et ai

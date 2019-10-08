@@ -1,5 +1,4 @@
 
-#include <vednn.h>
 #include "vednn_helper.h"
 
 vednnError_t
@@ -171,7 +170,7 @@ diffData(const vednnTensorParam_t *pParam, const void *pData, const void *pExpec
 }
 
 
-void testForward(struct param *pNetwork, int nEntry, double HZ, int flagBias, int flagCSV, int filter_layout)
+void testForward(struct param *pNetwork, int nEntry, double HZ, int flagBias, int flagCSV, filterLayout_t filter_layout)
 {
     struct conv {
         vednnTensorParam_t *pParamIn;
@@ -428,7 +427,7 @@ void testForward(struct param *pNetwork, int nEntry, double HZ, int flagBias, in
     free(pConvBuff);
 }
 
-void testBackwardData(struct param *pNetwork, int nEntry, double HZ, int flagCSV, int filter_layout)
+void testBackwardData(struct param *pNetwork, int nEntry, double HZ, int flagCSV, filterLayout_t filter_layout)
 {
     struct conv {
         vednnTensorParam_t *pParamGradOut;
@@ -646,7 +645,8 @@ void testBackwardData(struct param *pNetwork, int nEntry, double HZ, int flagCSV
     free(pConvBuff);
 }
 
-void testBackwardFilter(struct param *pNetwork, int nEntry, double HZ, int flagCSV, int filter_layout)
+void testBackwardFilter(struct param *pNetwork, int nEntry, double HZ, int flagCSV, \
+        filterLayout_t filter_layout)
 {
     struct conv {
         vednnTensorParam_t *pParamIn;
@@ -930,7 +930,7 @@ static struct {
 
 static struct {
     char *pName;
-    int   layouttype;
+    filterLayout_t   layouttype;
 } filterLayout[] = {
     { "filter_nchw",	VEDNN_FILTER_LAYOUT_NCHW } ,
     { "filter_hwcn",	VEDNN_FILTER_LAYOUT_HWCN }
@@ -945,7 +945,7 @@ int main(int argc, char **argv)
     char *pParamPath = NULL ;
     double HZ        = 0.0 ;
     int testtype     = 0 ;
-    int filter_layout= 0 ;
+    filterLayout_t filter_layout= 0 ;
     int flagCSV	     = 0 ;
 
     int flagNoMkConsistent = 0 ;

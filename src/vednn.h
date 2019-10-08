@@ -1,11 +1,14 @@
-
 #ifndef __VEDNN__
 #define __VEDNN__
 
-#define VEDNN_MAJOR		1
-#define VEDNN_MINOR		0
-#define VEDNN_PATCHLEVEL	3
-#define VEDNN_VERSION	(VEDNN_MAJOR * 1000 + VEDNN_MINOR * 100 + VEDNN_PATCHLEVEL)
+#define VEDNN_MAJOR        1
+#define VEDNN_MINOR        0
+#define VEDNN_PATCHLEVEL   3
+#define VEDNN_VERSION    (VEDNN_MAJOR * 1000 + VEDNN_MINOR * 100 + VEDNN_PATCHLEVEL)
+
+#if defined(__cplusplus) && !defined(restrict)
+#define restrict __restrict__
+#endif
 
 #ifdef __cplusplus
 extern "C" {
@@ -40,169 +43,171 @@ typedef enum {
 } vednnConvolutionAlgorithm_t;
 
 typedef struct {
-    dataType_t	dtype;
-    int		batch;
-    int		channel;
-    int		width;
-    int		height;
+    dataType_t dtype;
+    int        batch;
+    int        channel;
+    int        width;
+    int        height;
 } vednnTensorParam_t;
 
 typedef struct {
-    dataType_t	dtype;
-    int		channel;
+    dataType_t dtype;
+    int        channel;
 } vednnBiasParam_t;
 
 typedef enum {
   VEDNN_FILTER_LAYOUT_NCHW = 0,
-  VEDNN_FILTER_LAYOUT_HWCN = 1	// support group=1 only
+  VEDNN_FILTER_LAYOUT_HWCN = 1    // support group=1 only
 } filterLayout_t;
 
 typedef struct {
-    dataType_t		dtype;
-    filterLayout_t	layout;
-    int			inChannel;	// inChannel / group
-    int			outChannel;	// outChannel / group
-    int			width;
-    int			height;
+    dataType_t     dtype;
+    filterLayout_t layout;
+    int            inChannel;    // inChannel / group
+    int            outChannel;    // outChannel / group
+    int            width;
+    int            height;
 } vednnFilterParam_t;
 
 typedef struct {
-    int		group;
-    int		strideWidth;
-    int		strideHeight;
-    int		padWidth;
-    int		padHeight;
-    int		dilationWidth;
-    int		dilationHeight;
+    int        group;
+    int        strideWidth;
+    int        strideHeight;
+    int        padWidth;
+    int        padHeight;
+    int        dilationWidth;
+    int        dilationHeight;
 } vednnConvolutionParam_t ;
 
 typedef struct {
-    int		windowWidth;
-    int		windowHeight;
-    int		strideWidth;
-    int		strideHeight;
-    int		padWidth;
-    int		padHeight;
+    int        windowWidth;
+    int        windowHeight;
+    int        strideWidth;
+    int        strideHeight;
+    int        padWidth;
+    int        padHeight;
 } vednnPoolingParam_t ;
 
 vednnError_t vednnConvolutionForward(
-    const vednnTensorParam_t 		*pParamIn,
-    const void 				*pDataIn,
-    const vednnFilterParam_t		*pParamKernel,
-    const void 				*pDataKernel,
-    const vednnTensorParam_t 		*pParamOut,
-    void 				*pDataOut,
-    const vednnConvolutionParam_t	*pParamConv,
-    vednnConvolutionAlgorithm_t 	algo
+    const vednnTensorParam_t      *pParamIn,
+    const void                    *pDataIn,
+    const vednnFilterParam_t      *pParamKernel,
+    const void                    *pDataKernel,
+    const vednnTensorParam_t      *pParamOut,
+    void                          *pDataOut,
+    const vednnConvolutionParam_t *pParamConv,
+    vednnConvolutionAlgorithm_t   algo
 ) ;
 
 vednnError_t vednnConvolutionForwardAddBias(
-    const vednnTensorParam_t 		*pParamIn,
-    const void 				*pDataIn,
-    const vednnFilterParam_t		*pParamKernel,
-    const void 				*pDataKernel,
-    const vednnBiasParam_t 		*pParamBias,
-    const void 				*pDataBias,
-    const vednnTensorParam_t 		*pParamOut,
-    void 				*pDataOut,
-    const vednnConvolutionParam_t	*pParamConv,
-    vednnConvolutionAlgorithm_t 	algo
+    const vednnTensorParam_t      *pParamIn,
+    const void                    *pDataIn,
+    const vednnFilterParam_t      *pParamKernel,
+    const void                    *pDataKernel,
+    const vednnBiasParam_t        *pParamBias,
+    const void                    *pDataBias,
+    const vednnTensorParam_t      *pParamOut,
+    void                          *pDataOut,
+    const vednnConvolutionParam_t *pParamConv,
+    vednnConvolutionAlgorithm_t   algo
 ) ;
 
 vednnError_t vednnConvolutionBackwardData(
-    const vednnTensorParam_t 		*pParamGradOut,
-    const void 				*pDataGradOut,
-    const vednnFilterParam_t		*pParamKernel,
-    const void 				*pDataKernel,
-    const vednnTensorParam_t 		*pParamGradIn,
-    void 				*pDataGradIn,
-    const vednnConvolutionParam_t	*pParamConv,
-    vednnConvolutionAlgorithm_t 	algo
+    const vednnTensorParam_t      *pParamGradOut,
+    const void                    *pDataGradOut,
+    const vednnFilterParam_t      *pParamKernel,
+    const void                    *pDataKernel,
+    const vednnTensorParam_t      *pParamGradIn,
+    void                          *pDataGradIn,
+    const vednnConvolutionParam_t *pParamConv,
+    vednnConvolutionAlgorithm_t   algo
 ) ;
 
 vednnError_t vednnConvolutionBackwardFilter(
-    const vednnTensorParam_t 		*pParamIn,
-    const void 				*pDataIn,
-    const vednnTensorParam_t 		*pParamGradOut,
-    const void 				*pDataGradOut,
-    const vednnFilterParam_t		*pParamGradKernel,
-    void 				*pDataGradKernel,
-    const vednnConvolutionParam_t	*pParamConv,
-    vednnConvolutionAlgorithm_t 	algo
+    const vednnTensorParam_t      *pParamIn,
+    const void                    *pDataIn,
+    const vednnTensorParam_t      *pParamGradOut,
+    const void                    *pDataGradOut,
+    const vednnFilterParam_t      *pParamGradKernel,
+    void                          *pDataGradKernel,
+    const vednnConvolutionParam_t *pParamConv,
+    vednnConvolutionAlgorithm_t   algo
 ) ;
 
 vednnError_t vednnLinearForward(
-    const unsigned long			inDim,
-    const unsigned long			outDim,
-    const unsigned long			nBatch,
-    const void 				*pDataIn,
-    const void 				*pDataWeight,
-    void 				*pDataOut
+    const unsigned long inDim,
+    const unsigned long outDim,
+    const unsigned long nBatch,
+    const void          *pDataIn,
+    const void          *pDataWeight,
+    void                *pDataOut
 ) ;
 
 vednnError_t vednnLinearBackwardData(
-    const unsigned long			inDim,
-    const unsigned long			outDim,
-    const unsigned long			nBatch,
-    const void 				*pDataGradOut,
-    const void 				*pDataWeight,
-    void 				*pData
+    const unsigned long inDim,
+    const unsigned long outDim,
+    const unsigned long nBatch,
+    const void          *pDataGradOut,
+    const void          *pDataWeight,
+    void                *pData
 ) ;
 
 vednnError_t vednnLinearBackwardWeight(
-    const unsigned long			inDim,
-    const unsigned long			outDim,
-    const unsigned long			nBatch,
-    const void * 			pDataIn,
-    const void * 			pDataGradOut,
-    void * 				pDataGradWeight
+    const unsigned long inDim,
+    const unsigned long outDim,
+    const unsigned long nBatch,
+    const void *        pDataIn,
+    const void *        pDataGradOut,
+    void *              pDataGradWeight
 ) ;
 
 vednnError_t vednnMaxPoolingForward(
-    const vednnTensorParam_t 		*pParamIn,
-    const void 				*pDataIn,
-    const vednnTensorParam_t 		*pParamOut,
-    void 				*pDataOut,
-    const vednnPoolingParam_t		*pParamPool
+    const vednnTensorParam_t  *pParamIn,
+    const void                *pDataIn,
+    const vednnTensorParam_t  *pParamOut,
+    void                      *pDataOut,
+    const vednnPoolingParam_t *pParamPool
 ) ;
 
 vednnError_t vednnMaxPoolingBackward(
-    const vednnTensorParam_t 		*pParamGradOut,
-    const void 				*pDataGradOut,
-    const vednnTensorParam_t 		*pParamOut,
-    const void 				*pDataOut,
-    const vednnTensorParam_t 		*pParamIn,
-    const void 				*pDataIn,
-    const vednnTensorParam_t 		*pParamGradIn,
-    void 				*pDataGradIn,
-    const vednnPoolingParam_t		*pParamPool
+    const vednnTensorParam_t  *pParamGradOut,
+    const void                *pDataGradOut,
+    const vednnTensorParam_t  *pParamOut,
+    const void                *pDataOut,
+    const vednnTensorParam_t  *pParamIn,
+    const void                *pDataIn,
+    const vednnTensorParam_t  *pParamGradIn,
+    void                      *pDataGradIn,
+    const vednnPoolingParam_t *pParamPool
 ) ;
 
 vednnError_t vednnActivationForward(
-    const vednnActivationMode_t		mode,
-    const void 				*pDataIn,
-    void 				*pDataOut,
-    const unsigned long			nElements
+    const vednnActivationMode_t mode,
+    const void                  *pDataIn,
+    void                        *pDataOut,
+    const unsigned long         nElements
 ) ;
 
 vednnError_t vednnActivationBackward(
-    const vednnActivationMode_t		mode,
-    const void 				*pDataGradOut,
-    const void 				*pDataIn,
-    void 				*pDataGradIn,
-    const unsigned long			nElements
+    const vednnActivationMode_t mode,
+    const void                  *pDataGradOut,
+    const void                  *pDataIn,
+    void                        *pDataGradIn,
+    const unsigned long         nElements
 ) ;
 
 vednnError_t vednnSoftmaxForward(
-    const vednnSoftmaxMode_t		mode,
-    const void 				*pDataIn,
-    void 				*pDataOut,
-    const unsigned long			nBatch,
-    const unsigned long			nClass
+    const vednnSoftmaxMode_t mode,
+    const void               *pDataIn,
+    void                     *pDataOut,
+    const unsigned long      nBatch,
+    const unsigned long      nClass
 ) ;
 
 #ifdef __cplusplus
 }
-#endif
 
+#include "vednn_util.hpp"
+#endif
+// vim: ts=4 sw=4 et ai
 #endif
