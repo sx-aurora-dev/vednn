@@ -12,3 +12,5 @@ mnist
 *-ve
 *-x86.log
 vednn-ftrace1
+*old
+ve_simpleconv

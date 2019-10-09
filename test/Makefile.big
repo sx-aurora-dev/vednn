@@ -7,6 +7,7 @@
 # When changing the following, you should set up to rebuild
 # using correct external libraries with:
 # 	make clean unpack
+# We also support a 'default' a ../install vednn location for backward compatibility
 FTRACE=YES
 OPENMP=YES
 
@@ -31,10 +32,13 @@ LIBVEDNN=vednn${VEDNN_SUFFIX}
 
 mkfile_path:=$(abspath $(lastword $(MAKEFILE_LIST)))
 mkfile_dir:=$(dir $(mkfile_path))
+THISMAKE:=$(MAKE) -C $(mkfile_dir) -f $(mkfile_path)
 ifeq ($(CC:ncc%=ncc),ncc)
 # Default to "left-over" build directories (historical default)
-# If you REMOVE the tarballs, we'll try an existing build as follows:
-VEDNN_DIR=$(realpath $(mkfile_dir)../install/)
+# If you REMOVE the tarballs, we'll try an existing build into ../install:
+VEDNN_SUBDIR:=../install
+# realpath would require dir to exist; so use abspath
+VEDNN_DIR:=$(abspath $(mkfile_dir)$(VEDNN_SUBDIR))
 VEDNNX_DIR:=$(VEDNN_DIR)
 
 VE_BIN_DIR := /opt/nec/ve/bin
@@ -66,7 +70,7 @@ VEDNNX_DIR:=$(VEDNN_DIR)
 #AR  default is ok
 endif
 
-.PHONY: Makefile all Hello Goodbye vejit-unpack vednn-unpack unpack force
+.PHONY: Makefile Makefile.big Makefile.tiny all Hello Goodbye vejit-unpack vednn-unpack unpack force
 TARGETS:=vejit-unpack vednn-unpack cjitConv00-x86 cjitConv01-x86
 
 ifeq ($(CC:ncc%=ncc),ncc)
@@ -78,7 +82,7 @@ TARGETS+=ve_simpleconv
 #TARGETS+=jitconv
 endif
 
-all: Hello mnist vejit vednn-unpack $(TARGETS) Goodbye
+all: Hello mnist vejit-unpack vednn-unpack $(TARGETS) Goodbye
 redo: unpack all	
 help:
 	@echo 'Other targets:'
@@ -112,15 +116,25 @@ ifneq ($(TGZ),)	 #
 	rm -rf $@; mv tmp-vft1/vednnx $@; rm -rf tmp-vft1
 	touch $@; chmod -R ugo-w $@;
 	ls -l $@/lib $^
+vednn-unpack:
+	if [ -d '$(VEDNN_SUBDIR)' ]; then chmod -R ugo+rw '$(VEDNN_SUBDIR)'; rm -rf '$(VEDNN_SUBDIR)'; fi
+	if [ ! -z "$(VEDNN_SUBDIR)" ]; then \
+		@echo 'VEDNN_SUBDIR "$(VEDNN_SUBDIR)" being remade'; \
+		$(THISMAKE) ./$(VEDNN_SUBDIR); \
+	fi
 else # use the default ../build of libvednn + libvednnx
 .PRECIOUS: ../build ../install
 ../build:
 	@echo '../build does not exist. Running cmake build of libvednn.'
 	(cd .. && mkdir build && cd build && cmake ..)
-../install: ../build
+../install: | ../build
 	@echo 'Local ../install out-of-date. Running local install from ../build dir.'
-	-$(MAKE) -C ../build -j6 install PREFIX=$@
+	-$(MAKE) -C ../build -j6 install PREFIX=../install
 	-ls -l $@
+../install/lib/lib$(LIBVEDNN).a: | ../install
+	if [ -f "$@" ]; then $(MAKE) --touch $@; \
+		else echo "Ohoh. Did not create expected lib $@"; fi
+vednn-unpack: ../install/lib/lib$(LIBVEDNN).a
 endif	
 else
 ./vednn:
@@ -134,9 +148,6 @@ else
 	rm -rf $@; mv -v tmp-v $@; rm -rf tmp-v
 endif
 unpack: vejit-unpack vednn-unpack
-vednn-unpack:
-	if [ -d '$(VEDNN_SUBDIR)' ]; then chmod -R ugo+rw '$(VEDNN_SUBDIR)'; rm -rf '$(VEDNN_SUBDIR)'; fi
-	$(MAKE) ./$(VEDNN_SUBDIR)
 
 CONVGEMM := convolution_gemm
 SRCS	= vednn_conv_test.c vednn_linear_test.c vednn_pool_test.c vednn_helper.c \
@@ -226,17 +237,20 @@ CXXFLAGS:=$(CFLAGS) -std=gnu++17
 
 #$(TARGETS):| $(VEDNN_DIR) # another way to say we need VEDNN_DIR
 Hello:
-	-ls -l ${VEDNN_DIR}/* ${VEDNNX_DIR}/* ../vednn*.tar.gz
 	@echo "mkfile_dir    = ${mkfile_dir}"
 	@echo "LDLIBS        = ${LDLIBS}"
 	@echo "TGZ           = ${TGZ}"
 	@echo "VEDNN_DIR     = ${VEDNN_DIR}"
 	@echo "VEDNNX_DIR    = ${VEDNNX_DIR}"
+	@echo "VEDNN_SUBDIR  = ${VEDNN_SUBDIR}"
 	@echo "VJINC         = ${VJINC}"
 	@echo "CC            = ${CC}"
 	@echo "CLANG         = ${CLANG}"
 	@echo "CLANG_HAS_VE  = ${CLANG_HAS_VE}"
 	@echo "TARGETS       = ${TARGETS}"
+	-if [ -d "${VEDNN_DIR}"  ]; then ls -l "${VEDNN_DIR}"/* ; fi
+	-if [ -d "${VEDNNX_DIR}" ]; then ls -l "${VEDNNX_DIR}"/*; fi
+	-ls -l ../vednn*.tar.gz
 Goodbye:
 	@echo 'Goodbye: All targets made'
 
@@ -248,24 +262,31 @@ VEJIT_TARBALL:= ../vejit.tar.gz
 else
 VEJIT_TARBALL:= ../vejit-x86.tar.gz	
 endif
-vejit-unpack: $(VEJIT_TARBALL)
+VEJIT_STAMPFILE:=vejit/share/vejit/COPYING
+$(VEJIT_STAMPFILE): $(VEJIT_TARBALL)
+	-ls -l $@ $(VEJIT_TARBALL)
 	-if [ -d vejit ]; then chmod -R ugo+rw vejit; rm -rf vejit; fi
-	$(MAKE) vejit
+	$(THISMAKE) vejit
 	-ls -ld vejit vejit/* vejit/include/* vejit/lib/*
-
-vejit: $(VEJIT_TARBALL)
+	@#if [ -f "$@" ]; then echo 'touching $@'; $(MAKE) --touch $@; fi
+	-ls -l $@ $(VEJIT_TARBALL)
+vejit-unpack: $(VEJIT_STAMPFILE) 	# unpack the tarball if it is newer
+vejit: $(VEJIT_TARBALL)      		# This rull ALWAYS unpacks the tarball
 	-if [ -d vejit ]; then chmod -R ugo+rw vejit; rm -rf $@; fi
 	tar xzf $<
+	@if [ -f '$(VEJIT_STAMPFILE)' ]; then echo 'touching $(VEJIT_STAMPFILE)'; \
+		touch '$(VEJIT_STAMPFILE)'; \
+		fi # touch a file, not a directory
 ifeq ($(CC:ncc%=ncc),ncc)
 	# this is a larger build of const sources, so try to build it just once
 	# # this is a workaround for dynamic linker bugs with C++ dynamic libs
 	# Now I distribute this in tarball too.
+	# This is a WORKAROUND for a possibly old VE linker bug
 	if [ ! -f vejit/lib/libjit1-cxx-ve.lo ]; then \
-	  $(MAKE) libjit1-cxx-ve.lo || $(MAKE) libjit1-cxx-ve.lo || $(MAKE) libjit1-cxx-ve.lo; \
+	  $(THISMAKE) libjit1-cxx-ve.lo || $(THISMAKE) libjit1-cxx-ve.lo || $(THISMAKE) libjit1-cxx-ve.lo; \
 	  chmod +w vejit/lib; cp libjit1-cxx-ve.lo vejit/lib/ ; chmod -w vejit/lib; \
 	fi
 endif
-	touch $@
 	chmod -R ugo-w $@
 
 # next only produce dumps a demo 'C+instrinsics' string to cout...
@@ -301,21 +322,21 @@ cjit-clean:
 	@echo "VEJIT_DIR    ${VEJIT_DIR}"
 cjit-do: vejit $(VEDNN_SUBDIR)
 	@echo "~~~ cjitConv00-x86..."
-	{ $(MAKE) VERBOSE=1 cjitConv00-x86; ./cjitConv00-x86; } 2>&1 | tee cjit00-x86.log
+	{ $(THISMAKE) VERBOSE=1 cjitConv00-x86; ./cjitConv00-x86; } 2>&1 | tee cjit00-x86.log
 	@echo "~~~ cjitConv00..."
-	{ $(MAKE) VERBOSE=1 cjitConv00;     ./cjitConv00;     } 2>&1 | tee cjit00.log
+	{ $(THISMAKE) VERBOSE=1 cjitConv00;     ./cjitConv00;     } 2>&1 | tee cjit00.log
 	@echo "~~~ cjitConv01-x86..."
-	{ $(MAKE) VERBOSE=1 cjitConv01-x86; ./cjitConv01-x86; } 2>&1 | tee cjit01-x86.log
+	{ $(THISMAKE) VERBOSE=1 cjitConv01-x86; ./cjitConv01-x86; } 2>&1 | tee cjit01-x86.log
 	@echo "~~~ cjitConv01..."
-	{ $(MAKE) VERBOSE=1 cjitConv01;     ./cjitConv01;     } 2>&1 | tee cjit01.log
+	{ $(THISMAKE) VERBOSE=1 cjitConv01;     ./cjitConv01;     } 2>&1 | tee cjit01.log
 	@echo "~~~ cjitConv02-x86..."
-	{ $(MAKE) VERBOSE=1 cjitConv02-x86; ./cjitConv02-x86; } 2>&1 | tee cjit02-x86.log
+	{ $(THISMAKE) VERBOSE=1 cjitConv02-x86; ./cjitConv02-x86; } 2>&1 | tee cjit02-x86.log
 	@echo "~~~ cjitConv02..."
-	{ $(MAKE) VERBOSE=1 cjitConv02;     ./cjitConv02;     } 2>&1 | tee cjit02.log
+	{ $(THISMAKE) VERBOSE=1 cjitConv02;     ./cjitConv02;     } 2>&1 | tee cjit02.log
 cjitConv00-x86: cjitConv00.cpp vejit vednn-unpack
 	$(CJITX86) -E $< -o $@.i
 	$(CJITX86) -c $< -o $@.o
-	@$(MAKE) cjit_vars
+	@$(THISMAKE) cjit_vars
 	$(CJITX86) $@.o -L./vejit/lib -Wl,-rpath,$(mkfile_dir)vejit/lib \
 		-ljit1-x86 -lveli-x86 -ldl -o $@
 	{ LD_DEBUG=libs LD_SHOW_AUXV=1 ./$@ || echo "Exit status $$?"; } 2>&1 | tee $@.log
@@ -323,7 +344,7 @@ cjitConv00: cjitConv00.cpp vejit
 	$(CXX) --version
 	$(CJIT_CXX) -E $< -o $@.i
 	$(CJIT_CXX) -c $< -o $@.o
-	@$(MAKE) cjit_vars
+	@$(THISMAKE) cjit_vars
 	set -x && $(CJIT_CXX) $@.o \
 		-o $@ \
 		./vejit/lib/lib${LIBJIT}.a
@@ -336,14 +357,14 @@ cjitConv00: cjitConv00.cpp vejit
 cjitConv01-x86: cjitConv01.cpp vejit
 	$(CJITX86) -E $< -o $@.i
 	$(CJITX86) -c $< -o $@.o
-	@$(MAKE) cjit_vars
+	@$(THISMAKE) cjit_vars
 	$(CJITX86) $@.o -L./vejit/lib -Wl,-rpath,$(mkfile_dir)vejit/lib \
 		-ljit1-x86 -lveli-x86 -ldl -o $@
 	{ ./$@ || echo "Exit status $$?"; } 2>&1 | tee $@.log
 cjitConv01: cjitConv01.cpp vejit
 	$(CJIT_CXX) -E $< -o $@.i
 	$(CJIT_CXX) -c $< -o $@.o
-	@$(MAKE) cjit_vars
+	@$(THISMAKE) cjit_vars
 	$(CJIT_CXX) $@.o -L./vejit/lib \
 		-Wl,-rpath,$(mkfile_dir)vejit/lib -Wl,-rpath-link,/opt/nec/ve/lib \
 		vejit/lib/lib${LIBJIT}.a -ldl -o $@
@@ -391,7 +412,7 @@ libcjitConv-x86.so: cjitConv-x86.lo cjitConvFwd1-x86.lo cjitConvFwd1b-x86.lo cji
 cjitConv02-x86: cjitConv02.cpp cjitConv-x86.o vejit
 	$(CJITX86) -E $< -o $@.i
 	$(CJITX86) -c $< -o $@.o
-	@$(MAKE) cjit_vars
+	@$(THISMAKE) cjit_vars
 	$(CJITX86) $@.o cjitConv-x86.o ./vejit/share/src/dllbuild.cpp -ldl \
 		-o $@ \
 		-L./vejit/lib -Wl,-rpath,$(mkfile_dir)vejit/lib -l${LIBJITX86} \
@@ -401,7 +422,7 @@ cjitConv02-x86: cjitConv02.cpp cjitConv-x86.o vejit
 cjitConv02: cjitConv02.cpp libcjitConv-ve.a vejit
 	$(CJIT_CXX) -E $< -o $@.i
 	$(CJIT_CXX) -c $< -o $@.o
-	@$(MAKE) cjit_vars
+	@$(THISMAKE) cjit_vars
 	$(CJIT_CXX) $@.o -L. libcjitConv-ve.a -L./vejit/lib \
 		-Wl,-rpath,$(mkfile_dir)vejit/lib \
 		vejit/lib/lib${LIBJIT}.a -ldl -o $@
@@ -426,7 +447,7 @@ cjitConv02: cjitConv02.cpp libcjitConv-ve.a vejit
 #		#$(mkfile_dir)vejit/lib/lib${LIBJIT}.a -o $@ ${LDLIBS}
 # Alt link avoiding libcjit1.so did not help	
 cjitConv01b: cjitConv01.cpp $(VJSRC)/dllbuild.cpp $(VJSRC)/jitpage.c $(VJLIB)/bin.mk-ve.lo
-	@$(MAKE) cjit_vars
+	@$(THISMAKE) cjit_vars
 	$(CJIT_CXX) -o $@ $^
 	# Segfault after "calling dlopen.. fullpath="
 	{ ve_exec ./$@ || echo "Exit status $$?"; } 2>&1 | tee $@.log
@@ -634,8 +655,8 @@ libmegajit.so: # if lbmegajit does not exist, create a zero-length file instead,
 jitconv: jitconv.o $(LOCALIMPLS) $(CONVGEMM).o libcjitConv-ve.so conv_test_param.o vednn_helper.o testdata.o
 	@echo 'OPENMP $(OPENMP)'
 	@echo 'FTRACE $(FTRACE)'
-	@$(MAKE) cjit_vars
-	#$(MAKE) libmegajit.so
+	@$(THISMAKE) cjit_vars
+	#$(THISMAKE) libmegajit.so
 	@# -Wl,-z,stacksize=0x10000000 ignored
 	# prefer to use -l command-line option to pre-load JIT libs
 	export megajit="" && [[ -s "libmegajit.soNONO" ]] && megajit="-lmegajit"; \
@@ -662,7 +683,7 @@ jitconv-dev: jitconv.o d1s1pSB.o $(CONVGEMM).o libcjitConv-ve.so conv_test_param
 		${LDLIBS} -ldl
 y.log: force
 	{ rm -rf tmp_cjitConv; \
-	{ $(MAKE) VERBOSE=1 ./vejit ve_cmpconv || $(MAKE) VERBOSE=1 libcjitConv-ve.a ve_cmpconv; } \
+	{ $(THISMAKE) VERBOSE=1 ./vejit ve_cmpconv || $(THISMAKE) VERBOSE=1 libcjitConv-ve.a ve_cmpconv; } \
 	&& BIN_MK_VERBOSE=0 ./ve_cmpconv -p mb64ic3ih60oc15kh11pw11sh1n"alexnet:conv1FOO" \
 	&& { rm -rf y.dir; cp -uar tmp_cjitConv y.dir; } \
 	} >& $@.new
@@ -671,7 +692,7 @@ y.log: force
 #	
 z.log: force
 	{ \
-	{ $(MAKE) VERBOSE=1 ./vejit ve_cmpconv || $(MAKE) VERBOSE=1 ve_cmpconv; } \
+	{ $(THISMAKE) VERBOSE=1 ./vejit ve_cmpconv || $(THISMAKE) VERBOSE=1 ve_cmpconv; } \
 	&& BIN_MK_VERBOSE=0 ./ve_cmpconv -p alex-z.txt \
 	&& { if [ -d tmp_cjitConv ]; then rm -rf z.dir; cp -uar tmp_cjitConv z.dir; fi; } \
 	} >& $@.new
@@ -686,7 +707,7 @@ z.log: force
 #	LC_ALL=C BIN_MK_VERBOSE=0 ./ve_cmpconv;
 gen-dnn.log: force
 	{ rm -rf tmp_cjitConv; \
-	{ $(MAKE) VERBOSE=1 ./vejit ve_cmpconv || $(MAKE) VERBOSE=1 ve_cmpconv; } \
+	{ $(THISMAKE) VERBOSE=1 ./vejit ve_cmpconv || $(THISMAKE) VERBOSE=1 ve_cmpconv; } \
 	&& BIN_MK_VERBOSE=0 ./ve_cmpconv -p gen-dnn.txt \
 	&& { rm -rf gen-dnn.dir; cp -uar tmp_cjitConv gen-dnn.dir; } \
 	} >& $@.new
@@ -700,7 +721,7 @@ testdom1-ve: testdom1.cpp dom-ve.o
 	$(CXX) $(CXXFLAGS) -Wall -Werror $^ -o $@
 alex%.cmp: alex%.txt force
 	{ rm -rf tmp_cjitConv; \
-	$(MAKE) VERBOSE=1 ./vejit ve_cmpconv; \
+	$(THISMAKE) VERBOSE=1 ./vejit ve_cmpconv; \
 	BIN_MK_VERBOSE=0 VERBOSE=0 ./ve_cmpconv -p $<; \
 	if [ -d alex-m.dir ]; then mv alex$*.dir alex$*.dir.bak; fi; \
 	cp -uar tmp_cjitConv alex$*.dir; \
@@ -731,6 +752,7 @@ ve_mnist_train : ve_mnist_train.cpp vednn_helper.o maxpooling.o
 #		$(CJITX86_CC) -dD -E "$${f}" > "$${f}.i"; \
 #		$(CJITX86_CC) -c "$${f}"; \
 #	done
+.PHONY: clean clean_subdirs realclean
 clean:
 	rm -f $(OBJS) $(TARGETS) *.L *.O *.s *.lo *.i cjit*.o ve_cvec*.o ve_cvec*.i cjit*.i ftrace.out *~ \
 		libcjitConv-ve.a  libjit1-cxx-ve.a \
@@ -740,11 +762,7 @@ clean:
 		convolution_gemm.o ejk_convolution_gemm.o vednn_conv_test.o ve_cmpconv*.o \
 		jitconv.o direct_*.o
 	rm -rf tmp_cjitConv01-x86
-realclean: clean
-	rm -f [a-z].log mk.log # but keep other-named log files
-	rm -f a.out bug2 bug2B bug2pp cjitConv00 cjitConv01f cjitConv02 cjitConv02-x86 helloe hellof \
-		testdom1 testdom1-ve ve_cmpconv ve_cmpconv22 ve_mnist_train \
-		jitconv jitconv-wrk
+clean_subdirs: # get rid of unpacked tarballs (see also cjit-clean vejit-clean)
 	for d in vejit vednn vednn-ftrace1 mnist \
 		tmp_cjitConv tmp_cjitConv01 z.dir \
 		; do \
@@ -753,4 +771,9 @@ realclean: clean
 		chmod -R ugo+rw "$${d}"; rm -rf "$${d}"; \
 		fi; \
 		done;
+realclean: clean clean_subdirs
+	rm -f [a-z].log mk.log # but keep other-named log files
+	rm -f a.out bug2 bug2B bug2pp cjitConv00 cjitConv01f cjitConv02 cjitConv02-x86 helloe hellof \
+		testdom1 testdom1-ve ve_cmpconv ve_cmpconv22 ve_mnist_train \
+		jitconv jitconv-wrk
 #

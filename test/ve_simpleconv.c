@@ -283,6 +283,7 @@ void testForward(struct param *pNetwork, int nEntry, double HZ, int flagBias, in
             char name[80];
 
             // Convolution
+#if 0
             if ( flagBias ) {
                 // use parameters and args, split according to order of libvednn public api.
                 // I.e. \c vednnConvolutionForwardAddBias call as defined in \ref vednn.h
@@ -325,7 +326,9 @@ void testForward(struct param *pNetwork, int nEntry, double HZ, int flagBias, in
                 }
 #undef FWDB_DATA
 #undef FWDB_PARMS
-            }else{
+            }else
+#endif
+            if(1){
                 // original args for vednn.h call:
                 //pConv->pParamIn,         pConv->pDataIn,
                 //pConv->pParamKernel,     pConv->pDataKernel,
@@ -335,12 +338,14 @@ void testForward(struct param *pNetwork, int nEntry, double HZ, int flagBias, in
 #define FWD_PARMS \
                 /* */ pConv->pParamIn,     \
                 /* */ pConv->pParamKernel, \
+                /* */ pConv->pParamBias, \
                 /* */ pConv->pParamOut,    \
                 /* */ pConv->pParamConv,   \
                 /* */ VEDNN_CONV_ALGORITHM_DIRECT
 #define FWD_DATA \
                 /* */                      pConv->pDataIn, \
                 /* */                      pConv->pDataKernel, \
+                /* */                      pConv->pDataBias, \
                 /* */                      pConv->pDataOut
                 // libvednnx "iterator over impls"
                 // 1 i            printf(" t%ld", (long)omp_get_num_threads()); fflush(stdout);
@@ -445,7 +450,7 @@ void testBackwardData(struct param *pNetwork, int nEntry, double HZ, int flagCSV
     for (i=0; i<nEntry; i++) {
         conv *pConv = &pConvBuff[i];
         struct param *pNw  = &pNetwork[i];
-        testconvBackwardData_alloc(pConv, pNw);
+        testconvBackwardData_alloc(pConv, pNw, filter_layout);
         testconvBackwardData_randomData( pConv );
     }
 
@@ -508,7 +513,7 @@ void testBackwardFilter(struct param *pNetwork, int nEntry, double HZ, int flagC
     for (i=0; i<nEntry; i++) {
         conv *pConv = &pConvBuff[i];
         struct param *pNw  = &pNetwork[i];
-        testconvBackwardFilter_alloc( pConv, pNw );
+        testconvBackwardFilter_alloc(pConv, pNw, filter_layout);
         testconvBackwardFilter_randomData( pConv );
     }
 
@@ -603,6 +608,7 @@ int main(int argc, char **argv)
     int flagCSV      = 0 ;
     int reps         = 1 ;
     int threads      = 1 ; /* set to -ve to repeat for 0..8 threads */
+    filterLayout_t filter_layout = VEDNN_FILTER_LAYOUT_NCHW;
     printf("Test program: %s\n",__FILE__);
     //enum Iinit itp   = Iseq ; // input type: Iseq=0={0,1,2,...}, Ixy={{00,01,..},{10,11,...},...{...<isz>,<isz>}}
     //enum Kinit ktp   = Ktl ; // kernel type: Ktl=1 in top left, zeros elsewhere

@@ -121,10 +121,10 @@ FWD_FN_OK_LIKE(dil1_str1_padsame_ker3, dil1_str1_padsame,
         pParamKernel->width == 3 && pParamKernel->height == 3);
 FWD_FN_OK_LIKE(dil1_str1_padsame_ker3A, dil1_str1_padsame_ker3, 1);
 
-FWD_FN_OK_LIKE(dil1_str1_padsame_ker3_c1024x, dil1_str1_padsame_ker3,
-        1 /* CAN validly run in other cases! ParamKernel->inChannel % 1024 == 0 */
-        );
-FWD_FN_OK_LIKE(dil1_str1_padsame_ker3_c1024xA, dil1_str1_padsame_ker3_c1024x, 1);
+//FWD_FN_OK_LIKE(dil1_str1_padsame_ker3_c1024x, dil1_str1_padsame_ker3,
+//        1 /* CAN validly run in other cases! ParamKernel->inChannel % 1024 == 0 */
+//        );
+//FWD_FN_OK_LIKE(dil1_str1_padsame_ker3_c1024xA, dil1_str1_padsame_ker3_c1024x, 1);
 
 FWD_FN_OK_LIKE(dil1_str1_padsame_ker3_c1, dil1_str1_padsame_ker3,
         pParamIn->channel == pParamConv->group);

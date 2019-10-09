@@ -26,53 +26,53 @@ extern "C" {
 // try to put most specialized first, because they are likely fastest
 static vednnConvForwardImpls vednnConvForwardList_[] = {
     // k1 NOTE: dil1 is irrelevant for ker1 (should remove from name/files)
-    //IMPL_FNS(vednnConvolutionForward_direct_dil1_str1_pad0_ker1_c1024x,"cnvFwd-d1s1p0k1c1024x"),
     // d1s1pS
     IMPL_FNS(vednnConvolutionForward_direct_dil1_str1_padsame_ker3_c1_owU128,"cnvFwd-d1s1pSk3c1owU128"),
-    //IMPL_FNS(vednnConvolutionForward_direct_dil1_str1_padsame_ker3_c1_owU128A,"cnvFwd-d1s1pSk3c1owU128A"),
     IMPL_FNS(vednnConvolutionForward_direct_dil1_str1_padsame_ker3_c1,"cnvFwd-d1s1pSk3_c1"),
-    //IMPL_FNS(vednnConvolutionForward_direct_dil1_str1_padsame_ker3_c1A,"cnvFwd-d1s1pSk3_c1A"),
-    IMPL_FNS(vednnConvolutionForward_direct_dil1_str1_padsame_ker3_c1024x,"cnvFwd-d1s1pSk3c1024x"),
-    //IMPL_FNS(vednnConvolutionForward_direct_dil1_str1_padsame_ker3_c1024xA,"cnvFwd-d1s1pSk3c1024xA"),
     IMPL_FNS(vednnConvolutionForward_direct_dil1_str1_padsame_ker3,"cnvFwd-d1s1pSk3"),
-    //IMPL_FNS(vednnConvolutionForward_direct_dil1_str1_padsame_ker3A,"cnvFwd-d1s1pSk3A"),
     IMPL_FNS(vednnConvolutionForward_direct_dil1_str1_padsame_ker5_owU128,"cnvFwd-d1s1pSk5owU128"),
-    //IMPL_FNS(vednnConvolutionForward_direct_dil1_str1_padsame_ker5_owU128A,"cnvFwd-d1s1pSk5owU128A"),
     IMPL_FNS(vednnConvolutionForward_direct_dil1_str1_padsame_ker5,"cnvFwd-d1s1pSk5"),
-    //IMPL_FNS(vednnConvolutionForward_direct_dil1_str1_padsame_ker5A,"cnvFwd-d1s1pSk5A"),
     IMPL_FNS(vednnConvolutionForward_direct_dil1_str1_padsame_ker2,"cnvFwd-d1s1pSk2"),
-    //IMPL_FNS(vednnConvolutionForward_direct_dil1_str1_padsame_ker2A,"cnvFwd-d1s1pSk2A"),
     IMPL_FNS(vednnConvolutionForward_direct_dil1_str1_padsame,"cnvFwd-d1s1pS"),
     // d1s1p0
     IMPL_RTFNS(vednnConvolutionForward_direct_dil1_str1_pad0_ker3_iw2XU256_ow2X_ioaligned,"cnvFwd-d1s1p0k3iw2XU256_ow2X_ioaligned"),
+    IMPL_FNS(vednnConvolutionForward_direct_dil1_str1_pad0_ker1,"cnvFwd-s1p0k1"),
     IMPL_FNS(vednnConvolutionForward_direct_dil1_str1_pad0_owU128,"cnvFwd-d1s1p0_owU128"),
-    //IMPL_FNS(vednnConvolutionForward_direct_dil1_str1_pad0_owU128A,"cnvFwd-d1s1p0_owU128A"),
     IMPL_FNS(vednnConvolutionForward_direct_dil1_str1_pad0,"cnvFwd-d1s1p0"),
-    //IMPL_FNS(vednnConvolutionForward_direct_dil1_str1_pad0A,"cnvFwd-d1s1p0A"),
     // d1p0
+    IMPL_FNS(vednnConvolutionForward_direct_dil1_pad0_owU128_ker1,"cnvFwd-p0k1_owU128"),
+    IMPL_FNS(vednnConvolutionForward_direct_dil1_pad0_ker1,"cnvFwd-p0k1"),
     IMPL_FNS(vednnConvolutionForward_direct_dil1_pad0_owU128,"cnvFwd-d1p0_owU128"),
-    //IMPL_FNS(vednnConvolutionForward_direct_dil1_pad0_owU128A,"cnvFwd-d1p0_owU128A"),
     IMPL_FNS(vednnConvolutionForward_direct_dil1_pad0,"cnvFwd-d1p0"),
-    //IMPL_FNS(vednnConvolutionForward_direct_dil1_pad0A,"cnvFwd-d1p0A"),
 	// generic libvednn
     IMPL_FNS(vednnConvolutionForward_direct_owU128,"cnvFwd-owU128"),
-    //IMPL_FNS(vednnConvolutionForward_direct_owU128A,"cnvFwd-owU128A"),
     IMPL_FNS(vednnConvolutionForward_direct_vecC,"cnvFwd-vecC"),
     IMPL_FNS(vednnConvolutionForward_direct_default,"cnvFwd-def"),
-    //IMPL_FNS(vednnConvolutionForward_direct_defaultA,"cnvFwd-defA"),
     // customizations (stable, working, but win in isolated circumstances)
+    //IMPL_FNS(vednnConvolutionForward_direct_dil1_str1_pad0_ker1_c1024x,"cnvFwd-d1s1p0k1c1024x"),
+    //IMPL_FNS(vednnConvolutionForward_direct_dil1_str1_padsame_ker3_c1_owU128A,"cnvFwd-d1s1pSk3c1owU128A"),
+    //IMPL_FNS(vednnConvolutionForward_direct_dil1_str1_padsame_ker3_c1A,"cnvFwd-d1s1pSk3_c1A"),
+    //IMPL_FNS(vednnConvolutionForward_direct_dil1_str1_padsame_ker3_c1024x,"cnvFwd-d1s1pSk3c1024x"),
+    //IMPL_FNS(vednnConvolutionForward_direct_dil1_str1_padsame_ker3_c1024xA,"cnvFwd-d1s1pSk3c1024xA"),
+    //IMPL_FNS(vednnConvolutionForward_direct_dil1_str1_padsame_ker3A,"cnvFwd-d1s1pSk3A"),
+    //IMPL_FNS(vednnConvolutionForward_direct_dil1_str1_padsame_ker5_owU128A,"cnvFwd-d1s1pSk5owU128A"),
+    //IMPL_FNS(vednnConvolutionForward_direct_dil1_str1_padsame_ker5A,"cnvFwd-d1s1pSk5A"),
+    //IMPL_FNS(vednnConvolutionForward_direct_dil1_str1_padsame_ker2A,"cnvFwd-d1s1pSk2A"),
+    //IMPL_FNS(vednnConvolutionForward_direct_dil1_str1_pad0_owU128A,"cnvFwd-d1s1p0_owU128A"),
+    //IMPL_FNS(vednnConvolutionForward_direct_dil1_str1_pad0A,"cnvFwd-d1s1p0A"),
+    //IMPL_FNS(vednnConvolutionForward_direct_dil1_pad0_owU128A,"cnvFwd-d1p0_owU128A"),
+    //IMPL_FNS(vednnConvolutionForward_direct_dil1_pad0A,"cnvFwd-d1p0A"),
+    //IMPL_FNS(vednnConvolutionForward_direct_owU128A,"cnvFwd-owU128A"),
+    //IMPL_FNS(vednnConvolutionForward_direct_defaultA,"cnvFwd-defA"),
     //IMPL_FNS(vednnConvolutionForward_direct_default2,"cnvFwd-def2"),
-        //IMPL_FNS(vednnConvolutionForward_direct_default2p,"cnvFwd-def2p"),
+    //IMPL_FNS(vednnConvolutionForward_direct_default2p,"cnvFwd-def2p"),
     //IMPL_FNS(vednnConvolutionForward_direct_default3,"cnvFwd-def3"),
-        //IMPL_FNS(vednnConvolutionForward_direct_default3b,"cnvFwd-df3b"),
-        //IMPL_FNS(vednnConvolutionForward_direct_alt,"cnvFwd-alt"),
+    //IMPL_FNS(vednnConvolutionForward_direct_default3b,"cnvFwd-df3b"),
+    //IMPL_FNS(vednnConvolutionForward_direct_alt,"cnvFwd-alt"),
     //IMPL_FNS(vednnConvolutionForward_direct_dil1_str1_padsameA,"cnvFwd-d1s1pSA"), // XXX testing
     //IMPL_FNS(vednnConvolutionForward_direct_dil1_str1_padsameB,"cnvFwd-d1s1pSB"), // XXX testing
     //IMPL_FNS(vednnConvolutionForward_direct_dil1_str1_padsameAB,"cnvFwd-d1s1pSA+B"), // XXX testing
-    // ker1
-    IMPL_FNS(vednnConvolutionForward_direct_dil1_str1_pad0_ker1,"cnvFwd-s1p0k1"),
     //IMPL_FNS(vednnConvolutionForward_direct_dil1_str1_pad0_ker1A,"cnvFwd-s1p0k1A"),
-    IMPL_FNS(vednnConvolutionForward_direct_dil1_pad0_owU128_ker1,"cnvFwd-p0k1_owU128"),
     //IMPL_FNS(vednnConvolutionForward_direct_dil1_pad0_owU128_ker1A,"cnvFwd-p0k1_owU128A"),
     // Problem: ker1 + nonequal height width buggy?  or else [d1] s1p0k1A maybe clobber output?
     // WRONG OUTPUT for mb1ih640iw360__ic128oc4__kh1___n"RNxt101-conv2a-ungrouped"
