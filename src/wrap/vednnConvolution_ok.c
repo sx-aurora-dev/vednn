@@ -70,6 +70,7 @@ FWD_FN_OK(vednnConvolutionForward_direct_default)
 //    int ok = FWD_LIKE(default);
 //    return ok? VEDNN_SUCCESS: VEDNN_ERROR_INVALID_PARAM;
 //}
+FWD_FN_OK_LIKE(gendnn, default, 1); // Note: this one comes in libvednnx, not libvednn !
 FWD_FN_OK_LIKE(default2, default, 1);
 FWD_FN_OK_LIKE(default2p, default, 1);
 FWD_FN_OK_LIKE(default3, default, 1);
@@ -258,6 +259,7 @@ BKWD_FN_OK(vednnConvolutionBackwardData_direct_default)
     return ok? VEDNN_SUCCESS: VEDNN_ERROR_INVALID_PARAM;
 }
 BKWD_FN_OK_LIKE(default2, default, 1);
+BKWD_FN_OK_LIKE(gendnn, default, 1);
 BKWD_FN_OK_LIKE(iwU128, default, pParamGradIn->width <= 128);
 
 BKWD_FN_OK_LIKE(dil1_str1, default,
@@ -335,6 +337,8 @@ BKWF_FN_OK(vednnConvolutionBackwardFilter_direct_default)
         ;
     return ok? VEDNN_SUCCESS: VEDNN_ERROR_INVALID_PARAM;
 }
+BKWF_FN_OK_LIKE(gendnn, default, 1);
+
 BKWF_FN_OK_LIKE(dil1_str1_padsame, default,
         pParamConv->strideWidth==1 && pParamConv->strideHeight==1
         && pParamConv->dilationWidth==1 && pParamConv->dilationHeight==1

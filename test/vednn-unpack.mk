@@ -4,7 +4,7 @@
 # 			FTRACE	[YES/NO]
 # 		and	OPENMP	[YES/NO]
 # Main make target is 'vednn-unpack', which is added to the 'all' target
-# (also vednn-rebuild, which might be slow)
+# Also 'vednn-rebuild' which can update the ../install quickly (or tarballs, slowly)
 #
 # Ouput variables:
 #       VEDNN_SUBDIR  vednn install directory (short local path)
@@ -24,9 +24,9 @@
 .PHONY: all vednn-unpack vednn-unpack_vars
 all: vednn-unpack vednn-unpack_vars
 
-mkfile_path:=$(abspath $(lastword $(MAKEFILE_LIST)))
-mkfile_dir:=$(dir $(mkfile_path))
-MAKE_UNPACK:=$(MAKE) -C $(mkfile_dir) -f $(mkfile_path)
+myfile_path:=$(abspath $(lastword $(MAKEFILE_LIST)))
+myfile_dir:=$(dir $(myfile_path))
+MAKE_UNPACK:=$(MAKE) -C $(myfile_dir) -f $(myfile_path)
 
 VEDNN_SUBDIR:=../install
 # Default to "left-over" build directories (historical default)
@@ -45,7 +45,7 @@ VEDNN_SUBDIR:=./vednn
 endif
 endif
 
-VEDNN_DIR:=$(abspath $(mkfile_dir)$(VEDNN_SUBDIR))
+VEDNN_DIR:=$(abspath $(myfile_dir)$(VEDNN_SUBDIR))
 VEDNNX_DIR:=$(VEDNN_DIR)
 VEDNN_DIR=../install
 
@@ -78,7 +78,7 @@ vednn-unpack:
 	fi
 ../vednnx.tar.gz: ../Makefile	
 	@echo 'Regenerating vednn tarballs (SLOW)'
-	-$(MAKE) -C $(mkfile_dir)/.. libvednn.tar.gz libvednnx.tar.gz
+	-$(MAKE) -C $(myfile_dir)/.. libvednn.tar.gz libvednnx.tar.gz
 vednn-rebuild: ../vednnx.tar.gz
 	@# this is a less nice target, that regenerates tarballs -- QUITE SLOW
 	$(MAKE_UNPACK) vednn-unpack
@@ -93,7 +93,7 @@ LIBVEDNNX:=vednnx$(VEDNN_SUFFIX)
 	(cd .. && mkdir build && cd build && cmake ..)
 ../install: | ../build
 	@echo 'Local ../install out-of-date. Running local install from ../build dir.'
-	-$(MAKE) -C $(mkfile_dir)/../build -j6 install PREFIX=../install
+	-$(MAKE) -C $(myfile_dir)/../build -j6 install PREFIX=../install
 	-ls -l $@
 ../install/lib/lib$(LIBVEDNN).a: | ../install
 	if [ -f "$@" ]; then $(MAKE_UNPACK) --touch $@; \
@@ -102,7 +102,7 @@ vednn-unpack: ../install/lib/lib$(LIBVEDNN).a
 vednn-rebuild: ../build
 	@# this is a less nice target, that forces the 'make install' to run
 	@echo 'Updating local ../install from ../build dir.'
-	-$(MAKE_UNPACK) -C ../build -j6 install PREFIX=../install
+	-$(MAKE) -C $(myfile_dir)/../build -j6 install PREFIX=../install
 endif	
 else
 # for x86 compile checks, grab headers into ../install

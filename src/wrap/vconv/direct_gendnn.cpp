@@ -6,9 +6,11 @@
 
 #include "gemm_convolution.hpp"
 #include <assert.h>
+#include <stdio.h>
 
 using namespace mkldnn::impl;
 using namespace mkldnn::impl::cpu;
+using namespace std;
 
 extern "C" { //}
 
@@ -18,6 +20,7 @@ vednnConvolutionForward_direct_gendnn(
 {
     //const vednnBiasParam_t * pParamBias = nullptr;
     //const void* pDataBias = nullptr;
+    printf(" *** Entering %s ***\n", __FUNCTION__);
 
     convolution_desc_t cd;
     mk_mkldnn_convolution_desc(

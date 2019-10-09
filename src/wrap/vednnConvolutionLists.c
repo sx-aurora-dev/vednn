@@ -49,6 +49,7 @@ static vednnConvForwardImpls vednnConvForwardList_[] = {
     IMPL_FNS(vednnConvolutionForward_direct_vecC,"cnvFwd-vecC"),
     IMPL_FNS(vednnConvolutionForward_direct_default,"cnvFwd-def"),
     // customizations (stable, working, but win in isolated circumstances)
+    IMPL_FNS(vednnConvolutionForward_direct_gendnn,"cnvFwd-gendnn"),
     //IMPL_FNS(vednnConvolutionForward_direct_dil1_str1_pad0_ker1_c1024x,"cnvFwd-d1s1p0k1c1024x"),
     //IMPL_FNS(vednnConvolutionForward_direct_dil1_str1_padsame_ker3_c1_owU128A,"cnvFwd-d1s1pSk3c1owU128A"),
     //IMPL_FNS(vednnConvolutionForward_direct_dil1_str1_padsame_ker3_c1A,"cnvFwd-d1s1pSk3_c1A"),
@@ -107,7 +108,9 @@ static vednnConvBackwardDataImpls vednnConvBackwardDataList_[] = {
     IMPL_FNS(vednnConvolutionBackwardData_direct_dil1_str1,"cnvBkD-d1s1"),
     IMPL_FNS(vednnConvolutionBackwardData_direct_iwU128,"cnvBkD-iwU128"),
     IMPL_FNS(vednnConvolutionBackwardData_direct_default,"cnvBkD-def"),
+    // extras...
     //IMPL_FNS(vednnConvolutionBackwardData_direct_default2,"cnvBkD-def2"),
+    //IMPL_FNS(vednnConvolutionBackwardData_direct_gendnn,"cnvBkD-gendnn"), // check if implemented XXX
     {NULL}
 };
 
@@ -133,6 +136,8 @@ static vednnConvBackwardFilterImpls vednnConvBackwardFilterList_[] = {
     IMPL_FNS(vednnConvolutionBackwardFilter_direct_dil1_pad0,"cnvBkF-d1p0"),
     IMPL_FNS(vednnConvolutionBackwardFilter_direct_owU128,"cnvBkF-owU128"),
     IMPL_FNS(vednnConvolutionBackwardFilter_direct_default,"cnvBkF-def"),
+    // extras...
+    //IMPL_FNS(vednnConvolutionBackwardData_direct_gendnn,"cnvBkD-gendnn"), // check if implemented XXX
     {NULL}
 };
 
@@ -177,9 +182,11 @@ ITERATOR_DUMP(BackwardFilter, BACKWARD_FILTER);
     vednnConv##Forward##Impls *i = &vednnConv##Forward##List[0]; \
     while( i != current && i->okfn != NULL ){ ++i; } /* MUST find current inside List */ \
     if( i->okfn != NULL ) \
-        for( ++i; i->okfn != NULL \
-            && (i->okfn)(VEDNN_PARAMS_CONV_##FORWARD##_LIST) != VEDNN_SUCCESS; \
-            ) ++i; \
+        for( ++i; i->okfn != NULL; ++i ){ \
+            if(i->shortname) printf(" iter-shortname %s", i->shortname); \
+            if((i->okfn)(VEDNN_PARAMS_CONV_##FORWARD##_LIST) \
+                    == VEDNN_SUCCESS) break; \
+        } \
     current = i; \
 }while(0)
 #define ITERATOR_NEXT(Forward,FORWARD) \

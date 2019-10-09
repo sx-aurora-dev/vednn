@@ -12,6 +12,10 @@ FTRACE=YES
 OPENMP=YES
 # CC from environment
 
+mkfile_path:=$(abspath $(lastword $(MAKEFILE_LIST)))
+mkfile_dir:=$(dir $(mkfile_path))
+THISMAKE:=$(MAKE) -C $(mkfile_dir) -f $(mkfile_path)
+
 
 # auto-supplies vednn-unpack as 'all' dependency (../install if no tarballs, else a local subdir)
 include vednn-unpack.mk
@@ -29,9 +33,6 @@ endif
 LIBJIT:=jit1${LIBJIT_SUFFIX}
 LIBJITX86=${LIBJIT}-x86
 
-mkfile_path:=$(abspath $(lastword $(MAKEFILE_LIST)))
-mkfile_dir:=$(dir $(mkfile_path))
-THISMAKE:=$(MAKE) -C $(mkfile_dir) -f $(mkfile_path)
 
 VE_BIN_DIR := /opt/nec/ve/bin
 AR := $(VE_BIN_DIR)/nar
@@ -114,7 +115,7 @@ CLANG_FLAGS	+= -I${VEDNNX_DIR}/include/wrap -I${VEDNN_DIR}/include/C
 ifeq ($(OPENMP),YES)
 LDLIBS	+= -L${VEDNNX_DDIR}/lib -lvednnx_openmp
 LDLIBS	+= -L${VEDNN_DIR}/lib -lvednn_openmp
-LDLIBS  += -L$(BLAS_LIB_DIR) -lblas_openmp
+LDLIBS  += -L$(BLAS_LIB_DIR) -lcblas -lblas_openmp
 LDLIBS  += -fopenmp
 CFLAGS			+= -fopenmp -pthread -DUSE_OPENMP
 CLANG_FLAGS     += -fopenmp -pthread -DUSE_OPENMP
@@ -575,7 +576,9 @@ libmegajit.so: # if lbmegajit does not exist, create a zero-length file instead,
 jitconv: jitconv.o $(LOCALIMPLS) $(CONVGEMM).o libcjitConv-ve.so conv_test_param.o vednn_helper.o testdata.o
 	@echo 'OPENMP $(OPENMP)'
 	@echo 'FTRACE $(FTRACE)'
-	@$(THISMAKE) cjit_vars
+	@echo 'THISMAKE $(THISMAKE)'
+	@echo 'mkfile_path $(mkfile_path)'
+	$(THISMAKE) cjit_vars
 	#$(THISMAKE) libmegajit.so
 	@# -Wl,-z,stacksize=0x10000000 ignored
 	# prefer to use -l command-line option to pre-load JIT libs
@@ -587,7 +590,7 @@ jitconv: jitconv.o $(LOCALIMPLS) $(CONVGEMM).o libcjitConv-ve.so conv_test_param
 		-Lvejit/lib  -Wl,-rpath vejit/lib \
 		$(filter %.a,%^) $(filter %.so,$^) \
 		-l${LIBJIT} -o $@ \
-		${LDLIBS} -ldl
+		${LDLIBS} -l$(LIBVEDNNX) -l$(LIBVEDNN) -ldl
 	ls -l libmegajit* $@
 	nreadelf -d $@ | grep NEEDED
 # jitconv-dev is a convenience:

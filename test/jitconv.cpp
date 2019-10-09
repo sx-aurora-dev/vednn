@@ -423,6 +423,7 @@ void testForward(struct param *pNetwork, int nEntry, double HZ, int flagBias, in
                             if( idx >= 0 && idx < maxImpls ) { sum_times[idx] += c[1] - c[0]; ++rep_times[idx]; }
                             assert( out.actual == actual );
                             rv = out.status;
+                            printf(" out.status=%d", out.status);
                         }else{
                             printf(" not run\n");
                             continue;
@@ -461,7 +462,10 @@ void testForward(struct param *pNetwork, int nEntry, double HZ, int flagBias, in
                         if(++iter_cnt>=100) ERROR_EXIT("run-away iter over ConvForward impls?");
                     }
                 }
-                if (rv != VEDNN_SUCCESS) ERROR_EXIT("convolution() failed.");
+                if (rv != VEDNN_SUCCESS){
+                    //ERROR_EXIT("convolution() failed.");
+                    printf(" conv Fwd impl failure! [continuing anyway]\n");
+                }
 
                 FTRACE_END("all convolution");
             }
@@ -593,7 +597,7 @@ void testForward(struct param *pNetwork, int nEntry, double HZ, int flagBias, in
                         double diff = !doRef? -13.0
                             : diffData(pConv->pParamOut, pConv->pDataOut, pConv->pBufRef);
                         if(diff > max_diff) max_diff = diff;
-                        printf("%s DIFF = %f ~%f ms %s",(rv==VEDNN_SUCCESS?" OK":"BAD")
+                        printf("%s DIFF = %f ~%f ms %s",(rv==VEDNN_SUCCESS?"  OK":" BAD")
                                 , diff, (c[1]-c[0])*(1.e3/HZ), name);
                         printf("\n");
                         fflush(stdout);
