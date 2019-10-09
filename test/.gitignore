@@ -14,3 +14,11 @@ mnist
 vednn-ftrace1
 *old
 ve_simpleconv
+?*.log
+ve_cmpconv
+libcjit*.a
+libcjit*
+cjitConv01
+libmega*
+jitconv
+tmp_cjit*

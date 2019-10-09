@@ -427,7 +427,7 @@ vednnConvolutionBackwardFilter_wrapper(
 #endif
 }
 
-#define INVOKE_CONV_OPENMP_WRAPPER(ret,current,Forward,FWD,FORWARD) \
+#define INVOKE_CONV_OPENMP_WRAPPER(ret, current, Forward, FWD, FORWARD) \
     vednnConv##Forward##_out_t ret = {current, VEDNN_ERROR_INVALID_PARAM}; \
 { \
     if(current != NULL) \

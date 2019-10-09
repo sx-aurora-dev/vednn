@@ -276,65 +276,11 @@ void testForward(struct param *pNetwork, int nEntry, double HZ, int flagBias, in
 
         for (i=0; i<nEntry; i++) {
             conv *pConv = &pConvBuff[i];
-
-            //unsigned long long c[2];
-            //c[0] = __cycle();
-
+            unsigned long long c[2];
             char name[80];
 
             // Convolution
-#if 0
-            if ( flagBias ) {
-                // use parameters and args, split according to order of libvednn public api.
-                // I.e. \c vednnConvolutionForwardAddBias call as defined in \ref vednn.h
-#define FWDB_PARMS \
-                pConv->pParamIn, pConv->pParamKernel, pConv->pParamBias, pConv->pParamOut, \
-                pConv->pParamConv, VEDNN_CONV_ALGORITHM_DIRECT
-#define FWDB_DATA \
-                pConv->pDataIn,  pConv->pDataKernel,  pConv->pDataBias,  pConv->pDataOut
-                // libvednnx "iterator over impls"
-                int iter_cnt=0;
-                for (vednnConvForwardAddBiasImpls * iter = vednnConvForwardAddBias_Begin(FWDB_PARMS);
-                        iter->okfn != NULL;
-                        iter = vednnConvForwardAddBias_Next(iter, FWDB_PARMS))
-                {
-                    snprintf(name,80,"%s:%d:%s",pConv->region,iter_cnt,iter->shortname);
-                    //printf(" %s...",name); fflush(stdout);
-
-                    FTRACE_BEGIN(name);
-                    // NB:             CONVX_.....order for low-level call
-                    rv = (*iter->impl)(CONVX_FWDB_ORDER(FWDB_PARMS, FWDB_DATA));
-                    FTRACE_END(name);
-
-                    if (r == 0){
-                        if( pConv->pParamIn->batch == 1 ) {
-                            printf(" batch 1 group=%d inChannel=%d outChannel=%d",
-                                    (int)(pConv->pParamConv->group),
-                                    (int)(pConv->pParamIn->channel),
-                                    (int)(pConv->pParamOut->channel));
-                        }
-                        //pConv->cycle += c[1] - c[0]; // this is reserved for the libvednn time
-                        //printf(" %s %llu cycles", name, c[1]-c[0]);
-                        double diff = diffData(pConv->pParamOut, pConv->pDataOut, pConv->pBufRef);
-                        printf(" %s : %s",(rv==VEDNN_SUCCESS?" OK":"BAD"),name); fflush(stdout);
-                        printf(" DIFF = %f", diff);
-                        printf("\n");
-                        fflush(stdout);
-                    }
-
-                    if(++iter_cnt>=100) ERROR_EXIT("run-away iter over ConvForwardBias impls?");
-                }
-#undef FWDB_DATA
-#undef FWDB_PARMS
-            }else
-#endif
             if(1){
-                // original args for vednn.h call:
-                //pConv->pParamIn,         pConv->pDataIn,
-                //pConv->pParamKernel,     pConv->pDataKernel,
-                //pConv->pParamOut,        pConv->pDataOut,
-                //pConv->pParamConv,
-                //VEDNN_CONV_ALGORITHM_DIRECT
 #define FWD_PARMS \
                 /* */ pConv->pParamIn,     \
                 /* */ pConv->pParamKernel, \
@@ -361,41 +307,43 @@ void testForward(struct param *pNetwork, int nEntry, double HZ, int flagBias, in
                     snprintf(name,80,"%s:%d:%s",pConv->region,iter_cnt,iter->shortname);
                     //printf(" %s... ",name); fflush(stdout);
 
-#if 0 // original way:
-                    // BADNESS:  no thread support, no rtok check at runtime for data tr alignment
-                    FTRACE_BEGIN(name);
-                    // libvednn calls directly into libvednn low-level routines, so use
-                    // the CONVX_.. macro to get low-level arg order correct.
-                    rv = (*iter->impl)(CONVX_FWD_ORDER(FWD_PARMS, FWD_DATA));
-                    FTRACE_END(name);
-#else
+                    // realNext supports impls doing runtime check on ptr alignment
                     FTRACE_BEGIN("realNext");
                     vednnConvForwardImpls *actual = vednnConvForward_realNext(
                             iter, FWD_PARMS, FWD_DATA );
                     FTRACE_END("realNext");
 
-                    if ( actual != NULL ) {
-                        if( actual == iter ){ // almost always...
-                            snprintf(name,80,"%s:%d:%s",pConv->region,iter_cnt,iter->shortname);
-                        }else{
-                            snprintf(name,80,"%s:%d:%s-->%s",pConv->region,iter_cnt,iter->shortname,actual->shortname);
-                        }
-                        FTRACE_BEGIN(name);
-                        // now we also want omp support, so we call via _Run, not via (*actual->impl)
-                        vednnConvForward_out_t const out = vednnConvForward_Run( actual, FWD_PARMS, FWD_DATA );
-                        // ignore out.status  (hopefully VEDNN_SUCCESS)
-                        FTRACE_END(name);
-                        assert( out.actual == actual );
-                        rv = out.status;
+                    if ( actual == NULL ) {
+                        printf(" (_realNext skips %s)\n", name);
+                        continue;
                     }
-#endif
+                    if( actual == iter ){ // almost always...
+                        snprintf(name,80,"%s:%d:%s",pConv->region,iter_cnt,iter->shortname);
+                    }else{
+                        snprintf(name,80,"%s:%d:%s-->%s",pConv->region,iter_cnt,iter->shortname,actual->shortname);
+                    }
+                    FTRACE_BEGIN(name);
+                    // now we also want omp support, so we call via _Run, not via (*actual->impl)
+                    // (_Run also includes _realNext, but we call _realNext
+                    // explicitly for full info about what impl ran)
+                    c[0] = __cycle();
+                    vednnConvForward_out_t const out = vednnConvForward_Run( actual, FWD_PARMS, FWD_DATA );
+                    c[1] = __cycle();
+                    // ignore out.status  (hopefully VEDNN_SUCCESS)
+                    FTRACE_END(name);
+                    assert( out.actual == actual );
+                    rv = out.status;
+                    // --------------------------------------
+                    double t_ms = (c[1]-c[0]) * (1.0e3 / HZ);
                     //printf(" OK\n",name); fflush(stdout);
                     if (r == 0){
                         if( pConv->pParamIn->batch == 1 ) {
-                            printf(" batch 1 group=%d inChannel=%d outChannel=%d",
+                            printf(" mb%dg%dic%doc%d %9.3f ms",
+                                    (int)(pConv->pParamIn->batch),
                                     (int)(pConv->pParamConv->group),
                                     (int)(pConv->pParamIn->channel),
-                                    (int)(pConv->pParamOut->channel));
+                                    (int)(pConv->pParamOut->channel),
+                                    t_ms);
                         }
                         //pConv->cycle += c[1] - c[0]; // this is reserved for the libvednn time
                         //printf(" %s %llu cycles", name, c[1]-c[0]);
@@ -404,6 +352,8 @@ void testForward(struct param *pNetwork, int nEntry, double HZ, int flagBias, in
                         printf(" DIFF = %f", diff);
                         printf("\n");
                         fflush(stdout);
+                    }else{ // repetitions just print the time
+                        printf(" %9.3f ms %s\n", t_ms, name);
                     }
 
                     if(++iter_cnt>=100) ERROR_EXIT("run-away iter over ConvForward impls?");

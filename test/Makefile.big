@@ -35,7 +35,7 @@ mkfile_dir:=$(dir $(mkfile_path))
 THISMAKE:=$(MAKE) -C $(mkfile_dir) -f $(mkfile_path)
 ifeq ($(CC:ncc%=ncc),ncc)
 # Default to "left-over" build directories (historical default)
-# If you REMOVE the tarballs, we'll try an existing build into ../install:
+# If you REMOVE the tarballs, we'll try an existing build into ../install :
 VEDNN_SUBDIR:=../install
 # realpath would require dir to exist; so use abspath
 VEDNN_DIR:=$(abspath $(mkfile_dir)$(VEDNN_SUBDIR))
@@ -75,11 +75,11 @@ TARGETS:=vejit-unpack vednn-unpack cjitConv00-x86 cjitConv01-x86
 
 ifeq ($(CC:ncc%=ncc),ncc)
 TARGETS+=vednn_conv_test vednn_linear_test vednn_pool_test
+TARGETS+=cjitConv01# vejit demo
 # The following were all affected by the API change (filterLayout_t)
 TARGETS+=ve_simpleconv
-#TARGETS+=ve_cmpconv
-#TARGETS+=cjitConv01
-#TARGETS+=jitconv
+TARGETS+=ve_cmpconv
+TARGETS+=jitconv
 endif
 
 all: Hello mnist vejit-unpack vednn-unpack $(TARGETS) Goodbye
@@ -340,7 +340,7 @@ cjitConv00-x86: cjitConv00.cpp vejit vednn-unpack
 	$(CJITX86) $@.o -L./vejit/lib -Wl,-rpath,$(mkfile_dir)vejit/lib \
 		-ljit1-x86 -lveli-x86 -ldl -o $@
 	{ LD_DEBUG=libs LD_SHOW_AUXV=1 ./$@ || echo "Exit status $$?"; } 2>&1 | tee $@.log
-cjitConv00: cjitConv00.cpp vejit
+cjitConv00: cjitConv00.cpp vejit-unpack
 	$(CXX) --version
 	$(CJIT_CXX) -E $< -o $@.i
 	$(CJIT_CXX) -c $< -o $@.o
@@ -354,14 +354,14 @@ cjitConv00: cjitConv00.cpp vejit
 		#-ljit1 -lveli -o $@
 	nreadelf -d $@
 	{ ve_exec ./$@ || echo "Exit status $$?"; } 2>&1 | tee $@.log
-cjitConv01-x86: cjitConv01.cpp vejit
+cjitConv01-x86: cjitConv01.cpp vejit-unpack
 	$(CJITX86) -E $< -o $@.i
 	$(CJITX86) -c $< -o $@.o
 	@$(THISMAKE) cjit_vars
 	$(CJITX86) $@.o -L./vejit/lib -Wl,-rpath,$(mkfile_dir)vejit/lib \
 		-ljit1-x86 -lveli-x86 -ldl -o $@
 	{ ./$@ || echo "Exit status $$?"; } 2>&1 | tee $@.log
-cjitConv01: cjitConv01.cpp vejit
+cjitConv01: cjitConv01.cpp vejit-unpack
 	$(CJIT_CXX) -E $< -o $@.i
 	$(CJIT_CXX) -c $< -o $@.o
 	@$(THISMAKE) cjit_vars
@@ -409,7 +409,7 @@ libcjitConv-x86.so: cjitConv-x86.lo cjitConvFwd1-x86.lo cjitConvFwd1b-x86.lo cji
 	cjitConvFwd1q-x86.lo cjitConvFwd2-x86.lo cjitConvFwd3-x86.lo cjitConvFwd4-x86.lo \
 	cjitConvFwd5-x86.lo cjitConvFwd6-x86.lo ve_cvecops-x86.lo
 	$(CJITX86) $^ -fPIC -shared -o $@
-cjitConv02-x86: cjitConv02.cpp cjitConv-x86.o vejit
+cjitConv02-x86: cjitConv02.cpp cjitConv-x86.o vejit-unpack
 	$(CJITX86) -E $< -o $@.i
 	$(CJITX86) -c $< -o $@.o
 	@$(THISMAKE) cjit_vars
@@ -419,7 +419,7 @@ cjitConv02-x86: cjitConv02.cpp cjitConv-x86.o vejit
 		-ldl
 		# -static -Wl,-whole-archive -lvednn_sequential
 	{ ./$@ || echo "Exit status $$?"; } 2>&1 | tee $@.log
-cjitConv02: cjitConv02.cpp libcjitConv-ve.a vejit
+cjitConv02: cjitConv02.cpp libcjitConv-ve.a vejit-unpack
 	$(CJIT_CXX) -E $< -o $@.i
 	$(CJIT_CXX) -c $< -o $@.o
 	@$(THISMAKE) cjit_vars
@@ -435,7 +435,7 @@ cjitConv02: cjitConv02.cpp libcjitConv-ve.a vejit
 #-L$(VEDNNX_DIR)/lib -Wl,--start-group,--whole-archive -lvednnx$(VEDNN_SUFFIX) -Wl,--end-group,--no-whole-archive
 #-L$(VEDNNX_DIR)/lib -lvednnx$(VEDNN_SUFFIX) # but JIT fns might call into vednnx
 #-L./vejit/lib -Wl,-rpath,$(mkfile_dir)vejit/lib vejit/lib/libjit1.a
-#cjitConv01: cjitConv01.cpp vejit
+#cjitConv01: cjitConv01.cpp vejit-unpack
 #	$(CJIT_CXX) -E $< -o $@.i
 #	$(CJIT_CXX) -c $< -o $@.o
 #	$(CJIT_CXX) $@.o -L./vejit/lib -Wl,-rpath,$(mkfile_dir)vejit/lib \

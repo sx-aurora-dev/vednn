@@ -18,7 +18,8 @@ vednnConvolutionForward_wrapper(
 #ifndef VEDNN_USE_OPENMP
   return pFunc(VEDNN_CONVFWD_ARGS_LIST);
 #else
-  if ( __vednn_omp_num_threads == 1 ) {
+  int64_t allBatch = pParamIn->batch; // check as in vednnx
+  if (allBatch == 1 || __vednn_omp_num_threads == 1) {
     return pFunc(VEDNN_CONVFWD_ARGS_LIST);
   }else{
     vednnError_t rc = VEDNN_SUCCESS ;
@@ -26,8 +27,6 @@ vednnConvolutionForward_wrapper(
     {
       int64_t nthreads = omp_get_num_threads() ;
       int64_t threadid = omp_get_thread_num() ;
-
-      int64_t allBatch = pParamIn->batch ;
 
       int64_t nBatch = allBatch / nthreads ;
       int64_t remain = allBatch % nthreads ;

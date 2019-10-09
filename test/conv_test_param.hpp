@@ -12,7 +12,7 @@ struct OneConvBackwardFilter;
 struct OneConvForward final {
     testconvForward conv;
 
-    OneConvForward( struct param const *pNetwork, int const flagBias, int const verbose );
+    OneConvForward( struct param const *pNetwork, int const flagBias, filterLayout_t const filter_layout, int const verbose );
     ~OneConvForward();
     void doRef(); ///< run Reference Convolution
     int verbose() const {return v;}
@@ -20,6 +20,7 @@ struct OneConvForward final {
 
   private:
     int const flagBias;
+    filterLayout_t const filter_layout;
     int v;
     bool haveRef;
 };
@@ -27,13 +28,14 @@ struct OneConvForward final {
 struct OneConvBackwardData final {
     testconvBackwardData conv;
 
-    OneConvBackwardData( struct param const *pNetwork, int const verbose=1 );
+    OneConvBackwardData( struct param const *pNetwork, filterLayout_t const filter_layout, int const verbose=1 );
     ~OneConvBackwardData();
     void doRef(); ///< run Reference Convolution
     int verbose() const {return v;}
     void verbose(int const verbose) {v=verbose;}
 
   private:
+    filterLayout_t const filter_layout;
     int v;
     bool haveRef;
 };
@@ -41,13 +43,14 @@ struct OneConvBackwardData final {
 struct OneConvBackwardFilter final {
     testconvBackwardFilter conv;
 
-    OneConvBackwardFilter( struct param const *pNetwork, int const verbose=1 );
+    OneConvBackwardFilter( struct param const *pNetwork, filterLayout_t const filter_layout, int const verbose=1 );
     ~OneConvBackwardFilter();
     void doRef(); ///< run Reference Convolution
     int verbose() const {return v;}
     void verbose(int const verbose) {v=verbose;}
 
     private:
+    filterLayout_t const filter_layout;
     int v;
     bool haveRef;
 };
@@ -56,15 +59,15 @@ struct OneConvBackwardFilter final {
 // ------------------ impls --------------------------
 //
 
-inline OneConvForward::OneConvForward( struct param const *pNetwork, int const flagBias, int const verbose)
-    : conv(), flagBias(flagBias), v(verbose), haveRef(false)
+inline OneConvForward::OneConvForward( struct param const *pNetwork, int const flagBias, filterLayout_t const filter_layout, int const verbose)
+    : conv(), flagBias(flagBias), filter_layout(filter_layout), v(verbose), haveRef(false)
 {
     assert(pNetwork);
     testconvForward_init( &conv );
     if(strlen(pNetwork->pName)) strncpy(conv.region, pNetwork->pName, 128);
     else snprintf(conv.region, 128, "test:Fwd%s", (flagBias?"B":""));
     snprintf(conv.ref_region, 128, "<gemm:Fwd%s>%s", (flagBias?"B":""), conv.region);
-    testconvForward_alloc( &conv, pNetwork, flagBias );
+    testconvForward_alloc( &conv, pNetwork, flagBias, filter_layout );
     testconvForward_randomData( &conv, flagBias );
     if(v) testconvForward_dumpParms( &conv, flagBias );
 }
@@ -77,15 +80,15 @@ inline void OneConvForward::doRef(){ // run Reference Convolution
     haveRef = true;
 }
 
-inline OneConvBackwardData::OneConvBackwardData( struct param const *pNetwork, int const verbose/*=1*/ )
-    : conv(), v(verbose), haveRef(false)
+inline OneConvBackwardData::OneConvBackwardData( struct param const *pNetwork, filterLayout_t const filter_layout, int const verbose/*=1*/ )
+    : conv(), filter_layout(filter_layout), v(verbose), haveRef(false)
 {
     assert(pNetwork);
     testconvBackwardData_init( &conv );
     if(strlen(pNetwork->pName)) strncpy(conv.region, pNetwork->pName, 128);
     else snprintf(conv.region, 128, "test:BkwD");
     snprintf(conv.ref_region, 128, "<gemm:BkwD>%s", conv.region);
-    testconvBackwardData_alloc( &conv, pNetwork );
+    testconvBackwardData_alloc( &conv, pNetwork, filter_layout );
     testconvBackwardData_randomData( &conv );
     if(v) testconvBackwardData_dumpParms( &conv );
 }
@@ -98,15 +101,15 @@ inline void OneConvBackwardData::doRef(){ // run Reference Convolution
     haveRef = true;
 }
 
-inline OneConvBackwardFilter::OneConvBackwardFilter( struct param const *pNetwork, int const verbose/*=1*/ )
-    : conv(), v(verbose), haveRef(false)
+inline OneConvBackwardFilter::OneConvBackwardFilter( struct param const *pNetwork, filterLayout_t const filter_layout, int const verbose/*=1*/ )
+    : conv(), filter_layout(filter_layout), v(verbose), haveRef(false)
 {
     assert(pNetwork);
     testconvBackwardFilter_init( &conv );
     if(strlen(pNetwork->pName)) strncpy(conv.region, pNetwork->pName, 128);
     else snprintf(conv.region, 128, "test:BkwF");
     snprintf(conv.ref_region, 128, "<gemm:BkwF>%s", conv.region);
-    testconvBackwardFilter_alloc( &conv, pNetwork );
+    testconvBackwardFilter_alloc( &conv, pNetwork, filter_layout );
     testconvBackwardFilter_randomData( &conv );
     if(v) testconvBackwardFilter_dumpParms( &conv );
 }

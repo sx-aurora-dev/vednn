@@ -28,6 +28,8 @@ extern "C" {
  *   same as the unexposed wrapper inside of libvednn itself.
  *   - run arguments follow the libvednn.h public order, and use macros
  *     to reorder to the args used by libvednn internal impls.
+ *   - openmp wrapper is similar to src/C/ wrappers, multi-threading ONLY
+ *     over \e minibatch
  *
  * Usage overview:
  *
@@ -36,6 +38,7 @@ extern "C" {
  *       followed by the normal \ref vednn.h parameters.
  *     - XXX_Run just calls the appropriate low-level impl, re-ordering
  *       parameters as required (and doing openmp parallelization)
+ *     - (to know full details, you might still call \b _realNext followed by \b _Run)
  *
  * Note: for use in external projects like mkl-dnn [gen-dnn, for Aurora],
  *       the _ok and _rtok functions and the raw impl lists must be

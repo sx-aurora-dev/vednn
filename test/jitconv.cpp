@@ -35,6 +35,25 @@ static inline int check_control_c() {
 }
 }
 
+#if 0 // unused
+static std::string getPath() {
+    long const sz = pathconf(".",_PC_PATH_MAX); // assume we are interested cwd
+    if(sz<=0) THROW("Invalid max path length?");
+    char* const temp=(char*)malloc((size_t)sz);
+    if(temp==nullptr) THROW("Out of memory");
+    if ( getcwd(temp, sz) != 0) 
+        return std::string(temp);
+    int error = errno;
+    switch ( error ) {
+        // sz>0 alreay checked (no EINVAL)
+        // PATH_MAX includes the terminating nul (no ERANGE)
+      case EACCES: THROW("Access denied");
+      case ENOMEM: THROW("Insufficient storage"); // is this possible?
+      default: THROW("Unrecognised errno="<<error);
+    }
+}
+#endif
+
 struct CacheKiller {
     CacheKiller()
         : data(1000000) // go through 8M data
@@ -79,22 +98,6 @@ struct CacheKiller {
 };
 volatile bool CacheKiller::enable = false;
 
-static std::string getPath() {
-    long const sz = pathconf(".",_PC_PATH_MAX); // assume we are interested cwd
-    if(sz<=0) THROW("Invalid max path length?");
-    char* const temp=(char*)malloc((size_t)sz);
-    if(temp==nullptr) THROW("Out of memory");
-    if ( getcwd(temp, sz) != 0) 
-        return std::string(temp);
-    int error = errno;
-    switch ( error ) {
-        // sz>0 alreay checked (no EINVAL)
-        // PATH_MAX includes the terminating nul (no ERANGE)
-      case EACCES: THROW("Access denied");
-      case ENOMEM: THROW("Insufficient storage"); // is this possible?
-      default: THROW("Unrecognised errno="<<error);
-    }
-}
 /** return list of jit symbols (Forward convolutions->libcjitConv.so).
  * caller must cjitSyms_free(return value) */
 static CjitSyms const* getForwardJitSymbols(struct param const* pNetwork, int nEntry, int const flagBias)
@@ -133,7 +136,7 @@ static CjitSyms const* getForwardJitSymbols(struct param const* pNetwork, int nE
     return allsyms;
 }
 
-void testForward(struct param *pNetwork, int nEntry, double HZ, int flagBias, int flagCSV, int reps)
+void testForward(struct param *pNetwork, int nEntry, double HZ, int flagBias, int flagCSV, int reps, filterLayout_t filter_layout)
 {
     static int const doRef = 1; // do ref gemm calc
     static int const doStd = 1; // do libvednn default calc
@@ -164,7 +167,7 @@ void testForward(struct param *pNetwork, int nEntry, double HZ, int flagBias, in
             break;
         }
         struct param *pNw = &pNetwork[t];
-        OneConvForward wrk( pNw, flagBias, 1/*verbose*/ );
+        OneConvForward wrk( pNw, flagBias, filter_layout, 1/*verbose*/ ); // this allocates and initializes too (ease-of-use)
         testconvForward *pConv = &wrk.conv;
         char pNw_param_cstr[100];
         param_cstr_short(pNw,pNw_param_cstr,100);
@@ -275,6 +278,7 @@ void testForward(struct param *pNetwork, int nEntry, double HZ, int flagBias, in
                 char name[80];
 
                 // Convolution
+#if 0
                 if ( flagBias ) {
                     // use parameters and args, split according to order of libvednn public api.
                     // I.e. \c vednnConvolutionForwardAddBias call as defined in \ref vednn.h
@@ -359,26 +363,22 @@ void testForward(struct param *pNetwork, int nEntry, double HZ, int flagBias, in
 
                         if(++iter_cnt>=100) ERROR_EXIT("run-away iter over ConvForwardBias impls?");
                     }
-                }else{
-                    // original args for vednn.h call:
-                    //pConv->pParamIn,         pConv->pDataIn,
-                    //pConv->pParamKernel,     pConv->pDataKernel,
-                    //pConv->pParamOut,        pConv->pDataOut,
-                    //pConv->pParamConv,
-                    //VEDNN_CONV_ALGORITHM_DIRECT
+                }
+                else
+#endif
+                {
 #define FWD_PARMS \
                     /* */ pConv->pParamIn,     \
                     /* */ pConv->pParamKernel, \
+                    /* */ pConv->pParamBias, \
                     /* */ pConv->pParamOut,    \
                     /* */ pConv->pParamConv,   \
                     /* */ VEDNN_CONV_ALGORITHM_DIRECT
 #define FWD_DATA \
                     /* */                      pConv->pDataIn, \
                     /* */                      pConv->pDataKernel, \
+                    /* */                      pConv->pDataBias, \
                     /* */                      pConv->pDataOut
-                    // libvednnx "iterator over impls"
-                    // 1 i            printf(" t%ld", (long)omp_get_num_threads()); fflush(stdout);
-                    // What you want: printf(" t%ld", (long)omp_get_max_threads()); fflush(stdout);
                     int iter_cnt=0;
                     for (vednnConvForwardImpls * iter = vednnConvForward_Begin(FWD_PARMS);
                             iter->okfn != NULL;
@@ -636,7 +636,7 @@ void testForward(struct param *pNetwork, int nEntry, double HZ, int flagBias, in
     cjitSyms_free(allsyms); allsyms=nullptr;
 }
 
-void testBackwardData(struct param *pNetwork, int nEntry, double HZ, int flagCSV, int reps)
+void testBackwardData(struct param *pNetwork, int nEntry, double HZ, int flagCSV, int reps, filterLayout_t filter_layout)
 {
     static int const doRef = 1; // do ref gemm calc
     static int const doStd = 1; // do libvednn default calc
@@ -650,7 +650,7 @@ void testBackwardData(struct param *pNetwork, int nEntry, double HZ, int flagCSV
     for (t=0; t<nEntry; ++t) {
         cout<<"+++ entry "<<t<<" of nEntry="<<nEntry;
         struct param *pNw = &pNetwork[t];
-        OneConvBackwardData wrk( pNw, 1/*verbose*/ );
+        OneConvBackwardData wrk( pNw, filter_layout, 1/*verbose*/ );
         testconvBackwardData * const pConv = &wrk.conv;
         char pNw_param_cstr[100];
         param_cstr_short(pNw,pNw_param_cstr,100);
@@ -862,7 +862,7 @@ void testBackwardData(struct param *pNetwork, int nEntry, double HZ, int flagCSV
     for (t=0; t<nEntry; ++t) {
         conv *pConv = &pConvBuff[t];
         struct param *pNw  = &pNetwork[t];
-        testconvBackwardData_alloc(pConv, pNw);
+        testconvBackwardData_alloc(pConv, pNw, filter_layout);
         testconvBackwardData_randomData( pConv );
     }
 
@@ -908,7 +908,7 @@ void testBackwardData(struct param *pNetwork, int nEntry, double HZ, int flagCSV
 #endif
 }
 
-void testBackwardFilter(struct param *pNetwork, int nEntry, double HZ, int flagCSV, int reps)
+void testBackwardFilter(struct param *pNetwork, int nEntry, double HZ, int flagCSV, int reps, filterLayout_t filter_layout)
 {
     int t;
     typedef struct testconvBackwardFilter conv;
@@ -925,7 +925,7 @@ void testBackwardFilter(struct param *pNetwork, int nEntry, double HZ, int flagC
     for (t=0; t<nEntry; ++t) {
         conv *pConv = &pConvBuff[t];
         struct param *pNw  = &pNetwork[t];
-        testconvBackwardFilter_alloc( pConv, pNw );
+        testconvBackwardFilter_alloc( pConv, pNw , filter_layout);
         testconvBackwardFilter_randomData( pConv );
     }
 
@@ -987,6 +987,14 @@ static struct {
     //    { "BackwardBias", CONV_TEST_BACKWARD_BIAS } ,   // not implemented
 };
 
+static struct {
+    char const* pName;
+    filterLayout_t   layouttype;
+} filterLayout[] = {
+    { "filter_nchw",    VEDNN_FILTER_LAYOUT_NCHW } ,
+    { "filter_hwcn",    VEDNN_FILTER_LAYOUT_HWCN }
+};
+
 char const* default_parameter_file="mb27g1_ic3ih27iw270_oc47oh14ow135_kh3kw3_ph1pw1_sw2sh2_dw1dh1";
 // oc47 ~ 47=0x2f : this many outChannelGroups will check many hand-unrolled code cases
 static void help(){
@@ -1017,6 +1025,8 @@ static void help(){
             "\n             Jit build creates SUBDIR/libcjitConv.so"
             "\n   -w WLIB   TODO: **after** jit build, update WLIB.a with SUBDIR/tmp_cjitConv.a symbols"
             "\n   -k        enable cacheKiller before every timed call"
+            "\n   -f STRING filter layout: [filter_nchw] filter_hwcn"
+            "\n               Note: current JIT impls assume filter_nchw (iohw) kernel data"
             "\n PATH file format:"
             "\n   First line: number of tests"
             "\n   Test lines: either libvednn CSV format (name,mb,g, ic,ih,iw, oc,oh,ow, kh,kw, sh,sw, ph,pw)"
@@ -1113,6 +1123,7 @@ int main(int argc, char **argv)
     int reps         = 1 ;
     int threads      = 1 ; /* set to -ve to repeat for 0..8 threads */
     char m_for_mkldnn = 'v';
+    filterLayout_t filter_layout = VEDNN_FILTER_LAYOUT_NCHW;
 
     const rlim_t kStackSize = 16 * 1024 * 1024;   // min stack size = 16 MB
     struct rlimit rl;
@@ -1164,7 +1175,7 @@ int main(int argc, char **argv)
     };
     vector<string> ldlibs; // load libraries [if problems, report and continue]
     while(optind < argc){
-        if ((opt = getopt(argc, argv, "p:M:CH:T:t:r:l:S:k")) != -1) {
+        if ((opt = getopt(argc, argv, "p:M:CH:T:t:r:l:S:kf:")) != -1) {
             switch (opt) {
             case 'M':
                 m_for_mkldnn = 'm'; // fall-through
@@ -1194,6 +1205,21 @@ int main(int argc, char **argv)
                     }
                 }
                 break;
+            case 'f' :
+                {
+                    int found = 0;
+                    for (int i=0; i<sizeof(filterLayout)/sizeof(filterLayout[0]); i++) {
+                        if (strcasecmp(optarg, filterLayout[i].pName) == 0) {
+                            filter_layout= filterLayout[i].layouttype ;
+                            found = 1;
+                            break;
+                        }
+                    }
+                    if (! found )  {
+                        fprintf(stderr, "Invalid filter layout.\n");
+                        exit(1);
+                    }
+                }
             case 't':
                 threads = atof(optarg);
                 if(threads > 16) threads = 16;
@@ -1244,6 +1270,7 @@ int main(int argc, char **argv)
     
     printf("CONVOLUTION TEST TYPE    = %s\n",       tests[testtype].pName) ;
     printf("PROCESSOR CORE FREQUENCY = %.3e HZ\n", HZ);
+    printf("FILTER LAYOUT            = %s\n",      filterLayout[filter_layout].pName) ;
     printf("PARAMETER FILE           = %s\n",      pParamPath);
     if(jit_dir) printf("JIT SUBDIR               = %s\n",      jit_dir);
     printf(" setting params...\n"); fflush(stdout);
@@ -1320,16 +1347,16 @@ int main(int argc, char **argv)
 #endif
         switch(testtype) {
         case CONV_TEST_FORWARD :
-            testForward(pParams, nParams, HZ, 0, flagCSV, reps);
+            testForward(pParams, nParams, HZ, 0, flagCSV, reps, filter_layout);
             break ;
         case CONV_TEST_FORWARD_ADDBIAS :
-            testForward(pParams, nParams, HZ, 1, flagCSV, reps);
+            testForward(pParams, nParams, HZ, 1, flagCSV, reps, filter_layout);
             break ;
         case CONV_TEST_BACKWARD_DATA :
-            testBackwardData(pParams, nParams, HZ, flagCSV, reps);
+            testBackwardData(pParams, nParams, HZ, flagCSV, reps, filter_layout);
             break ;
         case CONV_TEST_BACKWARD_FILTER :
-            testBackwardFilter(pParams, nParams, HZ, flagCSV, reps);
+            testBackwardFilter(pParams, nParams, HZ, flagCSV, reps, filter_layout);
             break ;
         default :
             break ;
