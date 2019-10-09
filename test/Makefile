@@ -1,77 +1,45 @@
-FTRACE=YES
-OPENMP=YES
-VEDNN_DIR=../install
+FTRACE:=YES
+OPENMP:=YES
+VE_BIN_DIR=/opt/nec/ve/bin
+CC=$(VE_BIN_DIR)/ncc
 
-# If no tarballs, just use ../build/ as usual
-# Otherwise unpack an appropriate tarball into a local VEDNN_DIR
-ifeq ($(FTRACE),YES)
-TGZ:=$(wildcard ../vednn-ftrace1.tar.gz)
-ifneq (,$(TGZ))
-VEDNN_DIR:=./vednn-ftrace1
-endif
-else
-TGZ:=$(wildcard ../vednn.tar.gz)
-ifneq (,$(TGZ))
-VEDNN_DIR:=./vednn
-endif
-endif
+
+# Supply a vednn-unpack target and add it to 'all' target
+# Set variables:
+# 	VEDNN_DIR vednn install directory, ex. ../install
+# 	LIBVEDNN  libvednn library name, ex. vednn_openmp
+# More info in the .mk file
+include vednn-unpack.mk
+
 
 TARGETS:=vednn_conv_test vednn_linear_test vednn_pool_test
 .PHONY: Makefile all vars
-all: vars $(VEDNN_DIR) $(TARGETS)
+all: $(TARGETS)
 demo: all
 	{ ./vednn_conv_test -H 8e8 -p params/conv/alexnet.txt -T ConvForward; ftrace; \
 		./vednn_linear_test -H 0.8e9 -p params/linear/alexnet.txt -T LinearForward; ftrace; \
 		./vednn_pool_test   -H 0.8e9 -p params/pool/alexnet.txt   -T MaxPoolForward; ftrace; \
 		} 2>&1 | tee mk-test.log
-vars:
-	echo 'TGZ = $(TGZ)'
-	echo 'VEDNN_DIR = $(VEDNN_DIR)'
-#$(TARGETS):| $(VEDNN_DIR) # another way to say we need VEDNN_DIR
-
-./vednn-ftrace1: ../vednn-ftrace1.tar.gz
-	rm -rf tmp-vft1; mkdir tmp-vft1
-	cd tmp-vft1 && tar xzmf ../$^
-	rm -rf $@; mv tmp-vft1/vednn $@; rm -rf tmp-vft1
-	ls -l $@/lib $^
-./vednn: ../vednn.tar.gz
-	rm -rf tmp-v; mkdir tmp-v
-	cd tmp-v && tar xzmf ../$^
-	rm -rf $@; mv tmp-v/vednn $@; rm -rf tmp-v
-	ls -l $@/lib $^
-.PRECIOUS: ../build ../install
-../build:
-	@echo '../build does not exist. Running cmake build of libvednn.'
-	(cd .. && mkdir build && cd build && cmake ..)
-../install: ../build
-	@echo 'Local ../install out-of-date. Running local install from ../build dir.'
-	-$(MAKE) -C ../build -j6 install PREFIX=$@
-	-ls -l $@
 
 SRCS	= vednn_conv_test.c vednn_linear_test.c vednn_pool_test.c vednn_helper.c convolution_gemm.c linear_gemm.c maxpooling.c
 OBJS	= $(SRCS:%.c=%.o)
 
-VE_BIN_DIR	= /opt/nec/ve/bin
-
-CC	= $(VE_BIN_DIR)/ncc
 COPTS	= -O4 -finline-functions -traceback -report-all -Wall -assembly-list
 CFLAGS	= $(COPTS)
 LDLIBS	= $(COPTS) -lm
-AR	= $(AURORA_BIN_DIR)/nar
+AR	= $(VE_BIN_DIR)/nar
 
 BLAS_DIR	= /opt/nec/ve/nlc/1.0.0
 BLAS_INC_DIR	= $(BLAS_DIR)/include
 BLAS_LIB_DIR	= $(BLAS_DIR)/lib
 CFLAGS		+= -I$(BLAS_INC_DIR) 
-
 CFLAGS	+= -I${VEDNN_DIR}/include
+LDLIBS	+= -L${VEDNN_DIR}/lib -l${LIBVEDNN}
 
 ifeq ($(OPENMP),YES)
-LDLIBS	+= -L${VEDNN_DIR}/lib -lvednn_openmp
 LDLIBS  += -L$(BLAS_LIB_DIR) -lblas_openmp
 LDLIBS  += -fopenmp
 else
-LDLIBS	+= -L${VEDNN_DIR}/lib -lvednn_sequential
 LDLIBS	+= -L$(BLAS_LIB_DIR) -lblas_sequential
 endif
 
@@ -86,6 +54,15 @@ vednn_pool_test : vednn_pool_test.o vednn_helper.o maxpooling.o
 
 clean:
 	rm -f $(OBJS) $(TARGETS) *.L *.O *.s ftrace.out *~
-realclean: clean	
+clean_subdirs: # get rid of unpacked tarballs (if any)
+	for d in vejit vednn vednn-ftrace1 mnist \
+		tmp_cjitConv tmp_cjitConv01 z.dir \
+		; do \
+		if [ -d "$${d}" ]; then \
+		echo "Removing subdir $${d}"; \
+		chmod -R ugo+rw "$${d}"; rm -rf "$${d}"; \
+		fi; \
+		done;
+realclean: clean clean_subdirs
 	rm -rf ./vednn-ftrace1 ./vednn
 #

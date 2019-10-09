@@ -10,68 +10,33 @@
 # We also support a 'default' a ../install vednn location for backward compatibility
 FTRACE=YES
 OPENMP=YES
+# CC from environment
 
-LIBSUFFIX:=
-VEDNN_SUFFIX:=
+
+# auto-supplies vednn-unpack as 'all' dependency (../install if no tarballs, else a local subdir)
+include vednn-unpack.mk
+
+
+
+LIBJIT_SUFFIX:=
 ifeq (${OPENMP},YES)
-LIBSUFFIX:=${LIBSUFFIX}_omp
-VEDNN_SUFFIX:=${VEDNN_SUFFIX}_openmp
-else
-VEDNN_SUFFIX:=${VEDNN_SUFFIX}_sequential
+LIBJIT_SUFFIX:=${LIBJIT_SUFFIX}_omp
 endif
 ifeq (${FTRACE},YES)
-LIBSUFFIX:=${LIBSUFFIX}_ft
+LIBJIT_SUFFIX:=${LIBJIT_SUFFIX}_ft
 endif
-
 # libjit1 basename:
-LIBJIT:=jit1${LIBSUFFIX}
+LIBJIT:=jit1${LIBJIT_SUFFIX}
 LIBJITX86=${LIBJIT}-x86
-
-# libvednn basename:
-LIBVEDNN=vednn${VEDNN_SUFFIX}
 
 mkfile_path:=$(abspath $(lastword $(MAKEFILE_LIST)))
 mkfile_dir:=$(dir $(mkfile_path))
 THISMAKE:=$(MAKE) -C $(mkfile_dir) -f $(mkfile_path)
-ifeq ($(CC:ncc%=ncc),ncc)
-# Default to "left-over" build directories (historical default)
-# If you REMOVE the tarballs, we'll try an existing build into ../install :
-VEDNN_SUBDIR:=../install
-# realpath would require dir to exist; so use abspath
-VEDNN_DIR:=$(abspath $(mkfile_dir)$(VEDNN_SUBDIR))
-VEDNNX_DIR:=$(VEDNN_DIR)
 
 VE_BIN_DIR := /opt/nec/ve/bin
 AR := $(VE_BIN_DIR)/nar
-
-# But prefer to unpack an appropriate tarball into a local VEDNN_DIR
-ifeq ($(FTRACE),YES)
-TGZ:=$(wildcard $(mkfile_dir)../vednnx-ftrace1.tar.gz)
-ifneq (,$(TGZ))
-VEDNN_SUBDIR:=vednn-ftrace1
-VEDNN_DIR:=$(mkfile_dir)vednn-ftrace1
-VEDNNX_DIR:=$(VEDNN_DIR)
-TGZ:=$(realpath $(TGZ))
-endif
-else
-TGZ:=$(wildcard $(mkfile_dir)../vednnx.tar.gz)
-ifneq (,$(TGZ))
-VEDNN_SUBDIR:=vednn
-VEDNN_DIR:=$(mkfile_dir)vednn
-VEDNNX_DIR:=$(VEDNN_DIR)
-TGZ:=$(realpath $(TGZ))
-endif
-endif
-
-else # assume x86
-VEDNN_SUBDIR:= vednn
-VEDNN_DIR:=$(mkfile_dir)vednn
-VEDNNX_DIR:=$(VEDNN_DIR)
-#AR  default is ok
-endif
-
 .PHONY: Makefile Makefile.big Makefile.tiny all Hello Goodbye vejit-unpack vednn-unpack unpack force
-TARGETS:=vejit-unpack vednn-unpack cjitConv00-x86 cjitConv01-x86
+TARGETS:=vejit-unpack cjitConv00-x86 cjitConv01-x86
 
 ifeq ($(CC:ncc%=ncc),ncc)
 TARGETS+=vednn_conv_test vednn_linear_test vednn_pool_test
@@ -82,7 +47,7 @@ TARGETS+=ve_cmpconv
 TARGETS+=jitconv
 endif
 
-all: Hello mnist vejit-unpack vednn-unpack $(TARGETS) Goodbye
+all: Hello mnist vejit-unpack $(TARGETS) Goodbye
 redo: unpack all	
 help:
 	@echo 'Other targets:'
@@ -102,51 +67,6 @@ help:
 	@echo 'gen-dnn.log    run 204 gen-dnn.txt real-world convolution'
 	@echo '               tests [lengthy]'
 	
-ifeq ($(CC:ncc%=ncc),ncc)
-ifneq ($(TGZ),)	 #
-./vednn: ../vednnx.tar.gz
-	rm -rf tmp-v; mkdir tmp-v
-	cd tmp-v && tar xzmf ../$^
-	rm -rf $@; mv tmp-v/vednnx $@; rm -rf tmp-v
-	touch $@; chmod -R ugo-w $@;
-	ls -l $@/lib $^
-./vednn-ftrace1: ../vednnx-ftrace1.tar.gz
-	rm -rf tmp-vft1; mkdir tmp-vft1
-	cd tmp-vft1 && tar xzmf ../$^
-	rm -rf $@; mv tmp-vft1/vednnx $@; rm -rf tmp-vft1
-	touch $@; chmod -R ugo-w $@;
-	ls -l $@/lib $^
-vednn-unpack:
-	if [ -d '$(VEDNN_SUBDIR)' ]; then chmod -R ugo+rw '$(VEDNN_SUBDIR)'; rm -rf '$(VEDNN_SUBDIR)'; fi
-	if [ ! -z "$(VEDNN_SUBDIR)" ]; then \
-		@echo 'VEDNN_SUBDIR "$(VEDNN_SUBDIR)" being remade'; \
-		$(THISMAKE) ./$(VEDNN_SUBDIR); \
-	fi
-else # use the default ../build of libvednn + libvednnx
-.PRECIOUS: ../build ../install
-../build:
-	@echo '../build does not exist. Running cmake build of libvednn.'
-	(cd .. && mkdir build && cd build && cmake ..)
-../install: | ../build
-	@echo 'Local ../install out-of-date. Running local install from ../build dir.'
-	-$(MAKE) -C ../build -j6 install PREFIX=../install
-	-ls -l $@
-../install/lib/lib$(LIBVEDNN).a: | ../install
-	if [ -f "$@" ]; then $(MAKE) --touch $@; \
-		else echo "Ohoh. Did not create expected lib $@"; fi
-vednn-unpack: ../install/lib/lib$(LIBVEDNN).a
-endif	
-else
-./vednn:
-	echo "------- x86 version of vednn/ ---------------- "
-	rm -rf tmp-v; mkdir tmp-v; mkdir tmp-v/include
-	cp -uav ../src/vednn.h tmp-v/include/ \
-		&& cp -uav ../src/wrap/vednnx.h tmp-v/include/ \
-		&& mkdir tmp-v/include/wrap && cp -uav ../src/wrap/vednn[^x]*.h tmp-v/include/wrap/ \
-		&& mkdir tmp-v/include/C && cp -uav ../src/C/*.h tmp-v/include/C/ \
-		&& ls -lrRst tmp-v
-	rm -rf $@; mv -v tmp-v $@; rm -rf tmp-v
-endif
 unpack: vejit-unpack vednn-unpack
 
 CONVGEMM := convolution_gemm
@@ -304,7 +224,7 @@ cjit_vars:
 	@echo "CXXFLAGS      ${CXXFLAGS}"
 	@echo "CJIT_OPTS     ${CJIT_OPTS}"
 	@echo "LIBJIT        ${LIBJIT}"
-	@echo "LIBSUFFIX     ${LIBSUFFIX}"
+	@echo "LIBJIT_SUFFIX ${LIBJIT_SUFFIX}"
 	@echo "CJIT_CXX      ${patsubst $(CJIT_OPTS),*CJIT_OPTS*,$(CJIT_CXX)}"
 	@echo "CJIT_CC       ${patsubst $(CJIT_OPTS),*CJIT_OPTS*,$(CJIT_CC)}"
 	@echo "CJITX86       ${patsubst $(CJIT_OPTS),*CJIT_OPTS*,$(CJITX86)}"

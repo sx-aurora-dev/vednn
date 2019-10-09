@@ -957,7 +957,7 @@ static struct {
 };
 
 static struct {
-    char *pName;
+    char const* pName;
     filterLayout_t   layouttype;
 } filterLayout[] = {
     { "filter_nchw",	VEDNN_FILTER_LAYOUT_NCHW } ,
@@ -973,7 +973,7 @@ int main(int argc, char **argv)
     char *pParamPath = NULL ;
     double HZ        = 0.0 ;
     int testtype     = 0 ;
-    filterLayout_t filter_layout= 0 ;
+    filterLayout_t filter_layout= VEDNN_FILTER_LAYOUT_NCHW/*0*/ ;
     int flagCSV	     = 0 ;
 
     int flagNoMkConsistent = 0 ;
