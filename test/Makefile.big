@@ -11,6 +11,7 @@
 FTRACE=YES
 OPENMP=YES
 # CC from environment
+COMPILE_TYPE:=$(word 1,$(shell $(CC) --version 2>&1))
 
 mkfile_path:=$(abspath $(lastword $(MAKEFILE_LIST)))
 mkfile_dir:=$(dir $(mkfile_path))
@@ -39,7 +40,7 @@ AR := $(VE_BIN_DIR)/nar
 .PHONY: Makefile Makefile.big Makefile.tiny all Hello Goodbye vejit-unpack vednn-unpack unpack force
 TARGETS:=vejit-unpack cjitConv00-x86 cjitConv01-x86
 
-ifeq ($(CC:ncc%=ncc),ncc)
+ifeq ($(COMPILE_TYPE),ncc)
 TARGETS+=vednn_conv_test vednn_linear_test vednn_pool_test
 TARGETS+=cjitConv01# vejit demo
 # The following were all affected by the API change (filterLayout_t)
@@ -178,7 +179,7 @@ Goodbye:
 vejit-clean:
 	-if [ -d vejit ]; then chmod -R ugo+rw vejit; rm -rf vejit; fi
 	-ls -ld vejit
-ifeq ($(CC:ncc%=ncc),ncc)
+ifeq ($(COMPILE_TYPE),ncc)
 VEJIT_TARBALL:= ../vejit.tar.gz
 else
 VEJIT_TARBALL:= ../vejit-x86.tar.gz	
@@ -198,7 +199,7 @@ vejit: $(VEJIT_TARBALL)      		# This rull ALWAYS unpacks the tarball
 	@if [ -f '$(VEJIT_STAMPFILE)' ]; then echo 'touching $(VEJIT_STAMPFILE)'; \
 		touch '$(VEJIT_STAMPFILE)'; \
 		fi # touch a file, not a directory
-ifeq ($(CC:ncc%=ncc),ncc)
+ifeq ($(COMPILE_TYPE),ncc)
 	# this is a larger build of const sources, so try to build it just once
 	# # this is a workaround for dynamic linker bugs with C++ dynamic libs
 	# Now I distribute this in tarball too.

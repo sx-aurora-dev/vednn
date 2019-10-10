@@ -20,6 +20,7 @@
 # current FTRACE and OPENMP settings, which might not be desired
 # Tarball generation can be quite slow.
 #
+COMPILE_TYPE:=$(word 1,$(shell $(CC) --version 2>&1))
 
 .PHONY: all vednn-unpack vednn-unpack_vars
 all: vednn-unpack vednn-unpack_vars
@@ -49,8 +50,9 @@ VEDNN_DIR:=$(abspath $(myfile_dir)$(VEDNN_SUBDIR))
 VEDNNX_DIR:=$(VEDNN_DIR)
 VEDNN_DIR=../install
 
-ifeq ($(CC:ncc%=ncc),ncc)
-ifneq ($(TGZ),)
+ifeq ($(COMPILE_TYPE),ncc)
+ifneq ($(TGZ),)           #111111111
+$(warning ncc compile -- libvednn from tarball $(TGZ))
 ifeq ($(OPENMP),YES)
 VEDNN_SUFFIX:=_openmp
 else
@@ -83,6 +85,7 @@ vednn-rebuild: ../vednnx.tar.gz
 	@# this is a less nice target, that regenerates tarballs -- QUITE SLOW
 	$(MAKE_UNPACK) vednn-unpack
 else
+$(warning ncc compile -- using ../build and ../install default libvednn [openmp no ftrace])
 	# non-tarball install : default ../build is [openmp, no ftrace]
 VEDNN_SUFFIX:=_openmp
 LIBVEDNN:=vednn$(VEDNN_SUFFIX)
@@ -104,7 +107,9 @@ vednn-rebuild: ../build
 	@echo 'Updating local ../install from ../build dir.'
 	-$(MAKE) -C $(myfile_dir)/../build -j6 install PREFIX=../install
 endif	
-else
+else #------------ x86?
+$(warning CC = $(CC))
+$(warning x86 compile -- no VE targets can be built, but headers still available for compile checks)
 # for x86 compile checks, grab headers into ../install
 ./vednn/include/vednn.h:
 	echo "------- x86 version of vednn/ ---------------- "
@@ -116,7 +121,7 @@ else
 		&& ls -lrRst tmp-v
 	rm -rf $@; mv -v tmp-v $@; rm -rf tmp-v
 vednn-unpack: ./vednn/include/vednn.h
-endif
+endif #------------ x86?
 
 vednn-unpack_vars:
 	@echo 'LIBVEDNN            = ${LIBVEDNN}'

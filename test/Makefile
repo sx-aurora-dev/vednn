@@ -2,6 +2,8 @@ FTRACE:=YES
 OPENMP:=YES
 VE_BIN_DIR=/opt/nec/ve/bin
 CC=$(VE_BIN_DIR)/ncc
+COMPILE_TYPE:=$(word 1,$(shell $(CC) --version 2>&1))
+$(if $(COMPILE_TYPE),,$(error could not determine C compiler type?)) # VE(ncc) vs x86(gcc or ...)
 
 
 # Supply a vednn-unpack target and add it to 'all' target
@@ -14,7 +16,12 @@ include vednn-unpack.mk
 
 TARGETS:=vednn_conv_test vednn_linear_test vednn_pool_test
 .PHONY: Makefile all vars
-all: $(TARGETS)
+all: vars $(TARGETS)
+vars:
+	echo 'COMPILE_TYPE      $(COMPILE_TYPE)'
+	echo 'LIBVEDNN          $(LIBVEDNN)'
+	echo 'MAKECMDGOALS      $(MAKECMDGOALS)'
+	echo 'first             $(word 1,$(MAKECMDGOALS))'
 demo: all
 	{ ./vednn_conv_test -H 8e8 -p params/conv/alexnet.txt -T ConvForward; ftrace; \
 		./vednn_linear_test -H 0.8e9 -p params/linear/alexnet.txt -T LinearForward; ftrace; \
