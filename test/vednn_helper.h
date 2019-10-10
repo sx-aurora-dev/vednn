@@ -1,11 +1,18 @@
-
 #ifndef TEST_VEDNN_HELPER_H_
 #define TEST_VEDNN_HELPER_H_
 
-#include <vednn.h>
+#include "vednn.h"
 
 #include <stddef.h>
 #include <stdio.h>
+
+#ifdef __cplusplus
+extern "C" {
+// not sure about next condition (has it changed to be defined in necvals.h?)
+#if !defined(restrict)
+#define restrict __restrict__
+#endif
+#endif
 
 vednnError_t
 createTensorParam(vednnTensorParam_t **ppParam, dataType_t dtype,
@@ -98,4 +105,7 @@ createPoolingParam(vednnPoolingParam_t **ppParam,
 
 void destroyPoolingParam(vednnPoolingParam_t *pParam) ;
 
+#ifdef __cplusplus
+}// extern "C"
+#endif
 #endif /* TEST_VEDNN_HELPER_H_ */

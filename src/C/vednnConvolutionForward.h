@@ -1,8 +1,12 @@
 
-#ifndef SRC_VEDNNCONVOLUTION_H_
-#define SRC_VEDNNCONVOLUTION_H_
+#ifndef SRC_VEDNNCONVOLUTION_FORWARD_H_
+#define SRC_VEDNNCONVOLUTION_FORWARD_H_
 
 #include "vednn.h"
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 typedef
 vednnError_t (*vednnConvForward_t)(
@@ -158,6 +162,59 @@ vednnConvolutionForward_direct_dil1_str1_padsame_ker3(
 ) ;
 
 vednnError_t
+vednnConvolutionForward_direct_dil1_str1_padsame_ker3_T(
+    const vednnTensorParam_t * restrict 	pParamIn,
+    const void * restrict 			pDataIn,
+    const vednnFilterParam_t * restrict 	pParamKernel,
+    const void * restrict 			pDataKernel,
+    const vednnConvolutionParam_t * restrict 	pParamConv,
+    const vednnTensorParam_t * restrict 	pParamOut,
+    void * restrict 				pDataOut
+) ;
+
+vednnError_t
+vednnConvolutionForward_direct_dil1_str1_padsame_ker3_T_group(
+    const vednnTensorParam_t * restrict 	pParamIn,
+    const void * restrict 			pDataIn,
+    const vednnFilterParam_t * restrict 	pParamKernel,
+    const void * restrict 			pDataKernel,
+    const vednnConvolutionParam_t * restrict 	pParamConv,
+    const vednnTensorParam_t * restrict 	pParamOut,
+    void * restrict 				pDataOut,
+    int                                         n,
+    int                                         group
+) ;
+
+vednnError_t
+vednnConvolutionForward_direct_dil1_str1_padsame_ker3_T_remainder(
+    const vednnTensorParam_t * restrict 	pParamIn,
+    const void * restrict 			pDataIn,
+    const vednnFilterParam_t * restrict 	pParamKernel,
+    const void * restrict 			pDataKernel,
+    const vednnConvolutionParam_t * restrict 	pParamConv,
+    const vednnTensorParam_t * restrict 	pParamOut,
+    void * restrict 				pDataOut,
+    int                                         n,
+    int                                         group,
+    int *                                       outChannelsDone
+) ;
+
+vednnError_t
+vednnConvolutionForward_direct_dil1_str1_padsame_ker3_T_oc16(
+    const vednnTensorParam_t * restrict 	pParamIn,
+    const void * restrict 			pDataIn,
+    const vednnFilterParam_t * restrict 	pParamKernel,
+    const void * restrict 			pDataKernel,
+    const vednnConvolutionParam_t * restrict 	pParamConv,
+    const vednnTensorParam_t * restrict 	pParamOut,
+    void * restrict 				pDataOut,
+    int                                         n,
+    int                                         group,
+    int                                         curOutChannel,
+    int                                         curOutPixel
+) ;
+
+vednnError_t
 vednnConvolutionForward_direct_dil1_str1_padsame_ker3_c1(
     const vednnTensorParam_t * restrict 	pParamIn,
     const void * restrict 			pDataIn,
@@ -223,4 +280,8 @@ vednnConvolutionForward_direct_dil1_str1_padsame_ker2(
     void * restrict 				pDataOut
 ) ;
 
-#endif /* SRC_VEDNNCONVOLUTION_H_ */
+#ifdef __cplusplus
+}  /* extern "C" */
+#endif
+
+#endif /* SRC_VEDNNCONVOLUTION_FORWARD_H_ */

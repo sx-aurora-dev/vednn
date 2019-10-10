@@ -8,6 +8,9 @@
 
 #include "vednn.h"
 
+#ifdef __cplusplus
+extern "C" { //}
+#endif
 
 /* ----------------------------------------------------------------------- */
 vednnError_t
@@ -413,10 +416,10 @@ createConvolutionParam(vednnConvolutionParam_t **ppParam, int group, int strideW
     if (padHeight < 0) {
         return VEDNN_ERROR_INVALID_PARAM;
     }
-    if (dilationWidth < 0) {
+    if (dilationWidth <= 0) {
         return VEDNN_ERROR_INVALID_PARAM;
     }
-    if (dilationHeight < 0) {
+    if (dilationHeight <= 0) {
         return VEDNN_ERROR_INVALID_PARAM;
     }
 
@@ -506,4 +509,8 @@ destroyPoolingParam(vednnPoolingParam_t *pParam)
     }
 }
 
+#ifdef __cplusplus
+extern "C" { //}
+#endif
 
+// vim: et ts=4 sw=4 cindent cino=^l0,\:0,N-s

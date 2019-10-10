@@ -20,7 +20,8 @@ vednnConvolutionForward_wrapper(
 )
 {
 #ifdef VEDNN_USE_OPENMP
-  if ( __vednn_omp_num_threads == 1 ) {
+  /* if ( __vednn_omp_num_threads == 1 ) { */
+  if ( __vednn_omp_num_threads == 1 || pParamIn->batch < __vednn_omp_num_threads ) {
     return pFunc(pParamIn, pDataIn, pParamKernel, pDataKernel, pParamConv, pParamOut, pDataOut) ;
   }
   else {

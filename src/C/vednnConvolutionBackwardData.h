@@ -1,6 +1,6 @@
 
-#ifndef SRC_VEDNNCONVOLUTION_H_
-#define SRC_VEDNNCONVOLUTION_H_
+#ifndef SRC_VEDNNCONVOLUTION_BACKWARD_DATA_H_
+#define SRC_VEDNNCONVOLUTION_BACKWARD_DATA_H_
 
 #include "vednn.h"
 
@@ -226,4 +226,4 @@ vednnConvolutionBackwardData_direct_dil1_str1_padsame_ker1(
     void * restrict 				pDataGradIn
 ) ;
 
-#endif /* SRC_VEDNNCONVOLUTION_H_ */
+#endif /* SRC_VEDNNCONVOLUTION_BACKWARD_DATA_H_ */

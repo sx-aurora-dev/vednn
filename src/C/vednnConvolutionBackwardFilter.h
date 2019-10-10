@@ -1,6 +1,6 @@
 
-#ifndef SRC_VEDNNCONVOLUTION_H_
-#define SRC_VEDNNCONVOLUTION_H_
+#ifndef SRC_VEDNNCONVOLUTION_BACKWARD_FILTER_H_
+#define SRC_VEDNNCONVOLUTION_BACKWARD_FILTER_H_
 
 #include "vednn.h"
 
@@ -363,4 +363,4 @@ vednnConvolutionBackwardFilter_direct_dil1_str1_padsame_ker2_owU128(
 #endif
 ) ;
 
-#endif /* SRC_VEDNNCONVOLUTION_H_ */
+#endif /* SRC_VEDNNCONVOLUTION_BACKWARD_FILTER_H_ */

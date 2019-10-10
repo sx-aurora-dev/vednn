@@ -5,15 +5,12 @@ set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -target ve -O3 -mllvm -show-spill-message-ve
 set(CMAKE_CXX_COMPILER ${CMAKE_C_COMPILER})
 set(CMAKE_CXX_FLAGS ${CMAKE_C_FLAGS})
 
-if(USE_OPENMP)
-	add_definitions(-DVEDNN_USE_OPENMP)
-endif()
-
 if(BUILD_SHARED_LIB)
 	set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fPIC")
 endif()
 
 include_directories("../")
+# include_directories("../C/vconv/include/gen-dnn/vgemm")
 
 add_subdirectory(Convolution/Forward)
 add_subdirectory(Convolution/ForwardAddBias)
