@@ -47,6 +47,7 @@ AR := $(VE_BIN_DIR)/nar
 # But prefer to unpack an appropriate tarball into a local VEDNN_DIR
 ifeq ($(FTRACE),YES)
 TGZ:=$(wildcard $(mkfile_dir)../vednnx-ftrace1.tar.gz)
+$(info ncc compile, mfile_dir=$(mkfile_dir) TGZ=$(TGZ))
 ifneq (,$(TGZ))
 VEDNN_SUBDIR:=vednn-ftrace1
 VEDNN_DIR:=$(mkfile_dir)vednn-ftrace1
@@ -64,6 +65,7 @@ endif
 endif
 
 else # assume x86
+$(warning x86 compile?)
 VEDNN_SUBDIR:= vednn
 VEDNN_DIR:=$(mkfile_dir)vednn
 VEDNNX_DIR:=$(VEDNN_DIR)
@@ -124,7 +126,7 @@ else
 endif
 unpack: vejit-unpack vednn-unpack
 vednn-unpack:
-	if [ -d '$(VEDNN_SUBDIR)' ]; then chmod -R ugo+rw '$(VEDNN_SUBDIR)'; rm -rf '$(VEDNN_SUBDIR)'; fi
+	if [ ! -z "$(VEDNN_SUBDIR)" -a -d '$(VEDNN_SUBDIR)' ]; then chmod -R ugo+rw '$(VEDNN_SUBDIR)'; rm -rf '$(VEDNN_SUBDIR)'; fi
 	$(MAKE) ./$(VEDNN_SUBDIR)
 
 CONVGEMM := convolution_gemm

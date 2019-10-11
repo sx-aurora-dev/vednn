@@ -42,6 +42,7 @@ static inline int64_t zero_le_a_lt_b(int64_t a, int64_t b) {
   return a>=0  && a<b; // for ncc auto vectorization, this is better
 }
 
+/** data_col size to hold float[ic*kw*kh*ow*oh]. */
   static void
 im2col_cpu(const float * restrict data_im, const int64_t channels,
     const int64_t height, const int64_t width, const int64_t kernel_h, const int64_t kernel_w,
@@ -57,6 +58,7 @@ im2col_cpu(const float * restrict data_im, const int64_t channels,
 
   int64_t channel;
 
+#pragma _NEC omp if(channels>=3)
   for (channel = 0 ; channel < channels; channel++) {				// inChannel
     int64_t kernel_row, kernel_col, output_rows, output_cols, output_col;
 
@@ -107,6 +109,7 @@ col2im_cpu(
 
   int channel;
 
+#pragma _NEC omp if(channels>=3)
   for (channel = 0 ; channel < channels; channel++) {				// inChannel
     int kernel_row, kernel_col, output_rows, output_cols, output_col;
 
