@@ -11,3 +11,6 @@ mk-ft1-vednn_omp.log
 mk-build.log
 vednn
 build
+**/.*.sw/
+build-*
+**/*old

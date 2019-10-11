@@ -2,7 +2,7 @@ PRJ:=vednnx
 CMAKE_ARGS:='-DCMAKE_BUILD_TYPE=Release'
 CMAKE_SHARED:='-DBUILD_SHARED_LIB=ON'
 # all: force-build lib${PRJ}.tar.gz lib${PRJ}-ftrace1.tar.gz test
-all: force-build lib${PRJ}.tar.gz test
+all: lib${PRJ}.tar.gz lib${PRJ}-ftrace1.tar.gz test
 # unpack one of the distro tarballs only in external projects.
 # -ft1 tarball will need to be linked with veperf library
 .PHONY: test build force-build clean realclean

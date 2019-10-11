@@ -10,190 +10,201 @@ extern "C" {
 
 typedef
 vednnError_t (*vednnConvForward_t)(
-    const vednnTensorParam_t * restrict 	pParamIn,
-    const void * restrict 			pDataIn,
-    const vednnFilterParam_t * restrict 	pParamKernel,
-    const void * restrict 			pDataKernel,
-    const vednnConvolutionParam_t * restrict 	pParamConv,
-    const vednnTensorParam_t * restrict 	pParamOut,
-    void * restrict 				pDataOut) ;
+    const vednnTensorParam_t * restrict         pParamIn,
+    const void * restrict                       pDataIn,
+    const vednnFilterParam_t * restrict         pParamKernel,
+    const void * restrict                       pDataKernel,
+    const vednnConvolutionParam_t * restrict    pParamConv,
+    const vednnTensorParam_t * restrict         pParamOut,
+    void * restrict                             pDataOut) ;
 
 vednnError_t
 vednnConvolutionForward_direct_default(
-    const vednnTensorParam_t * restrict 	pParamIn,
-    const void * restrict 			pDataIn,
-    const vednnFilterParam_t * restrict 	pParamKernel,
-    const void * restrict 			pDataKernel,
-    const vednnConvolutionParam_t * restrict 	pParamConv,
-    const vednnTensorParam_t * restrict 	pParamOut,
-    void * restrict 				pDataOut
+    const vednnTensorParam_t * restrict         pParamIn,
+    const void * restrict                       pDataIn,
+    const vednnFilterParam_t * restrict         pParamKernel,
+    const void * restrict                       pDataKernel,
+    const vednnConvolutionParam_t * restrict    pParamConv,
+    const vednnTensorParam_t * restrict         pParamOut,
+    void * restrict                             pDataOut
+) ;
+
+vednnError_t
+vednnConvolutionForward_direct_gemm(
+    const vednnTensorParam_t * restrict         pParamIn,
+    const void * restrict                       pDataIn,
+    const vednnFilterParam_t * restrict         pParamKernel,
+    const void * restrict                       pDataKernel,
+    const vednnConvolutionParam_t * restrict    pParamConv,
+    const vednnTensorParam_t * restrict         pParamOut,
+    void * restrict                             pDataOut
 ) ;
 
 vednnError_t
 vednnConvolutionForward_direct_vecC(
-    const vednnTensorParam_t * restrict 	pParamIn,
-    const void * restrict 			pDataIn,
-    const vednnFilterParam_t * restrict 	pParamKernel,
-    const void * restrict 			pDataKernel,
-    const vednnConvolutionParam_t * restrict 	pParamConv,
-    const vednnTensorParam_t * restrict 	pParamOut,
-    void * restrict 				pDataOut
+    const vednnTensorParam_t * restrict         pParamIn,
+    const void * restrict                       pDataIn,
+    const vednnFilterParam_t * restrict         pParamKernel,
+    const void * restrict                       pDataKernel,
+    const vednnConvolutionParam_t * restrict    pParamConv,
+    const vednnTensorParam_t * restrict         pParamOut,
+    void * restrict                             pDataOut
 ) ;
 
 vednnError_t
 vednnConvolutionForward_direct_owU128(
-    const vednnTensorParam_t * restrict 	pParamIn,
-    const void * restrict 			pDataIn,
-    const vednnFilterParam_t * restrict 	pParamKernel,
-    const void * restrict 			pDataKernel,
-    const vednnConvolutionParam_t * restrict 	pParamConv,
-    const vednnTensorParam_t * restrict 	pParamOut,
-    void * restrict 				pDataOut
+    const vednnTensorParam_t * restrict         pParamIn,
+    const void * restrict                       pDataIn,
+    const vednnFilterParam_t * restrict         pParamKernel,
+    const void * restrict                       pDataKernel,
+    const vednnConvolutionParam_t * restrict    pParamConv,
+    const vednnTensorParam_t * restrict         pParamOut,
+    void * restrict                             pDataOut
 ) ;
 
 vednnError_t
 vednnConvolutionForward_direct_dil1_pad0(
-    const vednnTensorParam_t * restrict 	pParamIn,
-    const void * restrict 			pDataIn,
-    const vednnFilterParam_t * restrict 	pParamKernel,
-    const void * restrict 			pDataKernel,
-    const vednnConvolutionParam_t * restrict 	pParamConv,
-    const vednnTensorParam_t * restrict 	pParamOut,
-    void * restrict 				pDataOut
+    const vednnTensorParam_t * restrict         pParamIn,
+    const void * restrict                       pDataIn,
+    const vednnFilterParam_t * restrict         pParamKernel,
+    const void * restrict                       pDataKernel,
+    const vednnConvolutionParam_t * restrict    pParamConv,
+    const vednnTensorParam_t * restrict         pParamOut,
+    void * restrict                             pDataOut
 ) ;
 
 vednnError_t
 vednnConvolutionForward_direct_dil1_pad0_owU128(
-    const vednnTensorParam_t * restrict 	pParamIn,
-    const void * restrict 			pDataIn,
-    const vednnFilterParam_t * restrict 	pParamKernel,
-    const void * restrict 			pDataKernel,
-    const vednnConvolutionParam_t * restrict 	pParamConv,
-    const vednnTensorParam_t * restrict 	pParamOut,
-    void * restrict 				pDataOut
+    const vednnTensorParam_t * restrict         pParamIn,
+    const void * restrict                       pDataIn,
+    const vednnFilterParam_t * restrict         pParamKernel,
+    const void * restrict                       pDataKernel,
+    const vednnConvolutionParam_t * restrict    pParamConv,
+    const vednnTensorParam_t * restrict         pParamOut,
+    void * restrict                             pDataOut
 ) ;
 
 vednnError_t
 vednnConvolutionForward_direct_dil1_pad0_ker1(
-    const vednnTensorParam_t * restrict 	pParamIn,
-    const void * restrict 			pDataIn,
-    const vednnFilterParam_t * restrict 	pParamKernel,
-    const void * restrict 			pDataKernel,
-    const vednnConvolutionParam_t * restrict 	pParamConv,
-    const vednnTensorParam_t * restrict 	pParamOut,
-    void * restrict 				pDataOut
+    const vednnTensorParam_t * restrict         pParamIn,
+    const void * restrict                       pDataIn,
+    const vednnFilterParam_t * restrict         pParamKernel,
+    const void * restrict                       pDataKernel,
+    const vednnConvolutionParam_t * restrict    pParamConv,
+    const vednnTensorParam_t * restrict         pParamOut,
+    void * restrict                             pDataOut
 ) ;
 
 vednnError_t
 vednnConvolutionForward_direct_dil1_pad0_owU128_ker1(
-    const vednnTensorParam_t * restrict 	pParamIn,
-    const void * restrict 			pDataIn,
-    const vednnFilterParam_t * restrict 	pParamKernel,
-    const void * restrict 			pDataKernel,
-    const vednnConvolutionParam_t * restrict 	pParamConv,
-    const vednnTensorParam_t * restrict 	pParamOut,
-    void * restrict 				pDataOut
+    const vednnTensorParam_t * restrict         pParamIn,
+    const void * restrict                       pDataIn,
+    const vednnFilterParam_t * restrict         pParamKernel,
+    const void * restrict                       pDataKernel,
+    const vednnConvolutionParam_t * restrict    pParamConv,
+    const vednnTensorParam_t * restrict         pParamOut,
+    void * restrict                             pDataOut
 ) ;
 
 vednnError_t
 vednnConvolutionForward_direct_dil1_str1_pad0(
-    const vednnTensorParam_t * restrict 	pParamIn,
-    const void * restrict 			pDataIn,
-    const vednnFilterParam_t * restrict 	pParamKernel,
-    const void * restrict 			pDataKernel,
-    const vednnConvolutionParam_t * restrict 	pParamConv,
-    const vednnTensorParam_t * restrict 	pParamOut,
-    void * restrict 				pDataOut
+    const vednnTensorParam_t * restrict         pParamIn,
+    const void * restrict                       pDataIn,
+    const vednnFilterParam_t * restrict         pParamKernel,
+    const void * restrict                       pDataKernel,
+    const vednnConvolutionParam_t * restrict    pParamConv,
+    const vednnTensorParam_t * restrict         pParamOut,
+    void * restrict                             pDataOut
 ) ;
 
 vednnError_t
 vednnConvolutionForward_direct_dil1_str1_pad0_owU128(
-    const vednnTensorParam_t * restrict 	pParamIn,
-    const void * restrict 			pDataIn,
-    const vednnFilterParam_t * restrict 	pParamKernel,
-    const void * restrict 			pDataKernel,
-    const vednnConvolutionParam_t * restrict 	pParamConv,
-    const vednnTensorParam_t * restrict 	pParamOut,
-    void * restrict 				pDataOut
+    const vednnTensorParam_t * restrict         pParamIn,
+    const void * restrict                       pDataIn,
+    const vednnFilterParam_t * restrict         pParamKernel,
+    const void * restrict                       pDataKernel,
+    const vednnConvolutionParam_t * restrict    pParamConv,
+    const vednnTensorParam_t * restrict         pParamOut,
+    void * restrict                             pDataOut
 ) ;
 
 vednnError_t
 vednnConvolutionForward_direct_dil1_str1_pad0_ker3_iw2XU256_ow2X_ioaligned(
-    const vednnTensorParam_t * restrict 	pParamIn,
-    const void * restrict 			pDataIn,
-    const vednnFilterParam_t * restrict 	pParamKernel,
-    const void * restrict 			pDataKernel,
-    const vednnConvolutionParam_t * restrict 	pParamConv,
-    const vednnTensorParam_t * restrict 	pParamOut,
-    void * restrict 				pDataOut
+    const vednnTensorParam_t * restrict         pParamIn,
+    const void * restrict                       pDataIn,
+    const vednnFilterParam_t * restrict         pParamKernel,
+    const void * restrict                       pDataKernel,
+    const vednnConvolutionParam_t * restrict    pParamConv,
+    const vednnTensorParam_t * restrict         pParamOut,
+    void * restrict                             pDataOut
 ) ;
 
 vednnError_t
 vednnConvolutionForward_direct_dil1_str1_pad0_ker1(
-    const vednnTensorParam_t * restrict 	pParamIn,
-    const void * restrict 			pDataIn,
-    const vednnFilterParam_t * restrict 	pParamKernel,
-    const void * restrict 			pDataKernel,
-    const vednnConvolutionParam_t * restrict 	pParamConv,
-    const vednnTensorParam_t * restrict 	pParamOut,
-    void * restrict 				pDataOut
+    const vednnTensorParam_t * restrict         pParamIn,
+    const void * restrict                       pDataIn,
+    const vednnFilterParam_t * restrict         pParamKernel,
+    const void * restrict                       pDataKernel,
+    const vednnConvolutionParam_t * restrict    pParamConv,
+    const vednnTensorParam_t * restrict         pParamOut,
+    void * restrict                             pDataOut
 ) ;
 
 vednnError_t
 vednnConvolutionForward_direct_dil1_str1_padsame(
-    const vednnTensorParam_t * restrict 	pParamIn,
-    const void * restrict 			pDataIn,
-    const vednnFilterParam_t * restrict 	pParamKernel,
-    const void * restrict 			pDataKernel,
-    const vednnConvolutionParam_t * restrict 	pParamConv,
-    const vednnTensorParam_t * restrict 	pParamOut,
-    void * restrict 				pDataOut
+    const vednnTensorParam_t * restrict         pParamIn,
+    const void * restrict                       pDataIn,
+    const vednnFilterParam_t * restrict         pParamKernel,
+    const void * restrict                       pDataKernel,
+    const vednnConvolutionParam_t * restrict    pParamConv,
+    const vednnTensorParam_t * restrict         pParamOut,
+    void * restrict                             pDataOut
 ) ;
 
 vednnError_t
 vednnConvolutionForward_direct_dil1_str1_padsame_ker3(
-    const vednnTensorParam_t * restrict 	pParamIn,
-    const void * restrict 			pDataIn,
-    const vednnFilterParam_t * restrict 	pParamKernel,
-    const void * restrict 			pDataKernel,
-    const vednnConvolutionParam_t * restrict 	pParamConv,
-    const vednnTensorParam_t * restrict 	pParamOut,
-    void * restrict 				pDataOut
+    const vednnTensorParam_t * restrict         pParamIn,
+    const void * restrict                       pDataIn,
+    const vednnFilterParam_t * restrict         pParamKernel,
+    const void * restrict                       pDataKernel,
+    const vednnConvolutionParam_t * restrict    pParamConv,
+    const vednnTensorParam_t * restrict         pParamOut,
+    void * restrict                             pDataOut
 ) ;
 
 vednnError_t
 vednnConvolutionForward_direct_dil1_str1_padsame_ker3_T(
-    const vednnTensorParam_t * restrict 	pParamIn,
-    const void * restrict 			pDataIn,
-    const vednnFilterParam_t * restrict 	pParamKernel,
-    const void * restrict 			pDataKernel,
-    const vednnConvolutionParam_t * restrict 	pParamConv,
-    const vednnTensorParam_t * restrict 	pParamOut,
-    void * restrict 				pDataOut
+    const vednnTensorParam_t * restrict         pParamIn,
+    const void * restrict                       pDataIn,
+    const vednnFilterParam_t * restrict         pParamKernel,
+    const void * restrict                       pDataKernel,
+    const vednnConvolutionParam_t * restrict    pParamConv,
+    const vednnTensorParam_t * restrict         pParamOut,
+    void * restrict                             pDataOut
 ) ;
 
 vednnError_t
 vednnConvolutionForward_direct_dil1_str1_padsame_ker3_T_group(
-    const vednnTensorParam_t * restrict 	pParamIn,
-    const void * restrict 			pDataIn,
-    const vednnFilterParam_t * restrict 	pParamKernel,
-    const void * restrict 			pDataKernel,
-    const vednnConvolutionParam_t * restrict 	pParamConv,
-    const vednnTensorParam_t * restrict 	pParamOut,
-    void * restrict 				pDataOut,
+    const vednnTensorParam_t * restrict         pParamIn,
+    const void * restrict                       pDataIn,
+    const vednnFilterParam_t * restrict         pParamKernel,
+    const void * restrict                       pDataKernel,
+    const vednnConvolutionParam_t * restrict    pParamConv,
+    const vednnTensorParam_t * restrict         pParamOut,
+    void * restrict                             pDataOut,
     int                                         n,
     int                                         group
 ) ;
 
 vednnError_t
 vednnConvolutionForward_direct_dil1_str1_padsame_ker3_T_remainder(
-    const vednnTensorParam_t * restrict 	pParamIn,
-    const void * restrict 			pDataIn,
-    const vednnFilterParam_t * restrict 	pParamKernel,
-    const void * restrict 			pDataKernel,
-    const vednnConvolutionParam_t * restrict 	pParamConv,
-    const vednnTensorParam_t * restrict 	pParamOut,
-    void * restrict 				pDataOut,
+    const vednnTensorParam_t * restrict         pParamIn,
+    const void * restrict                       pDataIn,
+    const vednnFilterParam_t * restrict         pParamKernel,
+    const void * restrict                       pDataKernel,
+    const vednnConvolutionParam_t * restrict    pParamConv,
+    const vednnTensorParam_t * restrict         pParamOut,
+    void * restrict                             pDataOut,
     int                                         n,
     int                                         group,
     int *                                       outChannelsDone
@@ -201,13 +212,13 @@ vednnConvolutionForward_direct_dil1_str1_padsame_ker3_T_remainder(
 
 vednnError_t
 vednnConvolutionForward_direct_dil1_str1_padsame_ker3_T_oc16(
-    const vednnTensorParam_t * restrict 	pParamIn,
-    const void * restrict 			pDataIn,
-    const vednnFilterParam_t * restrict 	pParamKernel,
-    const void * restrict 			pDataKernel,
-    const vednnConvolutionParam_t * restrict 	pParamConv,
-    const vednnTensorParam_t * restrict 	pParamOut,
-    void * restrict 				pDataOut,
+    const vednnTensorParam_t * restrict         pParamIn,
+    const void * restrict                       pDataIn,
+    const vednnFilterParam_t * restrict         pParamKernel,
+    const void * restrict                       pDataKernel,
+    const vednnConvolutionParam_t * restrict    pParamConv,
+    const vednnTensorParam_t * restrict         pParamOut,
+    void * restrict                             pDataOut,
     int                                         n,
     int                                         group,
     int                                         curOutChannel,
@@ -216,72 +227,72 @@ vednnConvolutionForward_direct_dil1_str1_padsame_ker3_T_oc16(
 
 vednnError_t
 vednnConvolutionForward_direct_dil1_str1_padsame_ker3_c1(
-    const vednnTensorParam_t * restrict 	pParamIn,
-    const void * restrict 			pDataIn,
-    const vednnFilterParam_t * restrict 	pParamKernel,
-    const void * restrict 			pDataKernel,
-    const vednnConvolutionParam_t * restrict 	pParamConv,
-    const vednnTensorParam_t * restrict 	pParamOut,
-    void * restrict 				pDataOut
+    const vednnTensorParam_t * restrict         pParamIn,
+    const void * restrict                       pDataIn,
+    const vednnFilterParam_t * restrict         pParamKernel,
+    const void * restrict                       pDataKernel,
+    const vednnConvolutionParam_t * restrict    pParamConv,
+    const vednnTensorParam_t * restrict         pParamOut,
+    void * restrict                             pDataOut
 ) ;
 
 vednnError_t
 vednnConvolutionForward_direct_dil1_str1_padsame_ker3_c1_owU128(
-    const vednnTensorParam_t * restrict 	pParamIn,
-    const void * restrict 			pDataIn,
-    const vednnFilterParam_t * restrict 	pParamKernel,
-    const void * restrict 			pDataKernel,
-    const vednnConvolutionParam_t * restrict 	pParamConv,
-    const vednnTensorParam_t * restrict 	pParamOut,
-    void * restrict 				pDataOut
+    const vednnTensorParam_t * restrict         pParamIn,
+    const void * restrict                       pDataIn,
+    const vednnFilterParam_t * restrict         pParamKernel,
+    const void * restrict                       pDataKernel,
+    const vednnConvolutionParam_t * restrict    pParamConv,
+    const vednnTensorParam_t * restrict         pParamOut,
+    void * restrict                             pDataOut
 ) ;
 
 vednnError_t
 vednnConvolutionForward_direct_dil1_str1_padsame_ker3_c1024x(
-    const vednnTensorParam_t * restrict 	pParamIn,
-    const void * restrict 			pDataIn,
-    const vednnFilterParam_t * restrict 	pParamKernel,
-    const void * restrict 			pDataKernel,
-    const vednnConvolutionParam_t * restrict 	pParamConv,
-    const vednnTensorParam_t * restrict 	pParamOut,
-    void * restrict 				pDataOut
+    const vednnTensorParam_t * restrict         pParamIn,
+    const void * restrict                       pDataIn,
+    const vednnFilterParam_t * restrict         pParamKernel,
+    const void * restrict                       pDataKernel,
+    const vednnConvolutionParam_t * restrict    pParamConv,
+    const vednnTensorParam_t * restrict         pParamOut,
+    void * restrict                             pDataOut
 ) ;
 
 vednnError_t
 vednnConvolutionForward_direct_dil1_str1_padsame_ker5(
-    const vednnTensorParam_t * restrict 	pParamIn,
-    const void * restrict 			pDataIn,
-    const vednnFilterParam_t * restrict 	pParamKernel,
-    const void * restrict 			pDataKernel,
-    const vednnConvolutionParam_t * restrict 	pParamConv,
-    const vednnTensorParam_t * restrict 	pParamOut,
-    void * restrict 				pDataOut
+    const vednnTensorParam_t * restrict         pParamIn,
+    const void * restrict                       pDataIn,
+    const vednnFilterParam_t * restrict         pParamKernel,
+    const void * restrict                       pDataKernel,
+    const vednnConvolutionParam_t * restrict    pParamConv,
+    const vednnTensorParam_t * restrict         pParamOut,
+    void * restrict                             pDataOut
 ) ;
 
 vednnError_t
 vednnConvolutionForward_direct_dil1_str1_padsame_ker5_owU128(
-    const vednnTensorParam_t * restrict 	pParamIn,
-    const void * restrict 			pDataIn,
-    const vednnFilterParam_t * restrict 	pParamKernel,
-    const void * restrict 			pDataKernel,
-    const vednnConvolutionParam_t * restrict 	pParamConv,
-    const vednnTensorParam_t * restrict 	pParamOut,
-    void * restrict 				pDataOut
+    const vednnTensorParam_t * restrict         pParamIn,
+    const void * restrict                       pDataIn,
+    const vednnFilterParam_t * restrict         pParamKernel,
+    const void * restrict                       pDataKernel,
+    const vednnConvolutionParam_t * restrict    pParamConv,
+    const vednnTensorParam_t * restrict         pParamOut,
+    void * restrict                             pDataOut
 ) ;
 
 vednnError_t
 vednnConvolutionForward_direct_dil1_str1_padsame_ker2(
-    const vednnTensorParam_t * restrict 	pParamIn,
-    const void * restrict 			pDataIn,
-    const vednnFilterParam_t * restrict 	pParamKernel,
-    const void * restrict 			pDataKernel,
-    const vednnConvolutionParam_t * restrict 	pParamConv,
-    const vednnTensorParam_t * restrict 	pParamOut,
-    void * restrict 				pDataOut
+    const vednnTensorParam_t * restrict         pParamIn,
+    const void * restrict                       pDataIn,
+    const vednnFilterParam_t * restrict         pParamKernel,
+    const void * restrict                       pDataKernel,
+    const vednnConvolutionParam_t * restrict    pParamConv,
+    const vednnTensorParam_t * restrict         pParamOut,
+    void * restrict                             pDataOut
 ) ;
 
 #ifdef __cplusplus
 }  /* extern "C" */
 #endif
-
+// vim: ts=4 sw=4 et
 #endif /* SRC_VEDNNCONVOLUTION_FORWARD_H_ */

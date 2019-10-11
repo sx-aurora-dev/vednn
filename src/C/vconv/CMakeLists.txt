@@ -26,17 +26,22 @@ endif()
 
 message(STATUS "src/C/vconv CMAKE_C_FLAGS=${CMAKE_C_FLAGS}")
 message(STATUS "src/C/vconv CMAKE_CXX_FLAGS=${CMAKE_C_FLAGS}")
+message(STATUS "NLCDIR is ${NLCDIR}")
 
-add_custom_target(unPack ALL)
-add_custom_command(TARGET unPack PRE_BUILD
-    COMMAND ${CMAKE_COMMAND} -E remove_directory ${CMAKE_CURRENT_SOURCE_DIR}/include/
-    COMMAND ${CMAKE_COMMAND} -E remove_directory ${CMAKE_CURRENT_SOURCE_DIR}/lib/
-    COMMAND ${CMAKE_COMMAND} -E remove_directory ${CMAKE_CURRENT_SOURCE_DIR}/src/
-    COMMAND ${CMAKE_COMMAND} -E tar xzf ${PROJECT_SOURCE_DIR}/vconv-ve.tar.gz
-    WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
-    DEPENDS ${PROJECT_SOURCE_DIR}/vconv-ve.tar.gz
-    COMMENT "Unpacking vconv-ve.tar.gz into ${CMAKE_SOURCE_DIR}"
-    VERBATIM)
+# unpack has to run at **cmake** time. add_custom_target...PRE_BUILD is not quite good enough.
+if(( (NOT IS_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/include/)
+    OR (NOT IS_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/lib/)
+    OR (NOT IS_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/src/)
+    ) AND EXISTS ${PROJECT_SOURCE_DIR}/vconv-ve.tar.gz)
+    message(STATUS "Unpacking vconv-ve.tar.gz distribution")
+    execute_process(
+        COMMAND ${CMAKE_COMMAND} -E remove_directory ${CMAKE_CURRENT_SOURCE_DIR}/include/
+        COMMAND ${CMAKE_COMMAND} -E remove_directory ${CMAKE_CURRENT_SOURCE_DIR}/lib/
+        COMMAND ${CMAKE_COMMAND} -E remove_directory ${CMAKE_CURRENT_SOURCE_DIR}/src/
+        COMMAND ${CMAKE_COMMAND} -E tar xzf ${PROJECT_SOURCE_DIR}/vconv-ve.tar.gz
+        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+        )
+endif()
 
 include_directories("../.." "../../wrap" "./include/gen-dnn/vconv" "./include/gen-dnn/vgemm" "/opt/nec/ve/nlc/2.0.0/include")
 

@@ -27,7 +27,6 @@ else()
 endif()
 
 # for vconv (does it need to be here?) XXX
-set(NLCDIR "/opt/nec/ve/nlc/2.0.0")
 set(CMAKE_CFLAGS     "${CMAKE_CFLAGS} -I${NLCDIR}/include")
 set(CMAKE_CXXFLAGS "${CMAKE_CXXFLAGS} -I${NLCDIR}/include")
 #set(CMAKE_BUILD_RPATH "${CMAKE_BUILD_RPATH} ${NLCDIR}/lib")
