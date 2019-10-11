@@ -99,7 +99,7 @@ vednnConvolutionForward_direct_dil1_str1_padsame_ker3_T(
 
         int kDone = k;
         int64_t outChannelGroupPrime = (outChannelGroup - kDone) / 16;
-        int64_t oPixelsPrime = oPixels / VLEN;
+        int64_t oPixelsPrime = (oPixels + VLEN-1) / VLEN;
         mkldnn::impl::parallel_nd(outChannelGroupPrime, oPixelsPrime,
                     [&](int kPrime, int opPrime) {
           int k = 16 * kPrime + kDone;
