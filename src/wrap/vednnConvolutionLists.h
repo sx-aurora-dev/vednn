@@ -91,17 +91,37 @@ ITERATOR_FUNC_API( Act,Backward,        ACT,BACKWARD)
 #undef ITERATOR_FUNC_API
 //@}
 
+
 /** \addtogroup Impl list elements
  *  These flesh out low-level vednn implementations with some handy info,
  * and some handy auxiliary functions.
+ *
+ * NEW: wraptype [VEDNN_WRAP_DEFAULT 0,false]
+ * which can be set to 1 (or VEDNN_WRAP_NONE, etc) for alternate OpenMP
+ * wrapping functions (if compiled with VEDNN_USE_OPENMP)
+ *
+ * - \c VEDNN_WRAP_DEFAULT  [0] call via standard libvednn openmp wrapper
+ * - \p VEDNN_WRAP_NONE     call with low-level arg order,
+ *                          \b no extra openmp args and \b no wrapper
+ *                          
+ * In principle there may be alternate wrapper types, but let's try to 
+ * have VEDNN_WRAP_NONE mean "I'll do my own openmp handling".
  */
 //@{    
 
+typedef enum { VEDNN_WRAP_DEFAULT = 0,
+    VEDNN_WRAP_NONE = 1
+} vednnOmpWrap_t;
+
+/** NEW: with \c wrap==VEDNN_WRAP_NONE, the function signature of the 'impl' may
+ * actually be incorrect, so the function pointer must be typecast to the 'NOWRAP'
+ * version of the function signature.  This has been added to \c vednn.h */
 #define CONVLIST_ENTRY(Forward,FORWARD) \
 struct vednnConv##Forward##Impls_s { \
-    vednnConv##Forward##_t          impl; /**< vednn library function */ \
+    vednnConv##Forward##_t          impl; /**< vednn library function (adjust if VEDNN_WRAP_NONE!) */ \
     char const*                     name; /**< full name of impl */ \
     char const*                shortname; /**< shorter label for impl */ \
+    vednnOmpWrap_t                  wrap; /**< 0, or VEDNN_WRAP_DEFAULT, for standard OpenMP behavior */ \
     vednnConv##Forward##_okfn_t     okfn; /**< check if PARAMS ok */ \
     vednnConv##Forward##_rtokfn_t rtokfn; /**< usually NULL, (else check DATA alignment ok) */ \
     void* (*getPd)(VEDNN_PARAMS_CONV_##FORWARD); /**< WIP: precalc data */ \

@@ -1,6 +1,7 @@
 #ifndef VEDNN_DEF_HPP
 #define VEDNN_DEF_HPP
 #include "vednn-def.h"
+#include <cassert>
 
 // from gen-dnn sources:
 //#include "mkldnn_thread.hpp"

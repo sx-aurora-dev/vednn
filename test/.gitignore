@@ -8,3 +8,10 @@ vednn_pool_test
 cjitConv*-x86*
 vejit
 mnist
+tmp_cjit*
+vednn-ftrace1
+libmega*
+cjitConv0?
+cjitconv*log
+libcjit*
+ve_simpleconv

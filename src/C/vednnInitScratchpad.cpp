@@ -24,12 +24,14 @@ global_scratchpad_float_ones_t  *global_scratchpad_float_ones = nullptr;
 void vednn_init_scratchpad(size_t size){
     global_scratchpad = /*static_cast<scratchpad_t*>*/ (
             new global_scratchpad_t(size));
+    // clients use it by calling vednn_scratchpad(nBytes) and getting a pointer
     printf(" vednn scratchpad            @ %p\n",vednn_scratchpad(1));
-    printf(" vednn scratchpad float ones @ %p\n",vednn_scratchpad_float_ones(1));
 }
 void vednn_init_scratchpad_float_ones(size_t size){
     global_scratchpad_float_ones = /*static_cast<scratchpad_t*>*/(
             new global_scratchpad_float_ones_t(size));
+    // clients use it by calling vednn_scratchpad_float_ones(nFloats) and getting a pointer
+    printf(" vednn scratchpad float ones @ %p\n",vednn_scratchpad_float_ones(1));
 }
 
 

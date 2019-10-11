@@ -23,6 +23,19 @@ vednnError_t (*vednnConvBackwardFilter_t) (
     const int64_t                               nOChannel
 #endif
 ) ;
+/** NEW: for vednnx impls that avoid the wrapper,
+ * we cast to the \e wrapperless function signature, which is
+ * different for ConvBackwardFilter. */
+typedef
+vednnError_t (*vednnConvBackwardFilter_nowrap_t) (
+    const vednnTensorParam_t * restrict         pParamIn,
+    const void * restrict                       pDataIn,
+    const vednnTensorParam_t * restrict         pParamGradOut,
+    const void * restrict                       pDataGradOut,
+    const vednnConvolutionParam_t * restrict    pParamConv,
+    const vednnFilterParam_t * restrict         pParamGradKernel,
+    void * restrict                             pDataGradKernel
+) ;
 
 vednnError_t
 vednnConvolutionBackwardFilter_direct_default(
@@ -380,5 +393,5 @@ vednnConvolutionBackwardFilter_direct_dil1_str1_padsame_ker2_owU128(
 #endif
 ) ;
 
-// vim: ts=4 sw=4 et
+// vim: ts=4 sw=4 et syntax=cpp.doxygen
 #endif /* SRC_VEDNNCONVOLUTION_BACKWARD_FILTER_H_ */
