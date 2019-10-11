@@ -34,9 +34,12 @@ static inline size_t getTensorDataSize(const vednnTensorParam_t * restrict pPara
 #endif // LOCAL_FTRACE
 
 #define SGEMM   sgemm_
-void sgemm_(char *TRANSA, char *TRANSB, int *M, int *N, int *K,
-        float *ALPHA, float *A,  int *LDA, float *B, int *LDB,
-        float *BETA, float *C, int *LDC ) ;
+
+extern "C" {
+  void sgemm_(char *TRANSA, char *TRANSB, int *M, int *N, int *K,
+          float *ALPHA, float *A,  int *LDA, float *B, int *LDB,
+          float *BETA, float *C, int *LDC ) ;
+}
 
 static char  TRANS   = 'T';
 static char  NOTRANS = 'N';
@@ -440,21 +443,24 @@ vednnConvolutionForward_direct_gemm(
     size_t pColcols = pParamOut->width * pParamOut->height;
 
     // This buffer is only used for bias term
-    float const* restrict pOnes = nullptr;
+    float * restrict pOnes = nullptr;
     //float const* restrict pOnes = (float const* restrict)
     //    (void*)vednn_scratchpad_float_ones(pColcols); // ow * oh float 1.0f
 
     // This buffer is used for a monolithic im2col
     // (could use a smaller buffer if im2col were done "as-needed")
-    float * restrict pColBuff = (float* restrict)(void*)vednn_scratchpad(
-            pColrows * pColcols * getTensorDataSize(pParamIn));
+    float * restrict pColBuff = (float* restrict) malloc(pColrows * pColcols * getTensorDataSize(pParamIn));
+    /* float * restrict pColBuff = (float* restrict)(void*)vednn_scratchpad(
+            pColrows * pColcols * getTensorDataSize(pParamIn)); */
 
-    return convolution_forward_gemm(
+    vednnError_t ret = convolution_forward_gemm(
             pParamIn, pDataIn,
             pParamKernel, pDataKernel,
             nullptr, nullptr/*avoids bias gemm call*/ ,
             pParamOut, pDataOut/*output*/,
             pOnes, pColBuff, pParamConv );
+    free(pColBuff);
+    return ret;
 } 
 vednnError_t
 vednnConvolutionForwardAddBias_direct_gemm(
@@ -475,20 +481,26 @@ vednnConvolutionForwardAddBias_direct_gemm(
     size_t pColcols = pParamOut->width * pParamOut->height;
 
     // This buffer is only used for bias term
-    float const* restrict pOnes = (float const* restrict)
-        vednn_scratchpad_float_ones(pColcols); // ow * oh float 1.0f
+    float * restrict pOnes = (float * restrict) malloc(pColcols * sizeof(float));
+    for(int i = 0; i < pColcols; ++i)
+      pOnes[i] = 1.0f;
+    /* float const* restrict pOnes = (float const* restrict)
+        vednn_scratchpad_float_ones(pColcols); // ow * oh float 1.0f */
 
     // This buffer is used for a monolithic im2col
     // (could use a smaller buffer if im2col were done "as-needed")
-    float * restrict pColBuff = (float* restrict)(void*)vednn_scratchpad(
-            pColrows * pColcols * getTensorDataSize(pParamIn));
-
-    return convolution_forward_gemm(
+    float * restrict pColBuff = (float * restrict) malloc(pColrows * pColcols * getTensorDataSize(pParamIn));
+    /* float * restrict pColBuff = (float* restrict)(void*)vednn_scratchpad(
+            pColrows * pColcols * getTensorDataSize(pParamIn)); */
+    vednnError_t ret = convolution_forward_gemm(
             pParamIn, pDataIn,
             pParamKernel, pDataKernel,
             pParamBias, pDataBias,
             pParamOut, pDataOut/*output*/,
             pOnes, pColBuff, pParamConv );
+    free(pOnes);
+    free(pColBuff);
+    return ret;
 }
 vednnError_t
 vednnConvolutionBackwardFilter_direct_gemm(
@@ -509,14 +521,16 @@ vednnConvolutionBackwardFilter_direct_gemm(
     using vednn::scratchpad::vednn_scratchpad;
     size_t pColrows = pParamGradKernel->inChannel * pParamGradKernel->width * pParamGradKernel->height;
     size_t pColcols = pParamGradOut->width * pParamGradOut->height;
-    //pBufCol  = (float*) malloc(pColrows*pColcols*getTensorDataSize(pParamIn));
-    float * restrict pColBuff = (float* restrict)(void*)vednn_scratchpad(
-            pColrows * pColcols * getTensorDataSize(pParamIn));
-    return convolution_backward_filter_gemm(
+    float * restrict pColBuff  = (float*) malloc(pColrows*pColcols*getTensorDataSize(pParamIn));
+    /* float * restrict pColBuff = (float* restrict)(void*)vednn_scratchpad(
+            pColrows * pColcols * getTensorDataSize(pParamIn)); */
+    vednnError_t ret = convolution_backward_filter_gemm(
             pParamIn, pDataIn,
             pParamGradOut, pDataGradOut,
             pParamGradKernel, pDataGradKernel/*output*/,
             pColBuff, pParamConv );
+    free(pColBuff);
+    return ret;
 }
 
 vednnError_t
@@ -533,14 +547,16 @@ vednnConvolutionBackwardData_direct_gemm(
     using vednn::scratchpad::vednn_scratchpad;
     size_t pColrows = pParamKernel->inChannel * pParamKernel->width * pParamKernel->height;
     size_t pColcols = pParamGradOut->width * pParamGradOut->height;
-    //pBufCol  = (float*) malloc(pColrows*pColcols*getTensorDataSize(pParamGradIn));
-    float * restrict pColBuff = (float* restrict)(void*)vednn_scratchpad(
-            pColrows * pColcols * getTensorDataSize(pParamGradIn));
-    return convolution_backward_data_gemm(
+    float * restrict pColBuff = (float*) malloc(pColrows*pColcols*getTensorDataSize(pParamGradIn));
+    /* float * restrict pColBuff = (float* restrict)(void*)vednn_scratchpad(
+            pColrows * pColcols * getTensorDataSize(pParamGradIn)); */
+    vednnError_t ret =  convolution_backward_data_gemm(
             pParamGradOut, pDataGradOut,
             pParamKernel, pDataKernel,
             pParamGradIn, pDataGradIn/*output*/,
             pColBuff, pParamConv );
+    free(pColBuff);
+    return ret;
 }
 
 

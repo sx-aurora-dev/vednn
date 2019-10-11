@@ -39,7 +39,7 @@ static vednnConvForwardImpls vednnConvForwardList_[] = {
     IMPL_FNS(vednnConvolutionForward_direct_dil1_str1_padsame_ker3_c1,"cnvFwd-d1s1pSk3_c1"),
     IMPL_FNS(vednnConvolutionForward_direct_dil1_str1_padsame_ker3_c1024x,"cnvFwd-d1s1pSk3c1024x"),
     IMPL_FNS(vednnConvolutionForward_direct_dil1_str1_padsame_ker3,"cnvFwd-d1s1pSk3"),
-    IMPL_FNS(vednnConvolutionForward_direct_dil1_str1_padsame_ker3_T,"cnvFwd-d1s1pSk3_T"),
+    IMPL_WRAPNONE_FNS(vednnConvolutionForward_direct_dil1_str1_padsame_ker3_T,"cnvFwd-d1s1pSk3_T"),
     IMPL_FNS(vednnConvolutionForward_direct_dil1_str1_padsame_ker5_owU128,"cnvFwd-d1s1pSk5owU128"),
     IMPL_FNS(vednnConvolutionForward_direct_dil1_str1_padsame_ker5,"cnvFwd-d1s1pSk5"),
     IMPL_FNS(vednnConvolutionForward_direct_dil1_str1_padsame_ker2,"cnvFwd-d1s1pSk2"),
@@ -55,6 +55,7 @@ static vednnConvForwardImpls vednnConvForwardList_[] = {
     IMPL_FNS(vednnConvolutionForward_direct_owU128,"cnvFwd-owU128"),
     IMPL_FNS(vednnConvolutionForward_direct_vecC,"cnvFwd-vecC"),
     IMPL_FNS(vednnConvolutionForward_direct_default,"cnvFwd-def"),
+    IMPL_WRAPNONE_FNS(vednnConvolutionForward_direct_gemm,"cnvFwd-gemm"),
     // customizations (stable, working, but win in isolated circumstances)
     //IMPL_FNS(vednnConvolutionForward_direct_default2,"cnvFwd-def2"),
     //IMPL_FNS(vednnConvolutionForward_direct_default3,"cnvFwd-def3"),

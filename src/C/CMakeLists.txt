@@ -8,8 +8,8 @@ endif()
 if(DEFINED ENV{NCXX})
     set(CMAKE_C_COMPILER ENV{NCXX})
 endif()
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -O4 -DNDEBUG")
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O4 -finline -finline-functions -DNDEBUG")
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -O4 -DNDEBUG -pthread")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O4 -finline -finline-functions -DNDEBUG -pthread")
 
 if(USE_FTRACE AND NOT USE_FTRACE STREQUAL 1)
     message(STATUS " ??? adding ftrace compilation flag ??? ")
@@ -41,6 +41,7 @@ add_library(vednn_c_code OBJECT
     vednnConvolutionForward_dil1_str1_padsame_ker3_T.cpp
 	vednnConvolutionBackwardData.c
 	vednnConvolutionBackwardFilter.c
+    convolution_gemm.cpp
 	vednnLinearForward.c
 	vednnLinearBackwardData.c
 	vednnLinearBackwardWeight.c

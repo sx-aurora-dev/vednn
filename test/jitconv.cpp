@@ -171,7 +171,7 @@ void testForward(struct param *pNetwork, int nEntry, double HZ, int flagBias, in
         cout<<"layer "<<&pNw_param_cstr[0]<<endl;
 
         if(doRef){
-            wrk.doRef();
+            // wrk.doRef();
             // OK, now do some timing runs for ref (gemm) calculation
             TestData td( t, pConv->ref_region, (size_t)0/*impl_idx*/, "gemm-Ref",
                     3/*doRef*/, pNw_param_cstr/*test-wide descr*/ );

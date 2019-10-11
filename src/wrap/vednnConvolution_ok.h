@@ -90,6 +90,7 @@ FWD_FN_OK(vednnConvolutionForward_direct_default3b);
 FWD_FN_OK(vednnConvolutionForward_direct_default);
 FWD_FN_OK(vednnConvolutionForward_direct_defaultA);
 FWD_FN_OK(vednnConvolutionForward_direct_alt);
+FWD_FN_OK(vednnConvolutionForward_direct_gemm);
 #undef FWD_FN_OK
 #undef FWD_RT_OK
 #undef FWD_FN_OK_

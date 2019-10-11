@@ -2,7 +2,7 @@
 # When changing the following, you should set up to rebuild
 # using correct external libraries with:
 # 	make clean unpack
-FTRACE=YES
+FTRACE=NO
 OPENMP=YES
 
 LIBSUFFIX:=
@@ -179,7 +179,7 @@ LDLIBS  += -L$(BLAS_LIB_DIR) -lcblas -lblas_openmp
 #LDLIBS  += -L/opt/nec/nosupport/llvm-ve/lib/clang/10.0.0/lib/linux/ve
 #LDLIBS  += -Wl,-rpath,/opt/nec/nosupport/llvm-ve/lib/clang/10.0.0/lib/linux/ve
 #LDLIBS  += -lgomp -lpthread -lc++abi -lunwind
-LDLIBS  += -fopenmp
+LDLIBS  += -fopenmp -lpthread
 CFLAGS			+= -fopenmp -pthread -DUSE_OPENMP
 CLANG_FLAGS     += -fopenmp -pthread -DUSE_OPENMP
 CFLAGS          += -DVEDNN_USE_OPENMP
@@ -705,7 +705,7 @@ clean:
 		ve_simpleconv.o vednn_helper.o vednn_linear_test.o linear_gemm.o vednn_pool_test.o maxpooling.o \
 		jitpage.o bin_mk.o libbin_mk2.a hello.cpp libbin_mk3.a \
 		convolution_gemm.o ejk_convolution_gemm.o vednn_conv_test.o ve_cmpconv*.o \
-		jitconv.o direct_*.o
+		jitconv.o direct_*.o testdata.o
 	rm -rf tmp_cjitConv01-x86
 realclean: clean
 	rm -f [a-z].log mk.log # but keep other-named log files

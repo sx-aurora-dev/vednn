@@ -77,6 +77,7 @@ FWD_FN_OK_LIKE(default2, default, 1);
 FWD_FN_OK_LIKE(default2p, default, 1);
 FWD_FN_OK_LIKE(default3, default, 1);
 FWD_FN_OK_LIKE(default3b, default, 1);
+FWD_FN_OK_LIKE(gemm, default, 1);
 FWD_FN_OK_LIKE(alt, default, 1);
 FWD_FN_OK_LIKE(defaultA, default, 1);
 FWD_FN_OK_LIKE(owU128, default, pParamOut->width <= 128);
