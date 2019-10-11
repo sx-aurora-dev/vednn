@@ -1,14 +1,53 @@
 #ifndef VEDNN_DEF_H
 #define VEDNN_DEF_H
+#include <stddef.h> //size_t
+
+#ifdef VEDNN_USE_OPENMP
+#include <omp.h>
+#endif
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-#ifdef VEDNN_USE_OPENMP
-#include <omp.h>
+/** \c  __vednn_init() always sets this to env OMP_NUM_THREADS. which is not nec. same as omp max
+ * threads! */
 extern int __vednn_omp_num_threads ;
-#endif
+
+/// \group vednn scratchpads
+/** Scratchpads are local to the current process (or libvednn load/unload).
+ * Scratchpads are nicely-sized persistent regions, reducing malloc calls.
+ * They have high alignment, and actual length is the desired length rounded
+ * up to at least a multiple of 16 bytes. */
+//@{
+/** Resize to \c size bytes and access vednn global scratchpad.
+ * Initialized during \c __vednn_init, via \c vednn_init_global_scratchpads().
+ * Modeled after mkldnn::impl::scratchpad_t.
+ * This is a general-purpose read-write scratchpad, usable in omp wrapper functions.
+ */
+char* vednn_scratchpad(size_t bytes);
+
+/** Resize to \c floats and, if resized, initialize all values to 1.0f.
+ * Client is expected to treat this scratchpad as const memory. */
+float* vednn_scratchpad_float_ones(size_t floats);
+
+/** Bump ref counts so global scratchpads are grow-only
+ * to reduce malloc calls.
+ *
+ * Each thread will create its own global scratchpad area, so
+ * use this from layer wrapper (in process thread) before omp calls,
+ * and pass the pointer to omp threads (I think).
+ *
+ * Scratchpads have large alignment, and actual malloced size is always
+ * rounded upward to a multiple of 16.
+ *
+ * These functions are automatically called via __vednn_init / _vednn_free
+ * when your process runs (or library gets loaded/unloaded).
+ */
+void vednn_init_global_scratchpads(); // called during __vednn_init
+void vednn_free_global_scratchpads(); // called during __vednn_init
+
+//@}
 
 #ifdef FTRACE
 #include <ftrace.h>
@@ -37,7 +76,7 @@ extern int __vednn_omp_num_threads ;
 			_vel_vfmklgt_mvl( /* && > END */ \
 				_vel_vcmpsl_vsvl( END, V_INT, VL),VL),VL)
 
-/** Declare a `__vm512 M512` variable that sets VM[i} and
+/** Declare a `__vm512 M512` variable that sets VM[i] and
  * VM[i+1] to existing \c __vm256 register \c A256 and \c B256.
  *
  * \note Following intrinsics swapped in very old VE clang.
@@ -56,4 +95,5 @@ VM512 = _vel_insert_vm512u(VM512, VM256_INEXT); /* u ~ VM[i+1] */
 #ifdef __cplusplus
 }//extern "C"
 #endif
+// vim: ts=4 sw=4 et ai
 #endif /* VEDNN_DEF_H */

@@ -89,6 +89,9 @@ if(USE_FTRACE)
     find_library(veperf NAMES veperf.a PATHS ${VE_VEPERF_DIR}/lib NO_DEFAULT_PATH)
 endif()
 
+# vednnx may link to blas libraries (for gen-dnn im2col in 'src/wrap/vconv')
+set(NLCDIR "/opt/nec/ve/nlc/2.0.0" CACHE STRING "VE blas install directory")
+
 message(STATUS "PROJECT_ROOT/ CMAKE_C_FLAGS=${CMAKE_C_FLAGS}")
 add_subdirectory(src)
 add_subdirectory(src/intrinsic)

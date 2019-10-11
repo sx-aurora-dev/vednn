@@ -1,3 +1,4 @@
+#include "vednn-def.h" // "C" scratchpad funcs
 #include <stdlib.h>
 #include <stdio.h>
 
@@ -10,4 +11,11 @@ void __vednn_init() {
 
   if( i > 0 )
     __vednn_omp_num_threads = i ;
+
+  vednn_init_global_scratchpads();
+}
+
+__attribute__((destructor))
+void __vednn_free() {
+  vednn_free_global_scratchpads();
 }

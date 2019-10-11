@@ -33,6 +33,7 @@ message(STATUS "src/C/vconv CMAKE_CXX_FLAGS=${CMAKE_C_FLAGS}")
 
 include_directories("../")
 include_directories("vconv/include/gen-dnn/vgemm")
+include_directories("vconv/include/gen-dnn/vconv")
 
 add_library(vednn_c_code OBJECT
 	vednnConvolutionForward.c
@@ -51,6 +52,7 @@ add_library(vednn_c_code OBJECT
 	vednnMaxPoolingBackward_default.c
 	vednnSoftmaxForward.c
 	vednnInit.c
+    vednnInitScratchpad.cpp
     ve_fastdiv.c
 )
 
