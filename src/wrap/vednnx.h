@@ -108,8 +108,7 @@
 #define CONVX_BKWF_ORDER(...) CONVX_BKWF_ORDER_(__VA_ARGS__)
 #define CONVX_BKWF_ORDER_(PI,PGO,PGK,PC,ALGO,   DI,DGO,DGK) /* order: libvednn low-level */ \
     PI,DI, PGO,DGO, PC, PGK,DGK
-#ifdef VEDNN_USE_OPENMP
-#define CONVX_BKWF_DECL(FUNCNAME) \
+#define CONVX_BKWF_NOWRAP_DECL(FUNCNAME) \
 "\nvednnError_t " FUNCNAME "(" \
 "\n    const vednnTensorParam_t     * restrict  pParamIn," \
 "\n    const void                   * restrict   pDataIn," \
@@ -118,6 +117,8 @@
 "\n    const vednnConvolutionParam_t* restrict pParamConv," \
 "\n    const vednnFilterParam_t     * restrict  pParamGradKernel," \
 "\n          void                   * restrict   pDataGradKernel)"
+#ifdef VEDNN_USE_OPENMP
+#define CONVX_BKWF_DECL(FUNCNAME) CONVX_BKWF_NOWRAP_DECL(FUNCNAME)
 #else
 #define CONVX_BKWF_DECL(FUNCNAME) \
 "\nvednnError_t " FUNCNAME "(" \

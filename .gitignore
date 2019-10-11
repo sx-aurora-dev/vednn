@@ -18,3 +18,10 @@ build-*
 **/*.L
 **/*.lo
 vednnx*.tar.gz
+**/*.i
+mk-ft1*log
+mk-vednnx*log
+**/ftrace.out
+vednnx
+mk-test.log
+install

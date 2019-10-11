@@ -14,6 +14,9 @@ vednnError_t (*vednnConvBackwardData_t) (
     const vednnTensorParam_t * restrict         pParamGradIn,
     void * restrict                             pDataGradIn
 ) ;
+/** this is the signature of \c pFunc arg to the wrapper, which we use
+ * directly for low-level impls marked as VEDNN_WRAP_NONE in libvednnx */
+typedef vednnConvBackwardData_t vednnConvBackwardData_nowrap_t;
 
 vednnError_t
 vednnConvolutionBackwardData_direct_default(

@@ -47,7 +47,7 @@ lib${PRJ}-ftrace1.tar.gz:
 test: build # default build dir might be an assumed install location for tests/Makefile
 	-ls -l build/src/lib
 	-cd test && make realclean
-	{ cd test && make VERBOSE=1 all ve_cmpconv && BIN_MK_VERBOSE=0 ./ve_cmpconv -r 10; } 2>&1 | tee mk-test.log
+	{ cd test && make VERBOSE=1 all jitconv && BIN_MK_VERBOSE=0 ./jitconv -r 10; } 2>&1 | tee mk-test.log
 force-build:
 	-rm -rf build
 	-mkdir build;

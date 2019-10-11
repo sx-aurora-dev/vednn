@@ -16,6 +16,9 @@ vednnError_t (*vednnConvForwardAddBias_t) (
     const vednnTensorParam_t * restrict         pParamOut,
     void * restrict                             pDataOut
 ) ;
+/** this is the signature of \c pFunc arg to the wrapper, which we use
+ * directly for low-level impls marked as VEDNN_WRAP_NONE in libvednnx */
+typedef vednnConvForwardAddBias_t vednnConvForwardAddBias_nowrap_t;
 
 
 vednnError_t

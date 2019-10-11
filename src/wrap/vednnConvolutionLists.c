@@ -10,18 +10,25 @@
 #include <stddef.h> // NULL
 #include <stdio.h> // fflush
 #include <stdint.h> // int64_t
+#include <assert.h>
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-#define IMPL_FNS(BASENAME,STR)    IMPL_FNS_(BASENAME,STR)
-#define IMPL_RTFNS(BASENAME,STR)  IMPL_RTFNS_(BASENAME,STR)
-#define JIT_FNS(BASENAME,STR)     JIT_FNS_(BASENAME,STR)
+#define IMPL_FNS(BASENAME,STR)          IMPL_FNS_(BASENAME,STR)
+#define IMPL_WRAPNONE_FNS(BASENAME,STR) IMPL_WRAPNONE_FNS_(BASENAME,STR)
+#define IMPL_RTFNS(BASENAME,STR)        IMPL_RTFNS_(BASENAME,STR)
+#define JIT_FNS(BASENAME,STR)           JIT_FNS_(BASENAME,STR) /* TBD */
 
-#define IMPL_FNS_(BASENAME,STR)   { BASENAME, #BASENAME, STR, BASENAME##_ok, NULL, NULL, NULL }
-#define IMPL_RTFNS_(BASENAME,STR) { BASENAME, #BASENAME, STR, BASENAME##_ok, BASENAME##_rtok, NULL, NULL }
-#define JIT_FNS_(BASENAME,STR)    { #BASENAME, STR, BASENAME##_ok, NULL, BASENAME##_pd, BASENAME##_jit }
+#define IMPL_FNS_(BASENAME,STR) \
+    { BASENAME, #BASENAME, STR, VEDNN_WRAP_DEFAULT, BASENAME##_ok, NULL, NULL, NULL }
+#define IMPL_WRAPNONE_FNS_(BASENAME,STR) \
+    { BASENAME, #BASENAME, STR, VEDNN_WRAP_NONE,    BASENAME##_ok, NULL, NULL, NULL }
+#define IMPL_RTFNS_(BASENAME,STR) \
+    { BASENAME, #BASENAME, STR, VEDNN_WRAP_DEFAULT, BASENAME##_ok, BASENAME##_rtok, NULL, NULL }
+#define JIT_FNS_(BASENAME,STR) \
+    { BASENAME, #BASENAME, STR, VEDNN_WRAP_DEFAULT, BASENAME##_ok, NULL, BASENAME##_pd, BASENAME##_jit }
 
 // try to put most specialized first, because they are likely fastest
 static vednnConvForwardImpls vednnConvForwardList_[] = {
@@ -392,7 +399,6 @@ vednnConvolutionBackwardFilter_wrapper(
 }
 
 #define INVOKE_CONV_OPENMP_WRAPPER(ret,current,Forward,FWD,FORWARD) \
-    vednnConv##Forward##_out_t ret = {current, VEDNN_ERROR_INVALID_PARAM}; \
 { \
     if(current != NULL) \
     /* invoke via _wrapper to do parallelization */ \
@@ -403,18 +409,67 @@ vednnConvolutionBackwardFilter_wrapper(
                 VEDNN_DATARG_CONV_##FORWARD##_LIST )); \
 }
 
+#define INVOKE_CONV_NOWRAP(ret,current,Forward,FWD,FORWARD) \
+{ \
+    if(current != NULL) \
+    /* instead of supplying current->impl as \c pFunc arg to wrapper, invoke impl directly */ \
+    /* easy, because wrapper pFunc and low-level nowrap args are in fact identical */ \
+    ret.status = ((vednnConv##Forward##_nowrap_t)current->impl) /* maybe simple fn sig*/ \
+    ( CONVX_##FWD##_ORDER( \
+                           VEDNN_PARAMS_CONV_##FORWARD##_LIST, \
+                           VEDNN_DATARG_CONV_##FORWARD##_LIST )); \
+}
+
 #define CONV_RUN(Forward,FWD,FORWARD) \
 vednnConv##Forward##_out_t vednnConv##Forward##_Run( \
         vednnConv##Forward##Impls* current, \
         VEDNN_PARAMS_CONV_##FORWARD, \
         VEDNN_DATARG_CONV_##FORWARD ) \
 { \
+    vednnConv##Forward##_out_t ret = {current, VEDNN_ERROR_INVALID_PARAM}; \
     ADVANCE_RTOK(current,Forward,FORWARD); \
-    /* current PARAMS ok **and** DATA rtok, so can run it, if still non-NULL */ \
-    INVOKE_CONV_OPENMP_WRAPPER(ret,current,Forward,FWD,FORWARD) \
+    if(current->wrap == VEDNN_WRAP_DEFAULT){ \
+        /* current PARAMS ok **and** DATA rtok, so can run it, if still non-NULL */ \
+        INVOKE_CONV_OPENMP_WRAPPER(ret,current,Forward,FWD,FORWARD) \
+    }else{ \
+        assert( current->wrap == VEDNN_WRAP_NONE ); \
+        INVOKE_CONV_NOWRAP(ret,current,Forward,FWD,FORWARD) \
+    } \
     return ret; \
 }
+#if 0 // long-hand version of macros, for debug ....
+vednnConvForward_out_t vednnConvForward_Run(
+        vednnConvForwardImpls* current,
+        VEDNN_PARAMS_CONV_FORWARD,
+        VEDNN_DATARG_CONV_FORWARD )
+{
+    vednnConvForward_out_t ret = {current, VEDNN_ERROR_INVALID_PARAM};
+    ADVANCE_RTOK(current,Forward,FORWARD);
+    if(current->wrap == VEDNN_WRAP_DEFAULT){
+        /* current PARAMS ok **and** DATA rtok, so can run it, if still non-NULL */
+        if(current != NULL)
+            /* invoke via _wrapper to do parallelization */
+            ret.status = vednnConvolutionForward_wrapper(
+                    current->impl,
+                    CONVX_FWD_ORDER(
+                        VEDNN_PARAMS_CONV_FORWARD_LIST,
+                        VEDNN_DATARG_CONV_FORWARD_LIST ));
+    }else{
+        assert( current->wrap == VEDNN_WRAP_NONE );
+        // TROUBLE -- INVOKE_CONV_NOWRAP(ret,current,Forward,FWD,FORWARD)
+        if(current != NULL)
+            /* instead of supplying current->impl as \c pFunc arg to wrapper, invoke impl directly */
+            ret.status = ((vednnConvForward_nowrap_t)current->impl) /* maybe simple fn sig*/
+                ( CONVX_FWD_ORDER(
+                                  VEDNN_PARAMS_CONV_FORWARD_LIST,
+                                  VEDNN_DATARG_CONV_FORWARD_LIST ));
+    }
+    return ret;
+}
+#else
 CONV_RUN(Forward,        FWD,  FORWARD)
+#endif
+// naming standardized so CONV_RUN also defines Run funcs for other directions
 CONV_RUN(ForwardAddBias, FWDB, FORWARDADDBIAS)
 CONV_RUN(BackwardData,   BKWD, BACKWARD_DATA)
 CONV_RUN(BackwardFilter, BKWF, BACKWARD_FILTER)

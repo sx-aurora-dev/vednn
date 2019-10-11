@@ -77,6 +77,7 @@ TARGETS:=vejit-unpack vednn-unpack cjitConv00-x86 cjitConv01-x86
 
 ifeq ($(CC:ncc%=ncc),ncc)
 TARGETS+=vednn_conv_test vednn_linear_test vednn_pool_test ve_simpleconv
+TARGETS+=jitconv
 TARGETS+=cjitConv01
 endif
 
@@ -597,6 +598,7 @@ libmegajit.so: # if lbmegajit does not exist, create a zero-length file instead,
 	else touch libmegajit.so; \
 	fi
 	ls -l libmegajit*
+# NOTE: now that libvednn has conv...direct_gemm implementations, we might not need $(CONVGEMM).o
 jitconv: jitconv.o $(LOCALIMPLS) $(CONVGEMM).o libcjitConv-ve.so vednn_helper.o testdata.o
 	@echo 'OPENMP $(OPENMP)'
 	@echo 'FTRACE $(FTRACE)'
