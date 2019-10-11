@@ -47,7 +47,6 @@ add_library(${LIBNAME} ${LIB_MODE}
         $<TARGET_OBJECTS:vednn_intrinsic_maxpooling_forward>
         $<TARGET_OBJECTS:vednn_intrinsic_activation>
 )
-add_dependencies(${LIBNAME} unPack)
 if(BUILD_SHARED)
     set_target_properties(${LIBNAME} PROPERTIES
         INSTALL_RPATH "\$ORIGIN/../lib"
@@ -58,18 +57,14 @@ add_library(${LIBWRAP} ${LIB_MODE}
         $<TARGET_OBJECTS:vednn_wrap>)
 
 if(USE_FTRACE)
-	target_link_libraries(${LIBNAME} veperf)
-	target_link_libraries(${LIBWRAP} ${LIBNAME} veperf)
+    #target_link_libraries(${LIBNAME} -L${VE_VEPERF_DIR}/lib veperf)
+    #target_link_libraries(${LIBWRAP} -L${VE_VEPERF_DIR}/lib veperf)
+    target_link_libraries(${LIBNAME} ${veperf})
+    target_link_libraries(${LIBWRAP} ${veperf})
 endif()
 
-if(USE_OPENMP)
-    #target_link_libraries(${LIBNAME} ${NLCDIR}/libcblas ${NLCDIR}/libblas_openmp.so)
-    target_link_libraries(${LIBNAME} -L${NLCDIR}/lib
-        -lcblas -lblas_openmp)
-else()
-    target_link_libraries(${LIBNAME}
-        ${NLCDIR}/lib/libcblas.so ${NLCDIR}/lib/libblas_sequential.so)
-endif()
+target_link_libraries(${LIBNAME} -L${NLCDIR}/lib -lcblas -lblas_openmp)
+#target_link_libraries(${LIBWRAP} -L${NLCDIR}/lib -lcblas -lblas_openmp)
 
 install(TARGETS ${LIBNAME} ${LIBWRAP} ARCHIVE DESTINATION lib LIBRARY DESTINATION lib)
 install(FILES vednn.h DESTINATION include)

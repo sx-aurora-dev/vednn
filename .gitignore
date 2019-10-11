@@ -11,6 +11,10 @@ mk-ft1-vednn_omp.log
 mk-build.log
 vednn
 build
-**/.*.sw/
+**/.*.sw?
 build-*
 **/*old
+**/*.LL
+**/*.L
+**/*.lo
+vednnx*.tar.gz

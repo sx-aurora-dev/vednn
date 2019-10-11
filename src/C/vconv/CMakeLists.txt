@@ -64,7 +64,6 @@ add_library(vconv_code OBJECT
 
 message(STATUS "src/C/vconv/ LIBNAME ${LIBNAME}")
 #target_link_libraries(vconv_code cblas blas)
-#add_dependencies(vconv_code unPack)
 
 # libvednnx iterator exposes low-level calls (with different parameter ordering)
 # Some external projects may want to directly access the low-level libvednn
