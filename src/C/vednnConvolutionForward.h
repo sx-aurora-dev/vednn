@@ -173,19 +173,6 @@ vednnConvolutionForward_direct_dil1_str1_padsame_ker3_T(
 ) ;
 
 vednnError_t
-vednnConvolutionForward_direct_dil1_str1_padsame_ker3_T_group(
-    const vednnTensorParam_t * restrict 	pParamIn,
-    const void * restrict 			pDataIn,
-    const vednnFilterParam_t * restrict 	pParamKernel,
-    const void * restrict 			pDataKernel,
-    const vednnConvolutionParam_t * restrict 	pParamConv,
-    const vednnTensorParam_t * restrict 	pParamOut,
-    void * restrict 				pDataOut,
-    int                                         n,
-    int                                         group
-) ;
-
-vednnError_t
 vednnConvolutionForward_direct_dil1_str1_padsame_ker3_T_remainder(
     const vednnTensorParam_t * restrict 	pParamIn,
     const void * restrict 			pDataIn,
@@ -196,11 +183,11 @@ vednnConvolutionForward_direct_dil1_str1_padsame_ker3_T_remainder(
     void * restrict 				pDataOut,
     int                                         n,
     int                                         group,
-    int *                                       outChannelsDone
+    int                                         op
 ) ;
 
 vednnError_t
-vednnConvolutionForward_direct_dil1_str1_padsame_ker3_T_oc16(
+vednnConvolutionForward_direct_dil1_str1_padsame_ker3_T_subkernel(
     const vednnTensorParam_t * restrict 	pParamIn,
     const void * restrict 			pDataIn,
     const vednnFilterParam_t * restrict 	pParamKernel,
@@ -210,8 +197,8 @@ vednnConvolutionForward_direct_dil1_str1_padsame_ker3_T_oc16(
     void * restrict 				pDataOut,
     int                                         n,
     int                                         group,
-    int                                         curOutChannel,
-    int                                         curOutPixel
+    int                                         curOutChannelGroupPrime,
+    int                                         curOutPixelPrime
 ) ;
 
 vednnError_t
