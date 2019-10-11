@@ -32,17 +32,12 @@ void vednn_init_scratchpad_float_ones(size_t size){
             new global_scratchpad_float_ones_t(size));
 }
 
-/* process scratchpad destroy. */
-void vednn_free_scratchpad(size_t size){
-    delete global_scratchpad;
-}
-
-void vednn_free_scratchpad_float_ones(size_t size){
-    delete global_scratchpad_float_ones;
-}
 
 }}//vednn::scratchpad::
 
+//
+// simple C API, for use during static lib __vednn_init/free
+//
 extern "C"{ //}
 void vednn_init_global_scratchpads(){
     printf("vednn_init_scratchpad()!\n");
@@ -61,6 +56,12 @@ void vednn_init_global_scratchpads(){
     // We don't care about maintaining global scratchpad normally,
     // but expose a void* version "for future use"".
     vednn_init_scratchpad_float_ones(2048);
+}
+
+/** process scratchpad destroy. */
+void vednn_free_global_scratchpads(){
+    delete vednn::scratchpad::global_scratchpad;
+    delete vednn::scratchpad::global_scratchpad_float_ones;
 }
 
 char* vednn_scratchpad(size_t bytes){

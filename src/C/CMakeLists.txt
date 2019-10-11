@@ -29,7 +29,7 @@ if(BUILD_SHARED_LIB)
 endif()
 
 message(STATUS "src/C/ CMAKE_C_FLAGS=${CMAKE_C_FLAGS}")
-message(STATUS "src/C/vconv CMAKE_CXX_FLAGS=${CMAKE_C_FLAGS}")
+message(STATUS "src/C/ CMAKE_CXX_FLAGS=${CMAKE_CXX_FLAGS}")
 
 include_directories("../")
 include_directories("vconv/include/gen-dnn/vgemm")

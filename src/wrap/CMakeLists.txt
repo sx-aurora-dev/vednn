@@ -2,6 +2,7 @@ cmake_minimum_required(VERSION 3.0)
 
 set(CMAKE_C_COMPILER /opt/nec/ve/bin/ncc)
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -O4")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O4")
 
 if(USE_FTRACE AND NOT USE_FTRACE STREQUAL 1)
     message(STATUS " ??? adding ftrace compilation flag ??? ")
@@ -12,10 +13,12 @@ endif()
 if(USE_OPENMP)
     add_definitions(-DVEDNN_USE_OPENMP)
     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fopenmp")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fopenmp")
 endif()
 
 if(BUILD_SHARED_LIB)
     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fPIC")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fPIC")
 endif()
 
 message(STATUS "src/wrap/ CMAKE_C_FLAGS=${CMAKE_C_FLAGS}")

@@ -5,3 +5,6 @@ vednn_conv_test
 vednn_linear_test
 vednn_pool_test
 
+cjitConv*-x86*
+vejit
+mnist
