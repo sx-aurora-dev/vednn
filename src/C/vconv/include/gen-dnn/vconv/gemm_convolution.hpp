@@ -334,6 +334,10 @@ using gemm_convolution_fwd_t =
 using gemm_convolution_relu_t =
                          _gemm_convolution_fwd_t<true>;
 
+}}}//mkldnn::impl::cpu::
+
+// in global namespace ::
+
 #if VCONV_STANDALONE
 typedef mkldnn::impl::cpu::_gemm_convolution_fwd_t<false>::dtype data_t; // float
 /** a more standalone version of gemm-forward-convolution.
@@ -364,10 +368,6 @@ void vconv_gemm_fwd(
         mkldnn::impl::post_ops_t const* const post_ops_ = nullptr // with_relu? sum?
         );
 #endif // VCONV_STANDALONE
-
-}}}//mkldnn::impl::cpu::
-
-// in global namespace ::
 
 namespace mkldnn {
 namespace impl {

@@ -2,9 +2,10 @@
 #define CONVOLUTION_GEMM_H
 #include "vednn.h"
 
-#ifdef __GNUC__
+#if defined(__GNUC__) && !defined(restrict)
 #define restrict __restrict
 #endif
+
 #ifdef __cplusplus
 extern "C" {
 #endif /*}*/

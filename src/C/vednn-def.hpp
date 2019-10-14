@@ -1,49 +1,83 @@
 #ifndef VEDNN_DEF_HPP
 #define VEDNN_DEF_HPP
 #include "vednn-def.h"
-#include <cassert>
 
 // from gen-dnn sources:
 //#include "mkldnn_thread.hpp"
 #include "utils.hpp"            // THREAD_LOCAL mkldnn::impl::malloc/free (with alignment)
+
+#include <cassert>
+#include <cstddef>  // size_t
+
 
 namespace vednn {
 namespace scratchpad {
 
 /** vednn C++ layers should use these to obtain the scratchpad memory addresses.
  * The extern "C" functions of same name are not inlined. */
-char* vednn_scratchpad(size_t bytes);
+//char* vednn_scratchpad(size_t bytes);
+char* vednn_scratchpad_shared(size_t bytes);
+char* vednn_scratchpad_tls(size_t bytes);
 float* vednn_scratchpad_float_ones(size_t const floats);
 
 /** borrowed from mkldnn scratchpad, Apache 2.0 license.
- * Overkill, for vednn, because we only have the 'global' type of scratchpad?
+ * Overkill, for vednn, and introduces extra function calls if used as public API.
  */
-struct scratchpad_t {
-    virtual ~scratchpad_t() {}
+struct ScratchpadBase {
+    virtual ~ScratchpadBase() {}
     virtual char *get() const = 0;
+    virtual float *pfloat() const = 0;
+};
+// fwd decl
+struct ScratchpadMallocFree;
+struct ScratchpadShared;
+struct ScratchpadTLS;
+struct ScratchpadFloatOnes;
+// library provides some re-usable scratchpads (use locally, within single layer funcs)
+extern ScratchpadShared     *scratchpadShared;
+extern ScratchpadTLS        *scratchpadTLS;
+extern ScratchpadFloatOnes  *scratchpadFloatOnes;
+
+/** Implementation of the Scratchpad interface that uses malloc/free
+ * every time (single-use, non-resizing scratchpad).  This is \b not
+ * a library-wide shared scratchpad!  Not exposed via C api (just use
+ * malloc/free as usual). */
+struct ScratchpadMallocFree : public ScratchpadBase {
+    ScratchpadMallocFree(size_t size) {
+        using mkldnn::impl::malloc;
+        size_ = size;
+        const size_t page_size = 2097152;
+        scratchpad_ = (char *) malloc(size, page_size);
+        assert(scratchpad_ != nullptr);
+    }
+    ~ScratchpadMallocFree() { free(scratchpad_); }
+    virtual char *get() const { return scratchpad_; }
+    virtual float *pfloat() const { return (float*)(void*)scratchpad_; }
+private:
+    char *scratchpad_;
+    size_t size_;
 };
 
-/** Implementation of the scratchpad_t interface that uses a global
- *  scratchpad. */
-struct global_scratchpad_t : public scratchpad_t {
-    global_scratchpad_t(size_t bytes) {
+/** growable local-use Scratchpad implemented as a shared pointer. Not thread-safe,
+ * but can pass pointer to threads from OpenMP master. */
+struct ScratchpadShared : public ScratchpadBase {
+    ScratchpadShared(size_t bytes) {
         using mkldnn::impl::malloc;
         using mkldnn::impl::free;
         bytes = (bytes+15U)/16U*16U;
         if (bytes > size_) {
             if (scratchpad_ != nullptr) free(scratchpad_);
             size_ = bytes;
-            /* Allocating memory buffers on a page boundary to reduce TLB/page misses */
+            /* Allocating on a page boundary to reduce TLB/page misses */
             const size_t page_size = 2097152;
             scratchpad_ = (char *) malloc(bytes, page_size);
-            printf(" vednn global_scratchpad[ %lu bytes ] @ %p\n",
+            printf(" vednn ScratchpadTLS[ %lu bytes ] @ %p\n",
                     (long unsigned)bytes, (void*)scratchpad_);
             assert(scratchpad_ != nullptr);
         }
-        reference_count_++;
+        ++reference_count_;
     }
-
-    ~global_scratchpad_t() {
+    ~ScratchpadShared() {
         using mkldnn::impl::free;
         reference_count_--;
         if (reference_count_ == 0) {
@@ -52,23 +86,59 @@ struct global_scratchpad_t : public scratchpad_t {
             size_ = 0;
         }
     }
+    virtual char *get() const { return scratchpad_; }
+    virtual float *pfloat() const { return (float*)(void*)scratchpad_; }
+private:
+    static char *scratchpad_;
+    static size_t size_;
+    static unsigned int reference_count_;
+};
 
-    virtual char *get() const {
-        return scratchpad_;
+/** Implementation of the ScratchpadBase interface that uses a
+ *  thread-local scratchpad. */
+struct ScratchpadTLS : public ScratchpadBase {
+    ScratchpadTLS(size_t bytes) {
+        using mkldnn::impl::malloc;
+        using mkldnn::impl::free;
+        bytes = (bytes+15U)/16U*16U;
+        if (bytes > size_) {
+            if (scratchpad_ != nullptr) free(scratchpad_);
+            size_ = bytes;
+            /* Allocating on a page boundary to reduce TLB/page misses */
+            const size_t page_size = 2097152;
+            scratchpad_ = (char *) malloc(bytes, page_size);
+            printf(" vednn ScratchpadTLS[ %lu bytes ] @ %p\n",
+                    (long unsigned)bytes, (void*)scratchpad_);
+            assert(scratchpad_ != nullptr);
+        }
+        ++reference_count_;
     }
-
+    ~ScratchpadTLS() {
+        using mkldnn::impl::free;
+        reference_count_--;
+        if (reference_count_ == 0) {
+            free(scratchpad_);
+            scratchpad_ = nullptr;
+            size_ = 0;
+        }
+    }
+    virtual char *get() const { return scratchpad_; }
+    virtual float *pfloat() const { return (float*)(void*)scratchpad_; }
 private:
     THREAD_LOCAL static char *scratchpad_;
     THREAD_LOCAL static size_t size_;
     THREAD_LOCAL static unsigned int reference_count_;
-    //OMP(threadprivate(scratchpad_, size_, reference_count_))//;
+    // nc++ 2.4 : "unsuitable threadprivate variable"
+    //OMP(threadprivate(scratchpad_))//;
+    //OMP(threadprivate(size_))//;
+    //OMP(threadprivate(reference_count_))//;
 };
 
-/* Implementation of the scratchpad_t interface that uses a global
- * scratchpad that grows by filling with 1.0f values. The constructor
- * size is number-of-floats (not bytes). */
-struct global_scratchpad_float_ones_t : public scratchpad_t {
-    global_scratchpad_float_ones_t(size_t floats) {
+/* Implementation of the ScratchpadBase interface that uses a global
+ * scratchpad (simple shared pointer) that grows by filling with 1.0f values.
+ * The constructor size is number-of-floats (not bytes). */
+struct ScratchpadFloatOnes : public ScratchpadBase {
+    ScratchpadFloatOnes(size_t floats) {
         using mkldnn::impl::malloc;
         using mkldnn::impl::free;
         floats = (floats+3U)/4U*4U;
@@ -78,7 +148,7 @@ struct global_scratchpad_float_ones_t : public scratchpad_t {
             /* Allocating memory buffers on a page boundary to reduce TLB/page misses */
             const size_t page_size = 2097152;
             void* sp = malloc(floats*sizeof(float), page_size);
-            printf(" vednn global_scratchpad_float_ones_t[ %lu bytes ] @ %p\n",
+            printf(" vednn ScratchpadFloatOnes[ %lu bytes ] @ %p\n",
                     (long unsigned)(floats*sizeof(float)), sp);
             scratchpad_ = (char *) sp;
             assert(scratchpad_ != nullptr);
@@ -90,8 +160,7 @@ struct global_scratchpad_float_ones_t : public scratchpad_t {
         }
         ++reference_count_;
     }
-
-    ~global_scratchpad_float_ones_t() {
+    ~ScratchpadFloatOnes() {
         using mkldnn::impl::free;
         --reference_count_;
         if (reference_count_ == 0) {
@@ -100,26 +169,22 @@ struct global_scratchpad_float_ones_t : public scratchpad_t {
             size_ = 0;
         }
     }
-
-    virtual char *get() const {
-        return scratchpad_;
-    }
-
+    virtual char *get() const { return scratchpad_; }
+    virtual float *pfloat() const { return (float*)(void*)scratchpad_; }
 private:
-    THREAD_LOCAL static char *scratchpad_;
-    THREAD_LOCAL static size_t size_;
-    THREAD_LOCAL static unsigned int reference_count_;
-    //OMP(threadprivate(scratchpad_, size_, reference_count_))//;
+    static char *scratchpad_;
+    static size_t size_;
+    static unsigned int reference_count_;
 };
 
-extern global_scratchpad_t             *global_scratchpad;
-extern global_scratchpad_float_ones_t  *global_scratchpad_float_ones;
-
-inline char* vednn_scratchpad(size_t bytes){
-    return global_scratchpad->get();
+inline char* vednn_scratchpad_shared(size_t bytes){
+    return scratchpadShared->get();
+}
+inline char* vednn_scratchpadTLS(size_t bytes){
+    return scratchpadTLS->get();
 }
 inline float* vednn_scratchpad_float_ones(size_t const floats){
-    return reinterpret_cast<float*>(global_scratchpad_float_ones->get());
+    return reinterpret_cast<float*>(scratchpadFloatOnes->get());
 }
 
 

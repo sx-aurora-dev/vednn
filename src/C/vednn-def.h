@@ -25,7 +25,9 @@ extern int __vednn_omp_num_threads ;
  * Modeled after mkldnn::impl::scratchpad_t.
  * This is a general-purpose read-write scratchpad, usable in omp wrapper functions.
  */
-char* vednn_scratchpad(size_t bytes);
+char* vednn_scratchpad_shared(size_t bytes);
+char* vednn_scratchpadTLS(size_t bytes);
+//char* vednn_scratchpad(size_t bytes); // no "C" interface counterpart
 
 /** Resize to \c floats and, if resized, initialize all values to 1.0f.
  * Client is expected to treat this scratchpad as const memory. */

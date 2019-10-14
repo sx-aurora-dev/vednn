@@ -194,10 +194,9 @@
 
 #if ENABLE_OMP
 #   define OMP(...) PragmaQuote(omp __VA_ARGS__)
-#   if defined(__ve)
-#      warning "__ve enabling #pragma omp"
-#   endif
-#   warning "enabling #pragma omp"
+//#   if defined(__ve)
+//#      warning "__ve enabling #pragma omp"
+//#   endif
 #   if defined(_SX) // no support for "simd" pragmas
 #   elif defined(_MSC_VER) && !defined(__clang__) && !defined(__INTEL_COMPILER)
 #   elif defined(__ve)
@@ -224,7 +223,6 @@
 
 #ifndef OMP
 #   define OMP(...)
-#warning "not enabling #pragma omp (mkldnn_os.h)"
 #if defined(REF_LRN_HPP) // mostly ignore: show for cpu_engine compile at least
 #   warning "not enabling #pragma omp (mkldnn_os.h)"
 #endif

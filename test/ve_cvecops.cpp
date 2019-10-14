@@ -332,7 +332,7 @@ std::string vel_vmerge32(
     static ostringstream oss; // a common (reset-to-empty) string formatting buffer.
     int const v = 0; // verbosity
     // Optionally use a client-side vector length for guarantees and return.
-    int64_t vlen = 0U;  // 0 : vel version uses own vlen (clobber, in general)
+    //int64_t vlen = 0U;  // 0 : vel version uses own vlen (clobber, in general)
 
     if(v>=2) cout<<" "<<__PRETTY_FUNCTION__<<endl; cout.flush();
 

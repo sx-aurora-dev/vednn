@@ -1,8 +1,10 @@
 #ifndef CONVOLUTION_GEMM_H
 #define CONVOLUTION_GEMM_H
-#ifdef __GNUC__
+
+#if defined(__GNUC__) && !defined(restrict)
 #define restrict __restrict
 #endif
+
 #ifdef __cplusplus
 extern "C" {
 #endif /*}*/

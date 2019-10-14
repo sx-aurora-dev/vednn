@@ -32,15 +32,16 @@ static float FZERO   = 0.0f;
 static int   IONE    = 1;
 
 /* ----------------------------------------------------------------------- */
+#if 0
 static inline int is_a_ge_zero_and_a_lt_b(int a, int b) {
   //return (unsigned)a < (unsigned)b;
   return a>=0  && a<b; // for ncc auto vectorization, this is better
 }
-
-// much slower
+#else
 static inline int64_t zero_le_a_lt_b(int64_t a, int64_t b) {
   return a>=0  && a<b; // for ncc auto vectorization, this is better
 }
+#endif
 
 /** data_col size to hold float[ic*kw*kh*ow*oh]. */
   static void
@@ -58,7 +59,7 @@ im2col_cpu(const float * restrict data_im, const int64_t channels,
 
   int64_t channel;
 
-#pragma _NEC omp if(channels>=3)
+#pragma _NEC parallel for if(channels>=3)
   for (channel = 0 ; channel < channels; channel++) {				// inChannel
     int64_t kernel_row, kernel_col, output_rows, output_cols, output_col;
 
@@ -69,7 +70,7 @@ im2col_cpu(const float * restrict data_im, const int64_t channels,
       for (kernel_col = 0; kernel_col < kernel_w; kernel_col++) {		// kernWidth
         int64_t input_row = -pad_h + kernel_row * dilation_h;
         for (output_rows = output_h; output_rows; output_rows--) {	// outHeight
-          if (!is_a_ge_zero_and_a_lt_b(input_row, height)) {
+          if (!zero_le_a_lt_b(input_row, height)) {
             for (output_cols = output_w; output_cols; output_cols--) { // outWidth
               data_col[outOffset++] = 0; //*(data_col++) = 0;
             }
@@ -77,7 +78,7 @@ im2col_cpu(const float * restrict data_im, const int64_t channels,
             int64_t input_col = -pad_w + kernel_col * dilation_w;
             for (output_col = output_w; output_col; output_col--) {	// outWidth
               data_col[outOffset++] //*(data_col++)
-                = (is_a_ge_zero_and_a_lt_b(input_col, width)
+                = (zero_le_a_lt_b(input_col, width)
                   ? data_im[inOffset + input_row * width + input_col]
                   : 0.f);
               input_col += stride_w;
@@ -93,43 +94,43 @@ im2col_cpu(const float * restrict data_im, const int64_t channels,
 
   static void
 col2im_cpu(
-    const float* data_col, const int channels,
-    const int height, const int width, const int kernel_h, const int kernel_w,
-    const int pad_h, const int pad_w,
-    const int stride_h, const int stride_w,
-    const int dilation_h, const int dilation_w,
+    const float* data_col, const int64_t channels,
+    const int64_t height, const int64_t width, const int64_t kernel_h, const int64_t kernel_w,
+    const int64_t pad_h, const int64_t pad_w,
+    const int64_t stride_h, const int64_t stride_w,
+    const int64_t dilation_h, const int64_t dilation_w,
     float* data_im)
 {
   LFTRACE_BEGIN("col2im_cpu");
   memset(data_im, 0, sizeof(float)*height*width*channels) ;
 
-  const int output_h = (height + 2 * pad_h - (dilation_h * (kernel_h - 1) + 1)) / stride_h + 1;
-  const int output_w = (width + 2 * pad_w -  (dilation_w * (kernel_w - 1) + 1)) / stride_w + 1;
-  const int channel_size = height * width;
+  const int64_t output_h = (height + 2 * pad_h - (dilation_h * (kernel_h - 1) + 1)) / stride_h + 1;
+  const int64_t output_w = (width + 2 * pad_w -  (dilation_w * (kernel_w - 1) + 1)) / stride_w + 1;
+  const int64_t channel_size = height * width;
 
-  int channel;
+  int64_t channel;
 
-#pragma _NEC omp if(channels>=3)
+#pragma _NEC parallel for if(channels>=3)
   for (channel = 0 ; channel < channels; channel++) {				// inChannel
-    int kernel_row, kernel_col, output_rows, output_cols, output_col;
+    int64_t kernel_row, kernel_col, output_rows, output_cols, output_col;
 
-    int inOffset = channel * channel_size;
-    int outOffset = channel * output_h * output_w * kernel_h * kernel_w;
+    int64_t inOffset = channel * channel_size;
+    int64_t outOffset = channel * output_h * output_w * kernel_h * kernel_w;
 
     for (kernel_row = 0; kernel_row < kernel_h; kernel_row++) {		// kernHeight
       for (kernel_col = 0; kernel_col < kernel_w; kernel_col++) {		// kernWidth
-        int input_row = -pad_h + kernel_row * dilation_h;
+        int64_t input_row = -pad_h + kernel_row * dilation_h;
         for (output_rows = output_h; output_rows; output_rows--) {	// outHeight
-          if (!is_a_ge_zero_and_a_lt_b(input_row, height)) {
+          if (!zero_le_a_lt_b(input_row, height)) {
             for (output_cols = output_w; output_cols; output_cols--) {
               // *(data_col++) = 0;
               //data_col[outOffset++] ;
               ++outOffset;
             }
           } else {
-            int input_col = -pad_w + kernel_col * dilation_w;
+            int64_t input_col = -pad_w + kernel_col * dilation_w;
             for (output_col = output_w; output_col; output_col--) {	// outWidth
-              if (is_a_ge_zero_and_a_lt_b(input_col, width)) {
+              if (zero_le_a_lt_b(input_col, width)) {
                 // *(data_col++) = data_im[input_row * width + input_col];
                 data_im[inOffset + input_row * width + input_col] += data_col[outOffset++] ;
               } else {

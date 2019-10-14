@@ -8,10 +8,11 @@
 
 #ifdef __cplusplus
 extern "C" {
+#endif
+
 // not sure about next condition (has it changed to be defined in necvals.h?)
 #if !defined(restrict)
 #define restrict __restrict__
-#endif
 #endif
 
 vednnError_t

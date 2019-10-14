@@ -64,5 +64,6 @@ clean:
 	$(MAKE) -C test clean
 realclean: clean
 	-rm -rf build ${PRJ}.tar.gz ${PRJ}-ftrace1.tar.gz
+	$(MAKE) -C src/C/vconv realclean
 	$(MAKE) -C test realclean
 #

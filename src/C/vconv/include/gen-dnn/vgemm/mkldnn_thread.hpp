@@ -20,7 +20,7 @@
 
 #include "utils.hpp"
 
-#if defined(VEDNN_USE_OPENMP)
+#if defined(_OPENMP)
 #   include <omp.h>
 #   if defined(SXAURORA) // strange headers and missing function...
 #      include <stdlib.h>
@@ -31,15 +31,12 @@ inline int omp_get_max_threads()
         return atoi(e);
     return 1;
 }
-#      warning "redefining omp_get_max_threads() in mkldnn_thread.hpp"
 #   endif // SXAURORA
-#warning "VEDNN_USE_OPENMP defined in mkldnn_thread.hpp"
-#else // not defined(VEDNN_USE_OPENMP)
+#else // not defined(_OPENMP)
 inline int omp_get_max_threads() { return 1; }
 inline int omp_get_num_threads() { return 1; }
 inline int omp_get_thread_num() { return 0; }
 inline int omp_in_parallel() { return 0; }
-#warning "VEDNN_USE_OPENMP not defined in mkldnn_thread.hpp"
 #endif
 
 #ifndef PRAGMA_OMP_SIMD // [ejk] pragma macros moved upward to include/mkldnn_os.h
