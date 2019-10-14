@@ -521,13 +521,15 @@ vednnConvolutionForward_direct_dil1_str1_padsame_ker3_T_subkernel(
 
             int64_t op = curOutPixelPrime * VLEN;
             int ocgRemainder = outChannelGroup % 16;
-            if(curOutChannelGroupPrime == 0)
-              vednnConvolutionForward_direct_dil1_str1_padsame_ker3_T_remainder(
+            if(curOutChannelGroupPrime == 0 && ocgRemainder)
+              return vednnConvolutionForward_direct_dil1_str1_padsame_ker3_T_remainder(
                 pParamIn, pDataIn, pParamKernel, pDataKernel,
                 pParamConv, pParamOut, pDataOut, n, g, op);
 
 
-            int64_t k = curOutChannelGroupPrime * 16 + ocgRemainder;
+            int64_t k = ocgRemainder ? 
+                        (curOutChannelGroupPrime-1) * 16 + ocgRemainder :
+                        curOutChannelGroupPrime * 16 ;
 
             int64_t outIndex = outGroupOffset + (n * outChannel + k  ) * oPixels + op;   /* add op */
 
