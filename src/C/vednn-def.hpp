@@ -8,6 +8,7 @@
 
 #include <cassert>
 #include <cstddef>  // size_t
+#include <cstdio>
 
 
 namespace vednn {
@@ -71,7 +72,7 @@ struct ScratchpadShared : public ScratchpadBase {
             /* Allocating on a page boundary to reduce TLB/page misses */
             const size_t page_size = 2097152;
             scratchpad_ = (char *) malloc(bytes, page_size);
-            printf(" vednn ScratchpadTLS[ %lu bytes ] @ %p\n",
+            printf(" vednn ScratchpadShared[ %lu bytes ] @ %p\n",
                     (long unsigned)bytes, (void*)scratchpad_);
             assert(scratchpad_ != nullptr);
         }
@@ -81,6 +82,8 @@ struct ScratchpadShared : public ScratchpadBase {
         using mkldnn::impl::free;
         reference_count_--;
         if (reference_count_ == 0) {
+            printf(" ~ScratchpadShared[ %lu bytes ] @ %p\n",
+                    (long unsigned)bytes, (void*)scratchpad_);
             free(scratchpad_);
             scratchpad_ = nullptr;
             size_ = 0;
@@ -117,6 +120,8 @@ struct ScratchpadTLS : public ScratchpadBase {
         using mkldnn::impl::free;
         reference_count_--;
         if (reference_count_ == 0) {
+            printf(" ~ScratchpadShared[ %lu bytes ] @ %p\n",
+                    (long unsigned)bytes, (void*)scratchpad_);
             free(scratchpad_);
             scratchpad_ = nullptr;
             size_ = 0;
@@ -164,6 +169,8 @@ struct ScratchpadFloatOnes : public ScratchpadBase {
         using mkldnn::impl::free;
         --reference_count_;
         if (reference_count_ == 0) {
+            printf(" ~ScratchpadFloatOnes[ %lu bytes ] @ %p\n",
+                    (long unsigned)(floats*sizeof(float)), sp);
             free(scratchpad_);
             scratchpad_ = nullptr;
             size_ = 0;

@@ -26,8 +26,12 @@ extern int __vednn_omp_num_threads ;
  * This is a general-purpose read-write scratchpad, usable in omp wrapper functions.
  */
 char* vednn_scratchpad_shared(size_t bytes);
+
+#if 0 // do not expose thread-local scratchpads until needed
+/** thread-local re-usable scratchpads (e.g. for omp threads).
+ * Not used yet in vednn, but these are the default flavor in mkl-dnn. */
 char* vednn_scratchpadTLS(size_t bytes);
-//char* vednn_scratchpad(size_t bytes); // no "C" interface counterpart
+#endif
 
 /** Resize to \c floats and, if resized, initialize all values to 1.0f.
  * Client is expected to treat this scratchpad as const memory. */

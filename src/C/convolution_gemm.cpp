@@ -10,7 +10,7 @@
 #include <stdint.h>
 
 /** 0=malloc+free, 1=vednn_scratchpad_shared */
-#define SCRATCHPAD 1
+#define SCRATCHPAD 0
 
 /** return sizeof(float) if pParam is DTYPE_FLOAT */
 static inline size_t getTensorDataSize(const vednnTensorParam_t * restrict pParam)

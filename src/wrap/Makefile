@@ -53,11 +53,13 @@ LDLIBS	+= -L$(BLAS_LIB_DIR) -lblas_sequential
 endif
 
 ifeq ($(FTRACE),YES)
-VEPERF_DIR	= /usr/uhome/aurora/mpc/pub/veperf/180218-ELF
-VEPERF_INC_DIR	= $(VEPERF_DIR)/include
-VEPERF_LIB_DIR	= $(VEPERF_DIR)/lib
-CFLAGS		+= -I$(VEPERF_INC_DIR) -DFTRACE
-LDLIBS		+= -L$(VEPERF_LIB_DIR) -Wl,-rpath,$(realpath $(VEPERF_LIB_DIR)) -ftrace
+#VEPERF_DIR	= /usr/uhome/aurora/mpc/pub/veperf/180218-ELF
+#VEPERF_INC_DIR	= $(VEPERF_DIR)/include
+#VEPERF_LIB_DIR	= $(VEPERF_DIR)/lib
+#CFLAGS		+= -I$(VEPERF_INC_DIR) -DFTRACE
+#LDLIBS		+= -L$(VEPERF_LIB_DIR) -Wl,-rpath,$(realpath $(VEPERF_LIB_DIR)) -ftrace
+CFLAGS		+= -ftrace -DFTRACE
+LDLIBS		+= -ftrace
 endif
 
 

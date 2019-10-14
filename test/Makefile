@@ -2,7 +2,7 @@
 # When changing the following, you should set up to rebuild
 # using correct external libraries with:
 # 	make clean unpack
-FTRACE=NO
+FTRACE=YES
 OPENMP=YES
 
 LIBSUFFIX:=
@@ -63,6 +63,19 @@ VEDNNX_DIR:=$(VEDNN_DIR)
 TGZ:=$(realpath $(TGZ))
 endif
 endif
+ifeq ($(FTRACE),YES)
+define ftrace_rm =
+rm -f ftrace.out
+endef
+define frace =
+ftrace
+endef
+else
+define ftrace_rm =
+endef
+define frace =
+endef
+endif
 
 else # assume x86
 $(warning x86 compile?)
@@ -70,6 +83,10 @@ VEDNN_SUBDIR:= vednn
 VEDNN_DIR:=$(mkfile_dir)vednn
 VEDNNX_DIR:=$(VEDNN_DIR)
 #AR  default is ok
+define ftrace_rm =
+endef
+define frace =
+endef
 endif
 
 .PHONY: Makefile all Hello Goodbye vejit-unpack vednn-unpack unpack force
