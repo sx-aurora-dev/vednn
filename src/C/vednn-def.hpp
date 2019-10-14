@@ -83,7 +83,7 @@ struct ScratchpadShared : public ScratchpadBase {
         reference_count_--;
         if (reference_count_ == 0) {
             printf(" ~ScratchpadShared[ %lu bytes ] @ %p\n",
-                    (long unsigned)bytes, (void*)scratchpad_);
+                    (long unsigned)size_, (void*)scratchpad_);
             free(scratchpad_);
             scratchpad_ = nullptr;
             size_ = 0;
@@ -121,7 +121,7 @@ struct ScratchpadTLS : public ScratchpadBase {
         reference_count_--;
         if (reference_count_ == 0) {
             printf(" ~ScratchpadShared[ %lu bytes ] @ %p\n",
-                    (long unsigned)bytes, (void*)scratchpad_);
+                    (long unsigned)size_, (void*)scratchpad_);
             free(scratchpad_);
             scratchpad_ = nullptr;
             size_ = 0;
@@ -170,7 +170,7 @@ struct ScratchpadFloatOnes : public ScratchpadBase {
         --reference_count_;
         if (reference_count_ == 0) {
             printf(" ~ScratchpadFloatOnes[ %lu bytes ] @ %p\n",
-                    (long unsigned)(floats*sizeof(float)), sp);
+                    (long unsigned)size_, scratchpad_);
             free(scratchpad_);
             scratchpad_ = nullptr;
             size_ = 0;

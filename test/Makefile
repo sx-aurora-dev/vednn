@@ -5,6 +5,9 @@
 FTRACE=YES
 OPENMP=YES
 
+# NEW: set Makefile default to use C++ linker (for default rule)
+LINK.o = $(LINK.cc)
+
 LIBSUFFIX:=
 VEDNN_SUFFIX:=
 ifeq (${OPENMP},YES)
@@ -196,8 +199,11 @@ LDLIBS  += -L$(BLAS_LIB_DIR) -lcblas -lblas_openmp
 #LDLIBS  += -L/opt/nec/nosupport/llvm-ve/lib/clang/10.0.0/lib/linux/ve
 #LDLIBS  += -Wl,-rpath,/opt/nec/nosupport/llvm-ve/lib/clang/10.0.0/lib/linux/ve
 #LDLIBS  += -lgomp -lpthread -lc++abi -lunwind
-LDLIBS  += -fopenmp -lpthread
-CFLAGS			+= -fopenmp -pthread -DUSE_OPENMP
+# NEW: ftrace with ncc 2.x.x:
+#    " If -lpthread is specified instead of option -pthread, the
+#      program execution analysis information may not be displayed correctly. "
+LDLIBS  += -fopenmp -pthread
+CFLAGS		+= -fopenmp -pthread -DUSE_OPENMP
 CLANG_FLAGS     += -fopenmp -pthread -DUSE_OPENMP
 CFLAGS          += -DVEDNN_USE_OPENMP
 CLANG_FLAGS     += -DVEDNN_USE_OPENMP

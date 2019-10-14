@@ -15,6 +15,7 @@ struct OneConvForward final {
 
     OneConvForward( struct param const *pNetwork, int const flagBias, int const verbose );
     ~OneConvForward();
+    // not req'd: void clobber(); ///< write garbage into output tensor [NEW]
     void doRef(); ///< run Reference Convolution
     int verbose() const {return v;}
     void verbose(int const verbose) {v=verbose;}
@@ -77,6 +78,19 @@ inline void OneConvForward::doRef(){ // run Reference Convolution
     testconvForward_refcalcs(&conv,1);
     haveRef = true;
 }
+//inline void OneConvForward::clobber(){ // run Reference Convolution
+//    if(v) printf("OneConvForward[doRef]::clobber...\n");
+//    switch(getTensorDataType(conv.pParamIn)){
+//    case DTYPE_FLOAT:
+//        for(size_t i=0U; i<getTensorSize(conv.pParamOut); ++i)
+//            conv.pDataOut[i] = 0.1313f;
+//        break;
+//    default:
+//        ERROR_EXIT("Unknown dataType_t");
+//        break;
+//    }
+//    haveRef = true;
+//}
 
 inline OneConvBackwardData::OneConvBackwardData( struct param const *pNetwork, int const verbose/*=1*/ )
     : conv(), v(verbose), haveRef(false)

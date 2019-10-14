@@ -79,6 +79,7 @@ struct CacheKiller {
 };
 volatile bool CacheKiller::enable = false;
 
+#if 0
 static std::string getPath() {
     long const sz = pathconf(".",_PC_PATH_MAX); // assume we are interested cwd
     if(sz<=0) THROW("Invalid max path length?");
@@ -95,6 +96,8 @@ static std::string getPath() {
       default: THROW("Unrecognised errno="<<error);
     }
 }
+#endif
+
 /** return list of jit symbols (Forward convolutions->libcjitConv.so).
  * caller must cjitSyms_free(return value) */
 static CjitSyms const* getForwardJitSymbols(struct param const* pNetwork, int nEntry, int const flagBias)
