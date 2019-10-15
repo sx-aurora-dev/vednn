@@ -53,6 +53,7 @@ static vednnConvForwardImpls vednnConvForwardList_[] = {
     IMPL_FNS(vednnConvolutionForward_direct_dil1_pad0,"cnvFwd-d1p0"),
 	// generic libvednn
     IMPL_FNS(vednnConvolutionForward_direct_owU128,"cnvFwd-owU128"),
+    IMPL_FNS(vednnConvolutionForward_direct_owU128_T, "cnvFwd-owU128_T"),
     IMPL_FNS(vednnConvolutionForward_direct_vecC,"cnvFwd-vecC"),
     IMPL_FNS(vednnConvolutionForward_direct_default,"cnvFwd-def"),
     IMPL_WRAPNONE_FNS(vednnConvolutionForward_direct_gemm,"cnvFwd-gemm"),

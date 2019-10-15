@@ -82,6 +82,7 @@ FWD_FN_OK_LIKE(alt, default, 1);
 FWD_FN_OK_LIKE(defaultA, default, 1);
 FWD_FN_OK_LIKE(owU128, default, pParamOut->width <= 128);
 FWD_FN_OK_LIKE(owU128A, owU128, 1);
+FWD_FN_OK_LIKE(owU128_T, owU128, 1);
 
 FWD_FN_OK_LIKE(vecC, default,
         pParamOut->height * pParamOut->width <= 16

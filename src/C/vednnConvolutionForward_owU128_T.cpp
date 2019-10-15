@@ -15,7 +15,7 @@
 extern "C" {
 
 vednnError_t
-vednnConvolutionForward_direct_dil1_str1_pad0_ker1_T(
+vednnConvolutionForward_direct_owU128_T(
     const vednnTensorParam_t * restrict 	pParamIn,
     const void * restrict 			pDataIn,
     const vednnFilterParam_t * restrict 	pParamKernel,
@@ -35,13 +35,16 @@ vednnConvolutionForward_direct_dil1_str1_pad0_ker1_T(
   const int oPixels= outHeight*outWidth ;
 
   int64_t outChannelGroupPrime = (outChannelGroup + 15) / 16;
-  int64_t oPixelsPrime = (oPixels + VLEN-1) / VLEN;
-  mkldnn::impl::parallel_nd(batch, group, outChannelGroupPrime, oPixelsPrime,
-              [&](int n, int g, int kPrime, int opPrime) {
 
-    vednnConvolutionForward_direct_dil1_str1_pad0_ker1_T_subkernel(
+  const int64_t nY = VLEN / outWidth ;
+  const int64_t oYPrime = (outHeight + (nY-1)) / nY;
+
+  mkldnn::impl::parallel_nd(batch, group, outChannelGroupPrime, oYPrime,
+              [&](int n, int g, int kPrime, int oyPrime) {
+
+    vednnConvolutionForward_direct_owU128_T_subkernel(
       pParamIn, pDataIn, pParamKernel, pDataKernel,
-      pParamConv, pParamOut, pDataOut, n, g, kPrime, opPrime);
+      pParamConv, pParamOut, pDataOut, n, g, kPrime, oyPrime);
 
   });  /* kernel of parallel_nd() */
 

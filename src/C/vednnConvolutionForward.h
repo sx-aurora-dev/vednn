@@ -66,6 +66,32 @@ vednnConvolutionForward_direct_owU128(
 ) ;
 
 vednnError_t
+vednnConvolutionForward_direct_owU128_T(
+    const vednnTensorParam_t * restrict         pParamIn,
+    const void * restrict                       pDataIn,
+    const vednnFilterParam_t * restrict         pParamKernel,
+    const void * restrict                       pDataKernel,
+    const vednnConvolutionParam_t * restrict    pParamConv,
+    const vednnTensorParam_t * restrict         pParamOut,
+    void * restrict                             pDataOut
+) ;
+
+vednnError_t
+vednnConvolutionForward_direct_owU128_T_subkernel(
+    const vednnTensorParam_t * restrict         pParamIn,
+    const void * restrict                       pDataIn,
+    const vednnFilterParam_t * restrict         pParamKernel,
+    const void * restrict                       pDataKernel,
+    const vednnConvolutionParam_t * restrict    pParamConv,
+    const vednnTensorParam_t * restrict         pParamOut,
+    void * restrict                             pDataOut,
+    int                                         n,
+    int                                         group,
+    int                                         curOutChannelGroupPrime,
+    int                                         curOutYPrime
+) ;
+
+vednnError_t
 vednnConvolutionForward_direct_dil1_pad0(
     const vednnTensorParam_t * restrict         pParamIn,
     const void * restrict                       pDataIn,
