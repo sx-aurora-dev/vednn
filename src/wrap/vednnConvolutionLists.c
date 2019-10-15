@@ -61,6 +61,7 @@ static vednnConvForwardImpls vednnConvForwardList_[] = {
     //IMPL_FNS(vednnConvolutionForward_direct_default3,"cnvFwd-def3"),
     // ker1
     IMPL_FNS(vednnConvolutionForward_direct_dil1_str1_pad0_ker1,"cnvFwd-s1p0k1"),
+    IMPL_WRAPNONE_FNS(vednnConvolutionForward_direct_dil1_str1_pad0_ker1_T,"cnvFwd-s1p0k1_T"),
     IMPL_FNS(vednnConvolutionForward_direct_dil1_pad0_owU128_ker1,"cnvFwd-p0k1_owU128"),
     // Problem: ker1 + nonequal height width buggy?  or else [d1] s1p0k1A maybe clobber output?
     // WRONG OUTPUT for mb1ih640iw360__ic128oc4__kh1___n"RNxt101-conv2a-ungrouped"

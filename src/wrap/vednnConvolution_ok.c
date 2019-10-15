@@ -113,6 +113,7 @@ FWD_FN_OK_LIKE(dil1_str1_pad0A, dil1_str1_pad0, 1);
 FWD_FN_OK_LIKE(dil1_str1_pad0_ker1, dil1_str1_pad0,
         pParamKernel->width == 1 && pParamKernel->height == 1);
 FWD_FN_OK_LIKE(dil1_str1_pad0_ker1A, dil1_str1_pad0_ker1, 1);
+FWD_FN_OK_LIKE(dil1_str1_pad0_ker1_T, dil1_str1_pad0_ker1, 1);
 
 FWD_FN_OK_LIKE(dil1_pad0_ker1, dil1_pad0,
         pParamKernel->width == 1 && pParamKernel->height == 1);
