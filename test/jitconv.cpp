@@ -107,16 +107,16 @@ static CjitSyms const* getForwardJitSymbols(struct param const* pNetwork, int nE
     // added ability for C api to track which nEntry..
     char const* generators[] = {
         // MOVED into cjitConvFwd6:    "cjitConvFwd6vel",
-        "cjitConvFwd1",
-        "cjitConvFwd1p",
+        //"cjitConvFwd1", // usually slower
+        //"cjitConvFwd1p", // usually slower, 1 with ptrs vs offsets
+        //"cjitConvFwd1b", // usually slower? 1 with mask precalc
         "cjitConvFwd1q",
-        "cjitConvFwd6",
-        "cjitConvFwd1b", // usually slower? 1 with mask precalc
-        "cjitConvFwd3", // usually slower
-        "cjitConvFwd2", // usually slower
-        // 4 and 5 have a bug in kBy1 loop.  Should cross-check with Fwd3 and fix TODO
+        //"cjitConvFwd2", // usually slower
+        //"cjitConvFwd3", // usually slower
+        // 4 and 5 developed bug in kBy1 loop.  Should cross-check with Fwd3 and fix TODO
         //"cjitConvFwd4",
         //"cjitConvFwd5",
+        "cjitConvFwd6",    // cleaned-up 1q, with light mods
         NULL};
     // jit_dir is now settable as -S SUBDIR [default tmp_cjitConv]
     struct CjitOpt cjitOpt= { jit_dir, 0, 0 }; // "tmp_cjitConv", full prep, full build 
@@ -174,7 +174,7 @@ void testForward(struct param *pNetwork, int nEntry, double HZ, int flagBias, in
         cout<<"layer "<<&pNw_param_cstr[0]<<endl;
 
         if(doRef){
-            // wrk.doRef();
+            // wrk.doRef(); // warm-up?
             // OK, now do some timing runs for ref (gemm) calculation
             TestData td( t, pConv->ref_region, (size_t)0/*impl_idx*/, "gemm-Ref",
                     3/*doRef*/, pNw_param_cstr/*test-wide descr*/ );
@@ -233,6 +233,7 @@ void testForward(struct param *pNetwork, int nEntry, double HZ, int flagBias, in
             double sum_time = 0.0;
             double max_diff = 0.0;
             for(int r=0; r < reps; ++r){
+                testconvForward_oclobber(pConv); // set a few outputs "wrong"
                 cacheKiller();
                 testconvForward_vednncalcs( pConv, 1 ); // set up pConv for calc
 
@@ -294,6 +295,7 @@ void testForward(struct param *pNetwork, int nEntry, double HZ, int flagBias, in
                     {
                         snprintf(name,80,"%s:%d:%s",pConv->region,iter_cnt,iter->shortname);
                         printf(" %s...",name); fflush(stdout);
+                        testconvForward_oclobber(pConv); // set a few outputs "wrong"
                         cacheKiller();
 
                         // TODO realNext (check for _rtok to run the impl, as below)
@@ -390,6 +392,7 @@ void testForward(struct param *pNetwork, int nEntry, double HZ, int flagBias, in
                         // so grep -k11 of ftrace will sort from "best" to "worst" [approx]
                         snprintf(name,80,"%s:%d:%s",pConv->region,iter_cnt,iter->shortname);
                         printf(" iter name %s...\n",name); fflush(stdout);
+                        testconvForward_oclobber(pConv); // set a few outputs "wrong"
                         cacheKiller();
                         //printf(" A"); fflush(stdout);
 
@@ -574,6 +577,7 @@ void testForward(struct param *pNetwork, int nEntry, double HZ, int flagBias, in
                         continue;
                     }
 
+                    testconvForward_oclobber(pConv); // set a few outputs "wrong"
                     cacheKiller();
                     // CjitConvFwd1 is a "default" impl, so no need to check an _ok functiion
                     // eventually will need to return the syms for a vednnConvolutionLists.h entry
@@ -661,13 +665,14 @@ void testBackwardData(struct param *pNetwork, int nEntry, double HZ, int flagCSV
 
         if(doRef){
             cout<<"+++ doRef"<<endl;
-            wrk.doRef();
+            //wrk.doRef(); // warmup?
             TestData td( t, pConv->ref_region, (size_t)0/*impl_idx*/,
                     "gemm-Ref", 3/*doRef*/, pNw_param_cstr/*test-wide descr*/);
             double sum_time = 0.0;
             double max_diff = 0.0;
             unsigned long long c[2];
             for(int r=0; r < reps; ++r){
+                testconvBackwardData_oclobber(pConv); // set a few outputs "wrong"
                 cacheKiller();
                 c[0] = __cycle();
                 wrk.doRef();
@@ -714,6 +719,7 @@ void testBackwardData(struct param *pNetwork, int nEntry, double HZ, int flagCSV
             double sum_time = 0.0;
             double max_diff = 0.0;
             for(int r=0; r < reps; ++r){
+                testconvBackwardData_oclobber(pConv); // set a few outputs "wrong"
                 cacheKiller();
                 testconvBackwardData_vednncalcs( pConv, 1 ); // set up pConv for calc
 
@@ -769,6 +775,7 @@ void testBackwardData(struct param *pNetwork, int nEntry, double HZ, int flagCSV
                 {
                     snprintf(name,80,"%s:%d:%s",pConv->region,iter_cnt,iter->shortname);
                     printf(" %s...",name); fflush(stdout);
+                    testconvBackwardData_oclobber(pConv); // set a few outputs "wrong"
                     cacheKiller();
 
                     // TODO realNext (check for _rtok to run the impl, as below)
@@ -938,8 +945,16 @@ void testBackwardFilter(struct param *pNetwork, int nEntry, double HZ, int flagC
 
 
     // run test Convolution, libvednn API
+    CacheKiller cacheKiller;
     for(int r=0; r < reps; ++r){
-        testconvBackwardFilter_vednncalcs( pConvBuff, nEntry );
+        // shortest, but no control over cache/clobber state [YET XXX]
+        //testconvBackwardFilter_vednncalcs( pConvBuff, nEntry );
+        for (t=0; t<nEntry; ++t) {
+            conv *pConv = &pConvBuff[t];
+            testconvBackwardFilter_oclobber(pConv); // set a few outputs "wrong"
+            cacheKiller();
+            testconvBackwardFilter_vednncalcs( pConv, 1 );
+        }
     }
 
     if (flagCSV) dumpParamCSV_title();

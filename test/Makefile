@@ -385,26 +385,26 @@ cjitConv%-ve.o: cjitConv%.cpp cjitConv.hpp conv_test_param.h ve_cvecops.hpp
 cjitConv%-ve.lo: cjitConv%.cpp cjitConv.hpp conv_test_param.h ve_cvecops.hpp
 	$(CJIT_CXX) -fPIC -c $< -o $@
 # cjitConvFwd6vel-ve.o REMOVED	
-libcjitConv-ve.a: cjitConv-ve.o cjitConvFwd1-ve.o cjitConvFwd1b-ve.o cjitConvFwd1p-ve.o \
-	cjitConvFwd1q-ve.o cjitConvFwd2-ve.o cjitConvFwd3-ve.o cjitConvFwd4-ve.o \
-	cjitConvFwd5-ve.o cjitConvFwd6-ve.o ve_cvecops-ve.o
+# small subset
+CJITCONV_SET:=cjitConvFwd1q cjitConvFwd6
+# larger subset --- enable for jit development work (slow compilations!)
+# coordinate with list of used jit impls in:
+# 		jitconv.cpp
+# 		cjitConv.cpp
+#CJITCONV_SET+=cjitConvFwd1 cjitConvFwd1b cjitConvFwd1p cjitConvFwd2 cjitConvFwd3 cjitConvFwd4 cjitConvFwd5
+libcjitConv-ve.a: $(patsubst %,%-ve.o,$(CJITCONV_SET)) cjitConv-ve.o ve_cvecops-ve.o
 	rm -f $@
 	# create quick with index $@
 	$(AR) cqs $@ $^
-libcjitConv-x86.a: cjitConv-x86.o cjitConvFwd1-x86.o cjitConvFwd1b-x86.o cjitConvFwd1p-x86.o \
-	cjitConvFwd1q-x86.o cjitConvFwd2-x86.o cjitConvFwd3-x86.o cjitConvFwd4-x86.o \
-	cjitConvFwd5-x86.o cjitConvFwd6-x86.o ve_cvecops-x86.o
-	rm -f $@
+libcjitConv-x86.a: cjitConv-x86.o $(patsubst %,%-x86.o,$(CJITCONV_SET)) ve_cvecops-x86.o
+	rm -f $@ # can run on x86 to produce VE jit code
+	$(AR) cqs $@ $^
 cjitConv-ve.o:	cjitConv.cpp cjitConv.hpp conv_test_param.h ve_cvecops.hpp
 	$(CJIT_CXX) -E $< -o cjitConv.i
 	$(CJIT_CXX) -c $< -o $@
-libcjitConv-ve.so: cjitConv-ve.lo cjitConvFwd1-ve.lo cjitConvFwd1b-ve.lo cjitConvFwd1p-ve.lo \
-	cjitConvFwd1q-ve.lo cjitConvFwd2-ve.lo cjitConvFwd3-ve.lo cjitConvFwd4-ve.lo \
-	cjitConvFwd5-ve.lo cjitConvFwd6-ve.lo ve_cvecops-ve.lo
+libcjitConv-ve.so: cjitConv-ve.lo $(patsubst %,%-ve.lo,$(CJITCONV_SET)) ve_cvecops-ve.lo
 	$(CJIT_CXX) $^ -fPIC -shared -o $@
-libcjitConv-x86.so: cjitConv-x86.lo cjitConvFwd1-x86.lo cjitConvFwd1b-x86.lo cjitConvFwd1p-x86.lo \
-	cjitConvFwd1q-x86.lo cjitConvFwd2-x86.lo cjitConvFwd3-x86.lo cjitConvFwd4-x86.lo \
-	cjitConvFwd5-x86.lo cjitConvFwd6-x86.lo ve_cvecops-x86.lo
+libcjitConv-x86.so: cjitConv-x86.lo $(patsubst %,%-x86.lo,$(CJITCONV_SET)) ve_cvecops-x86.lo
 	$(CJITX86) $^ -fPIC -shared -o $@
 cjitConv02-x86: cjitConv02.cpp cjitConv-x86.o vejit
 	$(CJITX86) -E $< -o $@.i
@@ -544,6 +544,8 @@ cjit00.so: cjit00.c
 	$(CLANG) $(CLANG_FLAGS) -fPIC -shared -c $< -o $@
 	# Here is the .so from the auto-generated cjit00.c (from cjitConv00-x86 demo)
 	ls -l cjit00.so && nreadelf -h cjit00.so
+conv_test_param.o: conv_test_param.c
+	$(CJIT_CXX) -o $@ -c $<
 convolution_gemm.o: convolution_gemm-ncc.s
 	$(CC) $(CFLAGS) -o $@ -c $<
 convolution_gemm-clang.s: convolution_gemm.c
@@ -574,7 +576,7 @@ mnist: mnist-master.zip
 	rm -rf mnist-master; unzip mnist-master.zip; touch mnist-master
 	rm -rf mnist; mv mnist-master mnist
 
-vednn_conv_test : vednn_conv_test.o vednn_helper.o convolution_gemm.o
+vednn_conv_test : vednn_conv_test.o vednn_helper.o convolution_gemm.o conv_test_param.o
 #ve_cmpconv : ve_cmpconv.o vednn_helper.o $(CONVGEMM).o # pure-C version
 ve_cmpconv.o: ve_cmpconv.c conv_test_param.h
 	$(CC) ${CFLAGS} -E $< -o ve_cmpconv.i
@@ -595,7 +597,7 @@ libjit1-cxx-ve.a: libjit1-cxx-ve.lo
 	fi
 # This needs to be fixed in vejit.tar.gz, dllbuild stuff ???
 # libjit1-cxx-ve.a used to be necessary (or libjit1-justc-ve.a)
-ve_cmpconv: ve_cmpconv.o $(CONVGEMM).o libcjitConv-ve.a vednn_helper.o
+ve_cmpconv: ve_cmpconv.o $(CONVGEMM).o libcjitConv-ve.a vednn_helper.o conv_test_param.o
 	 @# -Wl,-z,stacksize=0x10000000 ignored
 	 $(CXX) $(filter %.o,$@) $^ ${CFLAGS} ${LDFLAGS} -Wl,-z,max-page-size=0x200000 $(filter %.a,%^) ${LDLIBS} \
 		 -o $@ -Lvejit/lib -ljit1 -ldl
@@ -622,7 +624,7 @@ libmegajit.so: # if lbmegajit does not exist, create a zero-length file instead,
 	fi
 	ls -l libmegajit*
 # NOTE: now that libvednn has conv...direct_gemm implementations, we might not need $(CONVGEMM).o
-jitconv: jitconv.o $(LOCALIMPLS) $(CONVGEMM).o libcjitConv-ve.so vednn_helper.o testdata.o
+jitconv: jitconv.o $(LOCALIMPLS) $(CONVGEMM).o libcjitConv-ve.so vednn_helper.o testdata.o conv_test_param.o
 	@echo 'OPENMP $(OPENMP)'
 	@echo 'FTRACE $(FTRACE)'
 	@$(MAKE) cjit_vars
@@ -644,13 +646,36 @@ jitconv: jitconv.o $(LOCALIMPLS) $(CONVGEMM).o libcjitConv-ve.so vednn_helper.o 
 #    override individual "test impls" WITHOUT slow recompile of vednn
 d1s1pSB.o: d1s1pSB.c
 	$(CLANG) ${CLANG_FLAGS} -Wall -Werror -c $< -o $@
-jitconv-dev: jitconv.o d1s1pSB.o $(CONVGEMM).o libcjitConv-ve.so vednn_helper.o
+jitconv-dev: jitconv.o d1s1pSB.o $(CONVGEMM).o libcjitConv-ve.so vednn_helper.o conv_test_param.o
 	$(CXX) $(filter %.o,$@) $^ ${CXXFLAGS} ${LDFLAGS} -Wl,-z,max-page-size=0x200000 \
 		-L.  -Wl,-rpath,. -lcjitConv-ve \
 		-Lvejit/lib  -Wl,-rpath vejit/lib \
 		$(filter %.a,%^) $(filter %.so,$^) \
 		-l${LIBJIT} -o $@ \
 		${LDLIBS} -ldl
+.PHONY: resnext resnext-t8.log
+resnext-t8.log:
+	{ cmd='./jitconv -k -t 8 -S resnext -M params/conv/resnext2.txt'; rm -f ftrace.out \
+	       echo "$$cmd"; time $$cmd; ftrace || true; } >& resnext-t8.log
+resnext: jitconv
+	{ cmd='./jitconv -k -t 8 -M params/conv/resnext2.txt'; rm -f ftrace.out \
+	       echo "$$cmd"; time $$cmd; ftrace || true; } >& resnext-t8.log
+	{ cmd='./jitconv -k -t 4 -M params/conv/resnext2.txt'; rm -f ftrace.out \
+	       echo "$$cmd"; time $$cmd; ftrace || true; } >& resnext-t4.log
+	{ cmd='./jitconv -k -t 2 -M params/conv/resnext2.txt'; rm -f ftrace.out \
+	       echo "$$cmd"; time $$cmd; ftrace || true; } >& resnext-t2.log
+	{ cmd='./jitconv -k -t 1 -M params/conv/resnext2.txt'; rm -f ftrace.out \
+	       echo "$$cmd"; time $$cmd; ftrace || true; } >& resnext-t1.log
+	{ cmd='./jitconv -k -t 8 -M params/conv/resnext2.txt -mb8'; rm -f ftrace.out \
+	       echo "$$cmd"; time $$cmd; ftrace || true; } >& resnext-t8-mb8.log
+	{ cmd='./jitconv -k -t 4 -M params/conv/resnext2.txt -mb8'; rm -f ftrace.out \
+	       echo "$$cmd"; time $$cmd; ftrace || true; } >& resnext-t4-mb8.log
+	{ cmd='./jitconv -k -t 2 -M params/conv/resnext2.txt -mb8'; rm -f ftrace.out \
+	       echo "$$cmd"; time $$cmd; ftrace || true; } >& resnext-t2-mb8.log
+	{ cmd='./jitconv -k -t 1 -M params/conv/resnext2.txt -mb8'; rm -f ftrace.out \
+	       echo "$$cmd"; time $$cmd; ftrace || true; } >& resnext-t1-mb8.log
+	echo 'YAY: made resnext-*.log'
+
 y.log: force
 	{ rm -rf tmp_cjitConv; \
 	{ $(MAKE) VERBOSE=1 ./vejit ve_cmpconv || $(MAKE) VERBOSE=1 libcjitConv-ve.a ve_cmpconv; } \
@@ -701,18 +726,18 @@ alex%.cmp: alex%.txt force
 #
 # libjit1 has C++ code, which VE cannot initialize correctly.
 # So, FOR NOW, the desired linking as ve_cmpconv2 FAILS:
-ve_cmpconv2 : ve_cmpconv.c $(CONVGEMM).o cjitConv-ve.o vednn_helper.o libcjitConv-ve.a
+ve_cmpconv2 : ve_cmpconv.c $(CONVGEMM).o cjitConv-ve.o vednn_helper.o conv_test_param.o libcjitConv-ve.a
 	 $(CXX) ${CFLAGS} $(filter %.c,$^) $(filter %.o,$^) $(filter %.a,$^) ${LDFLAGS} ${LDLIBS} -o $@ -Lvejit/lib -l${LIBJIT} -ldl
 	 #1  0x00007ff80023ae58 in _Setgloballocale () from /r/home/nlabhpg/kruus/vednn-ek/test/vejit/lib/libjit1.so
 	 #2  0x00007ff80023da78 in std::locale::_Setgloballocale(void*) () from /r/home/nlabhpg/kruus/vednn-ek/test/vejit/lib/libjit1.so
 	 #3  0x00007ff80023d668 in std::locale::_Init(bool) () from /r/home/nlabhpg/kruus/vednn-ek/test/vejit/lib/libjit1.so
 
-ve_simpleconv : ve_simpleconv.o vednn_helper.o $(CONVGEMM).o
-vednn_linear_test : vednn_linear_test.o vednn_helper.o linear_gemm.o
-vednn_pool_test : vednn_pool_test.o vednn_helper.o maxpooling.o
+ve_simpleconv : ve_simpleconv.o vednn_helper.o conv_test_param.o $(CONVGEMM).o
+vednn_linear_test : vednn_linear_test.o vednn_helper.o linear_gemm.o conv_test_param.o
+vednn_pool_test : vednn_pool_test.o vednn_helper.o maxpooling.o conv_test_param.o
 ve_mnist_read : ve_mnist_read.cpp
 	$(CXX) $(CXXFLAGS) -o $@ $^
-ve_mnist_train : ve_mnist_train.cpp vednn_helper.o maxpooling.o
+ve_mnist_train : ve_mnist_train.cpp vednn_helper.o maxpooling.o conv_test_param.o
 	$(CXX) $(CXXFLAGS) -o $@ $^
 
 #.PHONY: vednnjit-hdrs
@@ -723,12 +748,12 @@ ve_mnist_train : ve_mnist_train.cpp vednn_helper.o maxpooling.o
 #		$(CJITX86_CC) -c "$${f}"; \
 #	done
 clean:
-	rm -f $(OBJS) $(TARGETS) *.L *.O *.s *.lo *.i cjit*.o ve_cvec*.o ve_cvec*.i cjit*.i ftrace.out *~ \
-		libcjitConv-ve.a  libjit1-cxx-ve.a \
+	rm -f $(OBJS) $(TARGETS) *.L *.O *.s *.lo *.i cjit*.o ve_cvec*.o *.O ve_cvec*.i cjit*.i ftrace.out *~ \
+		libcjitConv-ve.a  libjit1-cxx-ve.a libcjitConv-ve.so libjit1-cxx-ve.lo \
 		ve_simpleconv.o vednn_helper.o vednn_linear_test.o linear_gemm.o vednn_pool_test.o maxpooling.o \
-		jitpage.o bin_mk.o libbin_mk2.a hello.cpp libbin_mk3.a \
+		jitpage.o bin_mk.o libbin_mk2.a hello.cpp libbin_mk3.a conv_test_param.o \
 		convolution_gemm.o ejk_convolution_gemm.o vednn_conv_test.o ve_cmpconv*.o \
-		jitconv.o direct_*.o testdata.o
+		jitconv.o direct_*.o testdata.o cjitConv00-x86 cjitConv01-x86
 	rm -rf tmp_cjitConv01-x86
 realclean: clean
 	rm -f [a-z].log mk.log # but keep other-named log files
