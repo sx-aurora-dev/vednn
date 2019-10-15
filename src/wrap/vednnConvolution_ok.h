@@ -44,6 +44,7 @@ DECLARE_OK_FNS(BackwardFilter,  BACKWARD_FILTER)
 //FWD_FN_OK(vednnConvolutionForward_direct_dil1_str1_pad0_ker1_c1024x);
 FWD_FN_OK(vednnConvolutionForward_direct_dil1_str1_pad0_ker1);
 FWD_FN_OK(vednnConvolutionForward_direct_dil1_str1_pad0_ker1A);
+FWD_FN_OK(vednnConvolutionForward_direct_dil1_str1_pad0_ker1_T);
 FWD_FN_OK(vednnConvolutionForward_direct_dil1_pad0_owU128_ker1);
 FWD_FN_OK(vednnConvolutionForward_direct_dil1_pad0_owU128_ker1A);
 FWD_FN_OK(vednnConvolutionForward_direct_dil1_pad0_ker1);

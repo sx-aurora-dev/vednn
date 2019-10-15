@@ -154,6 +154,32 @@ vednnConvolutionForward_direct_dil1_str1_pad0_ker1(
 ) ;
 
 vednnError_t
+vednnConvolutionForward_direct_dil1_str1_pad0_ker1_T(
+    const vednnTensorParam_t * restrict         pParamIn,
+    const void * restrict                       pDataIn,
+    const vednnFilterParam_t * restrict         pParamKernel,
+    const void * restrict                       pDataKernel,
+    const vednnConvolutionParam_t * restrict    pParamConv,
+    const vednnTensorParam_t * restrict         pParamOut,
+    void * restrict                             pDataOut
+) ;
+
+vednnError_t
+vednnConvolutionForward_direct_dil1_str1_pad0_ker1_T_subkernel(
+    const vednnTensorParam_t * restrict         pParamIn,
+    const void * restrict                       pDataIn,
+    const vednnFilterParam_t * restrict         pParamKernel,
+    const void * restrict                       pDataKernel,
+    const vednnConvolutionParam_t * restrict    pParamConv,
+    const vednnTensorParam_t * restrict         pParamOut,
+    void * restrict                             pDataOut,
+    int                                         n,
+    int                                         group,
+    int                                         curOutChannelGroupPrime,
+    int                                         curOutPixelPrime
+) ;
+
+vednnError_t
 vednnConvolutionForward_direct_dil1_str1_padsame(
     const vednnTensorParam_t * restrict         pParamIn,
     const void * restrict                       pDataIn,
