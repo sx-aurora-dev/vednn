@@ -546,6 +546,8 @@ cjit00.so: cjit00.c
 	ls -l cjit00.so && nreadelf -h cjit00.so
 conv_test_param.o: conv_test_param.c
 	$(CJIT_CXX) -o $@ -c $<
+conv_test_param-x86.o: conv_test_param.c
+	$(CJITX86) -o $@ -c $<
 convolution_gemm.o: convolution_gemm-ncc.s
 	$(CC) $(CFLAGS) -o $@ -c $<
 convolution_gemm-clang.s: convolution_gemm.c
@@ -564,7 +566,7 @@ convolution_gemm-ncc.s: convolution_gemm.c
 	@# -mvector-packed # 86.37G
 	@#-fcse-after-vectorization -msched-block -mvector-loop-count-test -mvector-packed
 convolution_gemm-x86.s: convolution_gemm.c
-	${CJIT_X86} -o $@ -S $<
+	${CJITX86} -o $@ -S $<
 ejk_convolution_gemm.o: ejk_convolution_gemm.s
 	$(CC) $(CFLAGS) -o $@ -c $<
 ejk_convolution_gemm.s: ejk_convolution_gemm.c
