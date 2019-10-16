@@ -5,6 +5,8 @@ CC=$(VE_BIN_DIR)/ncc
 COMPILE_TYPE:=$(word 1,$(shell $(CC) --version 2>&1))
 $(if $(COMPILE_TYPE),,$(error could not determine C compiler type?)) # VE(ncc) vs x86(gcc or ...)
 
+# NEW: set Makefile default to use C++ linker
+LINK.o = $(LINK.cc)
 
 # Supply a vednn-unpack target and add it to 'all' target
 # Set variables:
@@ -61,15 +63,30 @@ vednn_pool_test : vednn_pool_test.o vednn_helper.o maxpooling.o
 
 clean:
 	rm -f $(OBJS) $(TARGETS) *.L *.O *.s ftrace.out *~
-clean_subdirs: # get rid of unpacked tarballs (if any)
-	for d in vejit vednn vednn-ftrace1 mnist \
-		tmp_cjitConv tmp_cjitConv01 z.dir \
-		; do \
+	$(MAKE) -fMakefile.big clean
+clean_vejit:
+	@for d in vejit; do \
+		if [ -d "$${d}" ]; then \
+		echo "Removing subdir $${d}"; \
+		chmod -R ugo+rw "$${d}"; rm -rf "$${d}"; \
+		fi; \
+		done;
+clean_vednn:		
+	@for d in vednn vednn-ftrace1; do \
+		if [ -d "$${d}" ]; then \
+		echo "Removing subdir $${d}"; \
+		chmod -R ugo+rw "$${d}"; rm -rf "$${d}"; \
+		fi; \
+		done;
+clean_subdirs: clean_vejit clean_vednn # get rid of unpacked tarballs (if any)
+	@for d in mnist tmp_cjitConv tmp_cjitConv01 z.dir; do \
 		if [ -d "$${d}" ]; then \
 		echo "Removing subdir $${d}"; \
 		chmod -R ugo+rw "$${d}"; rm -rf "$${d}"; \
 		fi; \
 		done;
 realclean: clean clean_subdirs
-	rm -rf ./vednn-ftrace1 ./vednn
+	$(MAKE) -fMakefile.big realclean
+jitconv resnext-t8.log:
+	$(MAKE) -fMakefile.big $@
 #

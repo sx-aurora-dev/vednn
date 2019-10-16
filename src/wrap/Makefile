@@ -112,5 +112,7 @@ vednnjit-src : vednnJit.cpp
 	$(X86_CXX) -c $< -o $@
 clean:
 	rm -f $(OBJS) $(TARGETS) *.L *.O *.o *.lo *.s ftrace.out *~ *.i *.gch
+	$(MAKE) -C vconv $@
 realclean:
 	rm -f $(LIBTARGETS)
+	$(MAKE) -C vconv $@

@@ -42,29 +42,48 @@ lib${PRJ}-ftrace1.tar.gz:
 	# tarball
 	rm -f ${PRJ}-ftrace1.tar.gz
 	tar cvzf ${PRJ}-ftrace1.tar.gz ${PRJ} 2>&1 | tee -a mk-ft1-${PRJ}.log
+quicktest: # remove tarball build, use build/ and install/ only
+	@for f in "lib${PRJ}.tar.gz" "lib${PRJ}-ftrace1.tar.gz"; do \
+		if [ -f "$$f" ]; then mv -v "$${f}" "$${f}.old"; fi; done
+	${MAKE} -C test clean_vednn
+	${MAKE} test && { echo make $@ OK; true; } || { echo make $@ FAILED; false; }
 test: build
 	@# default build dir might be an assumed install location for tests/Makefile
 	-ls -l build/src
 	-cd test && make -f Makefile.tiny realclean
 	@#{ cd test && make VERBOSE=1 all ve_cmpconv && BIN_MK_VERBOSE=0 ./ve_cmpconv -r 10; } 2>&1 | tee mk-test.log
-	{ cd test && make VERBOSE=1 Makefile.tiny all && { \
+	{ cd test && make VERBOSE=1 -f Makefile all && { \
 		./vednn_conv_test -H 8e8 -p params/conv/alexnet.txt -T ConvForward; ftrace; \
 		./vednn_linear_test -H 0.8e9 -p params/linear/alexnet.txt -T LinearForward; ftrace; \
-		./vednn_pool_test   -H 0.8e9 -p params/pool/alexnet.txt   -T MaxPoolForward; ftrace; } \
-	} 2>&1 | tee mk-test.log
+		./vednn_pool_test   -H 0.8e9 -p params/pool/alexnet.txt   -T MaxPoolForward; ftrace; \
+		} && { echo "resnext via Makefile.big..."; \
+		make VERBOSE=1 -f Makefile.big jitconv resnext-t8.log || { echo "OHOH: test/resnext.log!"; false; } \
+		} && echo "vednn make test passed"; \
+	} 2>&1 | tee mk-test.log; ps=($${PIPESTATUS[@]}); \
+	echo "make test ---> mk-test.log, test/resnext-t8.log : PIPESTATUS $${ps[@]}"; \
+	[ "$${ps[0]}" == "0" ];
+	@echo "make test OK"
 force-build:
 	rm -rf build; mkdir build;
 	$(MAKE) build
 # close to default build...
-build: # original tests/Makefile always links against this build directory
-	rm -rf build; mkdir build;
-	cd build && cmake --trace -DCMAKE_VERBOSE_MAKEFILE:BOOL=ON .. -DCMAKE_INSTALL_PREFIX=../install 2>&1 | tee ../mk-build.log
-	{ { cd build && make VERBOSE=1 install; } && echo BUILD OK || echo BUILD FAILED; } \
-		2>&1 | tee -a mk-build.log; echo 'see mk-build.log'
+build: # if no tarballs, test/original tests/Makefile always links against this build directory
+	if [ ! -d build ]; then mkdir build; echo "Fresh build/"; else echo "Remake in build/"; fi
+	cd build && cmake --trace -DCMAKE_VERBOSE_MAKEFILE:BOOL=ON .. -DCMAKE_INSTALL_PREFIX=../install \
+		-DCMAKE_BUILD_TYPE=RelWithDebInfo \
+	       	2>&1 | tee ../mk-build.log
+	{ { cd build && make VERBOSE=1 ${MKJOB} install; }; status=$$?; \
+		if [ "$$status" == "0" ]; then echo BUILD OK; else echo BUILD FAILED; fi; \
+		test "$$status" == "0" ; \
+		} 2>&1 | tee -a mk-build.log; ps=($${PIPESTATUS[@]}); \
+		echo "make build ---> mk-build.log PIPESTATUS 0:$${ps[0]} 1:$${ps[1]}"; \
+		[ "$${ps[0]}" == "0" ];
+	@echo "make build OK"
 clean:
 	rm -rf build-${PRJ}* build-ft1* ${PRJ} mk-build.log mk-${PRJ}.log mk-${PRJ}_omp.log mk-ft1-${PRJ}.log mk-ft1-${PRJ}_omp.log
 	$(MAKE) -C test clean
 realclean: clean
 	rm -rf build build-vednn build-vednn_omp ${PRJ}.tar.gz ${PRJ}-ftrace1.tar.gz
+	$(MAKE) -C src/wrap realclean
 	$(MAKE) -C test realclean
 #

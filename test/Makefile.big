@@ -17,6 +17,8 @@ mkfile_path:=$(abspath $(lastword $(MAKEFILE_LIST)))
 mkfile_dir:=$(dir $(mkfile_path))
 THISMAKE:=$(MAKE) -C $(mkfile_dir) -f $(mkfile_path)
 
+# NEW: set Makefile default to use C++ linker
+LINK.o = $(LINK.cc)
 
 # auto-supplies vednn-unpack as 'all' dependency (../install if no tarballs, else a local subdir)
 include vednn-unpack.mk
@@ -73,15 +75,15 @@ unpack: vejit-unpack vednn-unpack
 
 CONVGEMM := convolution_gemm
 SRCS	= vednn_conv_test.c vednn_linear_test.c vednn_pool_test.c vednn_helper.c \
-	  convolution_gemm.c linear_gemm.c maxpooling.c \
+	  convolution_gemm.c linear_gemm.c maxpooling.c conv_test_param.c \
 	  ve_cmpconv.c ve_simpleconv.c
 OBJS	= $(SRCS:%.c=%.o)
 
-#CC	= $(VE_BIN_DIR)/ncc
-COPTS	= -O3 -finline-functions -Wall -assembly-list -g2
-COPTS  += -DVEL_BUG=0 -DNDEBUG
+COPTS	= -O3 -finline-functions -Wall -g2
+COPTS   += -DVEL_BUG=0 -DNDEBUG
 CFLAGS	+= $(COPTS)
 LDLIBS	+= $(COPTS) -lm
+NCCOPTS := -assembly-list
 
 CLANG?=clang
 CLANG_HAS_VE:=${shell if llc --version | grep -q 've *- VE'; then echo 1; else echo 0; fi}
@@ -118,7 +120,7 @@ LDLIBS	+= -L${VEDNNX_DDIR}/lib -lvednnx_openmp
 LDLIBS	+= -L${VEDNN_DIR}/lib -lvednn_openmp
 LDLIBS  += -L$(BLAS_LIB_DIR) -lcblas -lblas_openmp
 LDLIBS  += -fopenmp
-CFLAGS			+= -fopenmp -pthread -DUSE_OPENMP
+CFLAGS		+= -fopenmp -pthread -DUSE_OPENMP
 CLANG_FLAGS     += -fopenmp -pthread -DUSE_OPENMP
 CFLAGS          += -DVEDNN_USE_OPENMP
 CLANG_FLAGS     += -DVEDNN_USE_OPENMP
@@ -137,8 +139,9 @@ ifeq ($(FTRACE),YES)
 VEPERF_DIR	= /usr/uhome/aurora/mpc/pub/veperf/180218-ELF
 VEPERF_INC_DIR	= $(VEPERF_DIR)/include
 VEPERF_LIB_DIR	= $(VEPERF_DIR)/lib
-CFLAGS		+= -I$(VEPERF_INC_DIR) -DFTRACE -ftrace
 CLANG_FLAGS	+= -I$(VEPERF_INC_DIR) -DFTRACE
+CFLAGS		+= -I$(VEPERF_INC_DIR) -DFTRACE
+NCCOPTS         += -ftrace
 LDLIBS		+= -L$(VEPERF_LIB_DIR) -ftrace
 # otherwise attempt simple flags and hope things are found
 #CFLAGS		+= -DFTRACE
@@ -156,6 +159,13 @@ CLANG_FLAGS += -Ivejit/include
 
 # gnu++ is needed for nc++ extended asm
 CXXFLAGS:=$(CFLAGS) -std=gnu++17
+
+CJITDEF=-DVEDNNX_DIR="$(abspath $(VEDNNX_DIR))" -DVEJIT_DIR="$(mkfile_dir)vejit"
+CJIT_OPTS:=-I$(VEDNNX_DIR)/include -I$(VJINC) $(CJITDEF)
+CJIT_CXX:=$(CXX) ${CXXFLAGS} -g2     ${CJIT_OPTS} -Wl,-rpath-link,/opt/nec/ve/lib
+CJIT_CC:= $(CC)  ${CFLAGS}   -g2     ${CJIT_OPTS} -Wl,-rpath-link,/opt/nec/ve/lib
+CJITX86:=g++ -g -O2 -std=c++11 -Wall $(CJIT_OPTS)
+CJITX86_CC:=gcc -g -O2 -std=c11 -Wall $(CJIT_OPTS)
 
 #$(TARGETS):| $(VEDNN_DIR) # another way to say we need VEDNN_DIR
 Hello:
@@ -212,12 +222,6 @@ endif
 	chmod -R ugo-w $@
 
 # next only produce dumps a demo 'C+instrinsics' string to cout...
-CJITDEF=-DVEDNNX_DIR="$(abspath $(VEDNNX_DIR))" -DVEJIT_DIR="$(mkfile_dir)vejit"
-CJIT_OPTS:=-I$(VEDNNX_DIR)/include -I$(VJINC) $(CJITDEF)
-CJIT_CXX:=$(CXX) ${CXXFLAGS} -g2     ${CJIT_OPTS} -Wl,-rpath-link,/opt/nec/ve/lib
-CJIT_CC:= $(CC)  ${CFLAGS}   -g2     ${CJIT_OPTS} -Wl,-rpath-link,/opt/nec/ve/lib
-CJITX86:=g++ -g -O2 -std=c++11 -Wall $(CJIT_OPTS)
-CJITX86_CC:=gcc -g -O2 -std=c11 -Wall $(CJIT_OPTS)
 .PHONY: cjit_vars
 cjit_vars:
 	@echo "CC            ${CC}"
@@ -259,15 +263,23 @@ cjitConv00-x86: cjitConv00.cpp vejit vednn-unpack
 	$(CJITX86) -E $< -o $@.i
 	$(CJITX86) -c $< -o $@.o
 	@$(THISMAKE) cjit_vars
-	$(CJITX86) $@.o -L./vejit/lib -Wl,-rpath,$(mkfile_dir)vejit/lib \
+	$(CJITX86) $@.o $(filter %.o,$^) -L./vejit/lib -Wl,-rpath,$(mkfile_dir)vejit/lib \
 		-ljit1-x86 -lveli-x86 -ldl -o $@
 	{ LD_DEBUG=libs LD_SHOW_AUXV=1 ./$@ || echo "Exit status $$?"; } 2>&1 | tee $@.log
+cjitConv01-x86: cjitConv01.cpp vejit-unpack
+	$(CJITX86) -E $< -o $@.i
+	$(CJITX86) -c $< -o $@.o
+	@$(THISMAKE) cjit_vars
+	$(CJITX86) $@.o $(filter %.o,$^) \
+		-L./vejit/lib -Wl,-rpath,$(mkfile_dir)vejit/lib \
+		-ljit1-x86 -lveli-x86 -ldl -o $@
+	{ ./$@ || echo "Exit status $$?"; } 2>&1 | tee $@.log
 cjitConv00: cjitConv00.cpp vejit-unpack
 	$(CXX) --version
 	$(CJIT_CXX) -E $< -o $@.i
 	$(CJIT_CXX) -c $< -o $@.o
 	@$(THISMAKE) cjit_vars
-	set -x && $(CJIT_CXX) $@.o \
+	set -x && $(CJIT_CXX) $@.o conv_test_param.o \
 		-o $@ \
 		./vejit/lib/lib${LIBJIT}.a
 		#-L./vejit/lib -Wl,-rpath,$(mkfile_dir)vejit/lib -ljit1 # Illegal instruction (startup)
@@ -276,13 +288,6 @@ cjitConv00: cjitConv00.cpp vejit-unpack
 		#-ljit1 -lveli -o $@
 	nreadelf -d $@
 	{ ve_exec ./$@ || echo "Exit status $$?"; } 2>&1 | tee $@.log
-cjitConv01-x86: cjitConv01.cpp vejit-unpack
-	$(CJITX86) -E $< -o $@.i
-	$(CJITX86) -c $< -o $@.o
-	@$(THISMAKE) cjit_vars
-	$(CJITX86) $@.o -L./vejit/lib -Wl,-rpath,$(mkfile_dir)vejit/lib \
-		-ljit1-x86 -lveli-x86 -ldl -o $@
-	{ ./$@ || echo "Exit status $$?"; } 2>&1 | tee $@.log
 cjitConv01: cjitConv01.cpp vejit-unpack
 	$(CJIT_CXX) -E $< -o $@.i
 	$(CJIT_CXX) -c $< -o $@.o
@@ -320,9 +325,6 @@ libcjitConv-x86.a: cjitConv-x86.o cjitConvFwd1-x86.o cjitConvFwd1b-x86.o cjitCon
 	cjitConvFwd1q-x86.o cjitConvFwd2-x86.o cjitConvFwd3-x86.o cjitConvFwd4-x86.o \
 	cjitConvFwd5-x86.o cjitConvFwd6-x86.o ve_cvecops-x86.o
 	rm -f $@
-cjitConv-ve.o:	cjitConv.cpp cjitConv.hpp conv_test_param.h ve_cvecops.hpp
-	$(CJIT_CXX) -E $< -o cjitConv.i
-	$(CJIT_CXX) -c $< -o $@
 libcjitConv-ve.so: cjitConv-ve.lo cjitConvFwd1-ve.lo cjitConvFwd1b-ve.lo cjitConvFwd1p-ve.lo \
 	cjitConvFwd1q-ve.lo cjitConvFwd2-ve.lo cjitConvFwd3-ve.lo cjitConvFwd4-ve.lo \
 	cjitConvFwd5-ve.lo cjitConvFwd6-ve.lo ve_cvecops-ve.lo
@@ -469,8 +471,12 @@ cjit00.so: cjit00.c
 	$(CLANG) $(CLANG_FLAGS) -fPIC -shared -c $< -o $@
 	# Here is the .so from the auto-generated cjit00.c (from cjitConv00-x86 demo)
 	ls -l cjit00.so && nreadelf -h cjit00.so
-conv_test_param.o: conv_test_param.c conv_test_param.h vednn_helper.h convolution_gemm.h timer.h
-	$(CC) $(CFLAGS) -o $@ -c $<
+vednn_helper-x86.o: vednn_helper.c
+	$(CJITX86_CC) -o $@ -c $<
+conv_test_param-x86.o: conv_test_param.c conv_test_param.h vednn_helper.h convolution_gemm.h timer.h
+	$(CJITX86_CC) -o $@ -c $<
+#conv_test_param.o: conv_test_param.c conv_test_param.h vednn_helper.h convolution_gemm.h timer.h
+#	$(CJIT_CC) $(CFLAGS) -o $@ -c $<
 convolution_gemm.o: convolution_gemm-ncc.s
 	$(CC) $(CFLAGS) -o $@ -c $<
 convolution_gemm-clang.s: convolution_gemm.c
@@ -489,7 +495,7 @@ convolution_gemm-ncc.s: convolution_gemm.c
 	@# -mvector-packed # 86.37G
 	@#-fcse-after-vectorization -msched-block -mvector-loop-count-test -mvector-packed
 convolution_gemm-x86.s: convolution_gemm.c
-	${CJIT_X86} -o $@ -S $<
+	${CJITX86_CC} -o $@ -S $<
 ejk_convolution_gemm.o: ejk_convolution_gemm.s
 	$(CC) $(CFLAGS) -o $@ -c $<
 ejk_convolution_gemm.s: ejk_convolution_gemm.c
@@ -501,7 +507,7 @@ mnist: mnist-master.zip
 	rm -rf mnist-master; unzip mnist-master.zip; touch mnist-master
 	rm -rf mnist; mv mnist-master mnist
 
-vednn_conv_test : vednn_conv_test.o conv_test_param.o vednn_helper.o convolution_gemm.o conv_test_param.o
+vednn_conv_test : vednn_conv_test.o vednn_helper.o convolution_gemm.o
 #ve_cmpconv : ve_cmpconv.o vednn_helper.o $(CONVGEMM).o # pure-C version
 ve_cmpconv.o: ve_cmpconv.c conv_test_param.h
 	$(CC) ${CFLAGS} -E $< -o ve_cmpconv.i
@@ -530,6 +536,10 @@ ve_cmpconv2: ve_cmpconv.o $(CONVGEMM).o libcjitConv-ve.a conv_test_param.o vednn
 	 @# -Wl,-z,stacksize=0x10000000 ignored
 	 $(CXX) $(filter %.o,$@) $^ ${CFLAGS} ${LDFLAGS} -Wl,-z,max-page-size=0x200000 $(filter %.a,%^) ${LDLIBS} \
 		 -o $@ -Lvejit/lib -ljit1 -ldl
+# libjit1 has C++ code, which VE cannot initialize correctly.
+# So, FOR NOW, the desired linking as ve_cmpconv2 FAILS:
+#ve_cmpconv2 : ve_cmpconv.c $(CONVGEMM).o cjitConv-ve.o conv_test_param.o vednn_helper.o libcjitConv-ve.a
+#	 $(CXX) ${CFLAGS} $(filter %.c,$^) $(filter %.o,$^) $(filter %.a,$^) ${LDFLAGS} ${LDLIBS} -o $@ -Lvejit/lib -l${LIBJIT} -ldl
 jitconv.o: jitconv.cpp conv_test_param.h
 	$(CXX) ${CXXFLAGS} -E $< -o jitconv.i
 	$(CXX) ${CXXFLAGS} -Wall -Werror -c $< -o $@
@@ -574,7 +584,7 @@ libmegajit.so: # if lbmegajit does not exist, create a zero-length file instead,
 	else touch libmegajit.so; \
 	fi
 	ls -l libmegajit*
-jitconv: jitconv.o $(LOCALIMPLS) $(CONVGEMM).o libcjitConv-ve.so conv_test_param.o vednn_helper.o testdata.o
+jitconv: vejit-unpack jitconv.o $(LOCALIMPLS) $(CONVGEMM).o libcjitConv-ve.so conv_test_param.o vednn_helper.o testdata.o
 	@echo 'OPENMP $(OPENMP)'
 	@echo 'FTRACE $(FTRACE)'
 	@echo 'THISMAKE $(THISMAKE)'
@@ -585,12 +595,13 @@ jitconv: jitconv.o $(LOCALIMPLS) $(CONVGEMM).o libcjitConv-ve.so conv_test_param
 	# prefer to use -l command-line option to pre-load JIT libs
 	export megajit="" && [[ -s "libmegajit.soNONO" ]] && megajit="-lmegajit"; \
 	echo "megajit options <$${megajit}>"; \
-	$(CXX) $(filter %.o,$@) $^ ${CXXFLAGS} ${LDFLAGS} -fPIC -Wl,-z,max-page-size=0x200000 \
-		-L.  -Wl,-rpath,. \
-		-lcjitConv-ve $${megajit} \
-		-Lvejit/lib  -Wl,-rpath vejit/lib \
+	$(CXX) $(filter %.o,$^) \
+		${CXXFLAGS} ${LDFLAGS} \
+		-fPIC -Wl,-z,max-page-size=0x200000 \
 		$(filter %.a,%^) $(filter %.so,$^) \
-		-l${LIBJIT} -o $@ \
+		-L. -Wl,-rpath,${mkfile_dir} -lcjitConv-ve $${megajit} \
+		-Lvejit/lib  -Wl,-rpath,${mkfile_dir}/vejit/lib -l${LIBJIT} \
+		-o $@ \
 		${LDLIBS} -l$(LIBVEDNNX) -l$(LIBVEDNN) -ldl
 	ls -l libmegajit* $@
 	nreadelf -d $@ | grep NEEDED
@@ -605,6 +616,31 @@ jitconv-dev: jitconv.o d1s1pSB.o $(CONVGEMM).o libcjitConv-ve.so conv_test_param
 		$(filter %.a,%^) $(filter %.so,$^) \
 		-l${LIBJIT} -o $@ \
 		${LDLIBS} -ldl
+resnext-t8.log: jitconv
+	{ cmd='./jitconv -k -t 8 -S resnext -M params/conv/resnext2.txt'; rm -f ftrace.out \
+	       echo "$$cmd"; time $$cmd; status=$$?; ftrace || true; } >& resnext-t8.log; \
+	       if [ "$${status}" != "0" ]; then echo "$@ FAILED"; fi; \
+	       [ "$${status}" == "0" ];
+	@echo "$@ OK"
+resnext: jitconv
+	{ cmd='./jitconv -k -t 8 -M params/conv/resnext2.txt'; rm -f ftrace.out \
+	       echo "$$cmd"; time $$cmd; ftrace || true; } >& resnext-t8.log
+	{ cmd='./jitconv -k -t 4 -M params/conv/resnext2.txt'; rm -f ftrace.out \
+	       echo "$$cmd"; time $$cmd; ftrace || true; } >& resnext-t4.log
+	{ cmd='./jitconv -k -t 2 -M params/conv/resnext2.txt'; rm -f ftrace.out \
+	       echo "$$cmd"; time $$cmd; ftrace || true; } >& resnext-t2.log
+	{ cmd='./jitconv -k -t 1 -M params/conv/resnext2.txt'; rm -f ftrace.out \
+	       echo "$$cmd"; time $$cmd; ftrace || true; } >& resnext-t1.log
+	{ cmd='./jitconv -k -t 8 -M params/conv/resnext2.txt -mb8'; rm -f ftrace.out \
+	       echo "$$cmd"; time $$cmd; ftrace || true; } >& resnext-t8-mb8.log
+	{ cmd='./jitconv -k -t 4 -M params/conv/resnext2.txt -mb8'; rm -f ftrace.out \
+	       echo "$$cmd"; time $$cmd; ftrace || true; } >& resnext-t4-mb8.log
+	{ cmd='./jitconv -k -t 2 -M params/conv/resnext2.txt -mb8'; rm -f ftrace.out \
+	       echo "$$cmd"; time $$cmd; ftrace || true; } >& resnext-t2-mb8.log
+	{ cmd='./jitconv -k -t 1 -M params/conv/resnext2.txt -mb8'; rm -f ftrace.out \
+	       echo "$$cmd"; time $$cmd; ftrace || true; } >& resnext-t1-mb8.log
+	echo 'YAY: made resnext-*.log'
+
 y.log: force
 	{ rm -rf tmp_cjitConv; \
 	{ $(THISMAKE) VERBOSE=1 ./vejit ve_cmpconv || $(THISMAKE) VERBOSE=1 libcjitConv-ve.a ve_cmpconv; } \
@@ -652,16 +688,9 @@ alex%.cmp: alex%.txt force
 	} >& $@.new
 	if [ -f $@ ]; then mv $@ $@.bak; fi
 	mv $@.new $@
-#
-# libjit1 has C++ code, which VE cannot initialize correctly.
-# So, FOR NOW, the desired linking as ve_cmpconv2 FAILS:
-ve_cmpconv2 : ve_cmpconv.c $(CONVGEMM).o cjitConv-ve.o conv_test_param.o vednn_helper.o libcjitConv-ve.a
-	 $(CXX) ${CFLAGS} $(filter %.c,$^) $(filter %.o,$^) $(filter %.a,$^) ${LDFLAGS} ${LDLIBS} -o $@ -Lvejit/lib -l${LIBJIT} -ldl
-	 #1  0x00007ff80023ae58 in _Setgloballocale () from /r/home/nlabhpg/kruus/vednn-ek/test/vejit/lib/libjit1.so
-	 #2  0x00007ff80023da78 in std::locale::_Setgloballocale(void*) () from /r/home/nlabhpg/kruus/vednn-ek/test/vejit/lib/libjit1.so
-	 #3  0x00007ff80023d668 in std::locale::_Init(bool) () from /r/home/nlabhpg/kruus/vednn-ek/test/vejit/lib/libjit1.so
 
-ve_simpleconv : ve_simpleconv.o conv_test_param.o vednn_helper.o $(CONVGEMM).o
+ve_simpleconv : ve_simpleconv.o $(CONVGEMM).o conv_test_param.o vednn_helper.o
+	$(CXX) $(filter %.o,$@) $^ ${CXXFLAGS} ${LDFLAGS} ${LDLIBS}
 vednn_linear_test : vednn_linear_test.o vednn_helper.o linear_gemm.o
 vednn_pool_test : vednn_pool_test.o vednn_helper.o maxpooling.o
 ve_mnist_read : ve_mnist_read.cpp
@@ -680,6 +709,7 @@ ve_mnist_train : ve_mnist_train.cpp vednn_helper.o maxpooling.o
 clean:
 	rm -f $(OBJS) $(TARGETS) *.L *.O *.s *.lo *.i cjit*.o ve_cvec*.o ve_cvec*.i cjit*.i ftrace.out *~ \
 		libcjitConv-ve.a  libjit1-cxx-ve.a \
+		conv_test_param-x86.o  testdata.o  vednn_helper-x86.o \
 		ve_simpleconv.o conv_test_param.o vednn_helper.o vednn_linear_test.o \
 		linear_gemm.o vednn_pool_test.o maxpooling.o \
 		jitpage.o bin_mk.o libbin_mk2.a hello.cpp libbin_mk3.a \

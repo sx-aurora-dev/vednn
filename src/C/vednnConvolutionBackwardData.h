@@ -22,10 +22,15 @@ void * restrict                            pDataGradIn
 typedef
 vednnError_t (*vednnConvBackwardData_t) ( VEDNN_CONVBKD_ARGS );
 
+/** this is the signature of \c pFunc arg to the wrapper, which we use
+ * directly for low-level impls marked as VEDNN_WRAP_NONE in libvednnx */
+typedef vednnConvBackwardData_t vednnConvBackwardData_nowrap_t;
+
 #define VEDNN_CONVBKD_DECL(IMPL) vednnError_t \
 	vednnConvolutionBackwardData_direct_##IMPL( VEDNN_CONVBKD_ARGS );
 
 VEDNN_CONVBKD_DECL(default);
+VEDNN_CONVBKD_DECL(gemm); ///< but do \b not call via omp wrapper
 VEDNN_CONVBKD_DECL(vecC);
 VEDNN_CONVBKD_DECL(iwU128);
 VEDNN_CONVBKD_DECL(dil1_str1);
@@ -51,5 +56,5 @@ VEDNN_CONVBKD_DECL(ker5);
 #ifdef __cplusplus
 }//extern "C"
 #endif
-// vim: sw=2 ts=2 et ai
+// vim: sw=2 ts=2 et ai syntax=cpp.doxygen
 #endif /* SRC_VEDNNCONVOLUTIONBACKWARDDATA_H_ */

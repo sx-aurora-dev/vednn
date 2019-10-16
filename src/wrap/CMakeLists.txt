@@ -1,8 +1,7 @@
 cmake_minimum_required(VERSION 3.0)
 
-set(CMAKE_C_COMPILER /opt/nec/ve/bin/ncc)
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -O4")
-
+#set(CMAKE_C_COMPILER /opt/nec/ve/bin/ncc)
+#set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -O4")
 if(USE_FTRACE AND NOT USE_FTRACE STREQUAL 1)
     message(STATUS " ??? adding ftrace compilation flag ??? ")
     set(CMAKE_C_FLAGS   "${CMAKE_C_FLAGS}   -ftrace")
@@ -32,6 +31,12 @@ add_library(vednn_wrap OBJECT
     vednnConvolutionLists.c
     vednnConvolution_ok.c
     )
+target_compile_options(vednn_wrap PRIVATE
+    $<$<CONFIG:Release>:-O4 -DNDEBUG>
+    $<$<CONFIG:RelWithDebInfo>:-g2 -O4 -DNDEBUG>
+    $<$<CONFIG:Debug>:-g2 -O0 -DVERBOSE>
+    )
+
 
 add_subdirectory(vconv)
 

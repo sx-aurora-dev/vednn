@@ -174,7 +174,7 @@ void testForward(struct param *pNetwork, int nEntry, double HZ, int flagBias, in
         cout<<"layer "<<&pNw_param_cstr[0]<<endl;
 
         if(doRef){
-            wrk.doRef();
+            //wrk.doRef();
             // OK, now do some timing runs for ref (gemm) calculation
             TestData td( t, pConv->ref_region, (size_t)0/*impl_idx*/, "gemm-Ref",
                     3/*doRef*/, pNw_param_cstr/*test-wide descr*/ );
@@ -343,7 +343,7 @@ void testForward(struct param *pNetwork, int nEntry, double HZ, int flagBias, in
                             double diff = !doRef? -13.0
                                 : diffData(pConv->pParamOut, pConv->pDataOut, pConv->pBufRef);
                             max_diff = diff > max_diff? diff: max_diff;
-                            printf("%s %8.3f ms DIFF = %f %s\n",(rv==VEDNN_SUCCESS?" OK":"BAD")
+                            printf("%s %8.3f ms DIFF = %f %s\n",(rv==VEDNN_SUCCESS?"  OK":" BAD")
                                     , (1.0e3/HZ)*(c[1]-c[0]), diff ,name);
                             fflush(stdout);
 
@@ -410,6 +410,7 @@ void testForward(struct param *pNetwork, int nEntry, double HZ, int flagBias, in
                             }else{
                                 snprintf(name,80,"%s:%d:%s-->%s",pConv->region,iter_cnt,iter->shortname,actual->shortname);
                             }
+                            testconvForward_dumpParms( pConv, flagBias );
                             //printf(" C%s",name); fflush(stdout);
                             c[0] = __cycle();
                             FTRACE_BEGIN(name);
@@ -442,7 +443,7 @@ void testForward(struct param *pNetwork, int nEntry, double HZ, int flagBias, in
                             double diff = !doRef? -13.0
                                 : diffData(pConv->pParamOut, pConv->pDataOut, pConv->pBufRef);
                             max_diff = diff > max_diff? diff: max_diff;
-                            printf("%s %8.3f ms DIFF = %f %s\n",(rv==VEDNN_SUCCESS?" OK":"BAD")
+                            printf("%s %8.3f ms DIFF = %f %s\n",(rv==VEDNN_SUCCESS?"  OK":" BAD")
                                     , (1.0e3/HZ)*(c[1]-c[0]), diff ,name);
                             fflush(stdout);
 

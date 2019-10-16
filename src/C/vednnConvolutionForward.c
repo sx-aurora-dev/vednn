@@ -2,13 +2,7 @@
 #include "vednn-def.h"
 #include <stdint.h>
 #include <assert.h>
-
-/** There was an error in here for d1s1pSk3c1, DBG helped track
- * which impl was (wrongly) being called -- libvednnx "ok" had
- * the correct test. */
-#define DBG(...)
-//#define DBG(...) printf(__VA_ARGS__)
-#include <stdio.h>    // fprintf
+#include <stdio.h>
 
 static inline vednnError_t
 vednnConvolutionForward_wrapper(

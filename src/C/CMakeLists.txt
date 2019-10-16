@@ -1,11 +1,7 @@
 cmake_minimum_required(VERSION 3.0)
 
-#set(CMAKE_C_COMPILER /opt/nec/ve/bin/ncc)
-set(CMAKE_C_COMPILER ${NCC})
-set(CMAKE_CXX_COMPILER ${NCXX})
-#if(DEFINED ENV{NCC})
-#    set(CMAKE_C_COMPILER ENV{NCC})
-#endif()
+#set(CMAKE_C_COMPILER ${NCC})
+#set(CMAKE_CXX_COMPILER ${NCXX})
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -O4 -DNDEBUG")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O4 -finline -finline-functions -DNDEBUG")
 
@@ -18,7 +14,7 @@ endif()
 if(USE_OPENMP)
     add_definitions(-DVEDNN_USE_OPENMP)
     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fopenmp")
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -ftrace")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fopenmp")
 endif()
 
 if(BUILD_SHARED_LIB)
@@ -27,21 +23,9 @@ if(BUILD_SHARED_LIB)
 endif()
 
 message(STATUS "src/C/ CMAKE_C_FLAGS=${CMAKE_C_FLAGS}")
-message(STATUS "src/C/vconv CMAKE_CXX_FLAGS=${CMAKE_C_FLAGS}")
+message(STATUS "src/C/ CMAKE_CXX_FLAGS=${CMAKE_CXX_FLAGS}")
 
-set(CMAKE_C_COMPILER ${NCC})
-set(CMAKE_C_FLAGS "-O4")
-
-if(USE_OPENMP)
-	add_definitions(-DVEDNN_USE_OPENMP)
-	set(CMAKE_C_FLAGS "${CMAKE_CFLAGS} -fopenmp")
-endif()
-
-if(BUILD_SHARED_LIB)
-	set(CMAKE_C_FLAGS "${CMAKE_CFLAGS} -fPIC")
-endif()
-
-include_directories("../")
+include_directories("../" "gen-dnn")
 
 add_library(vednn_c_code OBJECT
 	vednnConvolutionForward.c
@@ -58,7 +42,26 @@ add_library(vednn_c_code OBJECT
 	vednnMaxPoolingBackward_default.c
 	vednnSoftmaxForward.c
 	vednnInit.c
+    ve_fastdiv.c
 )
+add_library(vednn_gemm_convolution OBJECT
+    vednnInitScratchpad.cpp
+    convolution_gemm.cpp
+    )
+#set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -O4 -DNDEBUG")
+#set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O4 -finline -finline-functions -DNDEBUG")
+target_compile_options(vednn_c_code PRIVATE
+    $<$<CONFIG:Release>:-O4 -DNDEBUG>
+    $<$<CONFIG:ReleaseWithDebInfo>:-g -O4 -DNDEBUG>
+    $<$<CONFIG:Debug>:-g2 -O3>
+    )
+target_compile_options(vednn_gemm_convolution PRIVATE
+    -DVERBOSE=1
+    $<$<CONFIG:Release>:-O4 -DNDEBUG>
+    $<$<CONFIG:ReleaseWithDebInfo>:-g -O4 -DNDEBUG>
+    $<$<CONFIG:Debug>:-g2 -O0>
+    )
+
 
 # libvednnx iterator exposes low-level calls (with different parameter ordering)
 # Some external projects may want to directly access the low-level libvednn

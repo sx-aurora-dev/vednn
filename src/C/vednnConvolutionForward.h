@@ -7,7 +7,8 @@
 extern "C" { //}
 #endif
 
-// low-level impl std args signature
+/** low-level impl std args signature, \e always with optional bias parameters.
+ * Use NULL for \c pDataBias [and \p pParamBias] if layer does not need bias. */
 #define VEDNN_CONVFWD_ARGS \
     const vednnTensorParam_t *restrict      pParamIn, \
     const void *restrict                    pDataIn, \
@@ -25,12 +26,17 @@ extern "C" { //}
 typedef
 vednnError_t (*vednnConvForward_t)( VEDNN_CONVFWD_ARGS );
 
+/** this is the signature of \c pFunc arg to the wrapper, which we use
+ * directly for low-level impls marked as VEDNN_WRAP_NONE in libvednnx */
+typedef vednnConvForward_t vednnConvForward_nowrap_t;
+
 #define VEDNN_FUNC_CONVFWD( SUFFIX ) vednnConvolutionForward_direct_##SUFFIX
 /** low-level implementations. */
 #define VEDNN_DECL_CONVFWD( SUFFIX ) vednnError_t \
     vednnConvolutionForward_direct_##SUFFIX ( VEDNN_CONVFWD_ARGS );
 
 VEDNN_DECL_CONVFWD(default);
+VEDNN_DECL_CONVFWD(gemm); ///< same parms, but do \b not call via omp wrapper
 VEDNN_DECL_CONVFWD(vecC);
 VEDNN_DECL_CONVFWD(owU128);
 VEDNN_DECL_CONVFWD(dil1_pad0);

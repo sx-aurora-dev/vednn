@@ -76,6 +76,7 @@
 "\n    const vednnTensorParam_t     * restrict  pParamOut," \
 "\n          void                   * restrict   pDataOut   )"
 
+#if 0
 /// \deprecated
 #define CONVX_FWDB_ORDER(...) CONVX_FWDB_ORDER_(__VA_ARGS__)
 #define CONVX_FWDB_ORDER_(PI,PK,PB,PO,PC,ALGO,   DI,DK,DB,DO) /* order: libvednn low-level */ \
@@ -91,6 +92,7 @@
 "\n    const vednnConvolutionParam_t* restrict pParamConv," \
 "\n    const vednnTensorParam_t     * restrict  pParamOut," \
 "\n          void                   * restrict   pDataOut   )"
+#endif
 
 /** \ref vednnConvolutionBackwardData.h */
 #define CONVX_BKWD_ORDER(...) CONVX_BKWD_ORDER_(__VA_ARGS__)
