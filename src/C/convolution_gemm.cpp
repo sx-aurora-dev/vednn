@@ -13,7 +13,9 @@
 #include <stdint.h>
 
 /** 0=malloc+free, 1=vednn_scratchpad_shared */
-#define SCRATCHPAD 1
+#ifndef SCRATCHPAD
+#define SCRATCHPAD 0
+#endif
 
 /** cmake Debug build will set VERBOSE=1 */
 #ifndef VERBOSE

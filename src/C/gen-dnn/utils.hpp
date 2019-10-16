@@ -282,7 +282,7 @@ private:
 
 }//utils::
 
-#if !defined(_SX)
+#if !defined(_SX) && !defined(__ve)
 //void *malloc(size_t size, int alignment);
 //void free(void *p);
 inline void *malloc(size_t size, int alignment) {
@@ -292,6 +292,7 @@ inline void *malloc(size_t size, int alignment) {
     ptr = _aligned_malloc(size, alignment);
     int rc = ptr ? 0 : -1;
 #else
+#warning "gen-dnn posix_memalign"
     int rc = ::posix_memalign(&ptr, alignment, size);
 #endif
 
@@ -315,9 +316,12 @@ inline void free(void *p) {
  *
  * \p alignment arg ignored.
  */
+#warning "gen-dnn ignoring aligned malloc"
 inline void* malloc(size_t size, int /*alignment*/) { return ::malloc(size); }
 inline void free(void *p) { ::free(p); }
 #endif
+
+// XXX Note, for -std=gnu++17, we should use new(size_t count, std::align_val_t align) and delete
 
 struct c_compatible {
     enum { default_alignment = 64 };

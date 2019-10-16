@@ -55,11 +55,12 @@ target_compile_options(vednn_c_code PRIVATE
     $<$<CONFIG:ReleaseWithDebInfo>:-g -O4 -DNDEBUG>
     $<$<CONFIG:Debug>:-g2 -O3>
     )
+# having some trouble with SCRATCHPAD=1 (reduce malloc calls)
 target_compile_options(vednn_gemm_convolution PRIVATE
     -DVERBOSE=1
-    $<$<CONFIG:Release>:-O4 -DNDEBUG>
-    $<$<CONFIG:ReleaseWithDebInfo>:-g -O4 -DNDEBUG>
-    $<$<CONFIG:Debug>:-g2 -O0>
+    $<$<CONFIG:Release>:-O4 -DNDEBUG -DVERBOSE=0 -DSCRATCHPAD=0>
+    $<$<CONFIG:ReleaseWithDebInfo>:-g -O4 -DNDEBUG -DVERBOSE=1 -DSCRATCHPAD=0>
+    $<$<CONFIG:Debug>:-g2 -O0 -DSCRATCHPAD=1>
     )
 
 

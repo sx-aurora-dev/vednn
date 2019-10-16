@@ -676,7 +676,7 @@ diffData(const vednnTensorParam_t *pParam, const void *pData, const void *pExpec
     inline int
 readParamFile(struct param **ppParams, const char *pParamPath )
 {
-    int const v=2; //verbose
+    int const v=0; //verbose
     struct param *pParams  = NULL ;
     int nParams            = 0 ;
 
@@ -767,7 +767,7 @@ readParamFile(struct param **ppParams, const char *pParamPath )
  */
 inline int
 readParamString(struct param **ppParams, const char *pParamString, char const m_for_mkldnn ){
-    int const v=2; // verbose
+    int const v=0; // verbose
     int const nParams = 1;
     struct param* pParams;      // pParams  : decoded values
     struct param* have;         // have     : 0/1 value was given (we handle missing values)

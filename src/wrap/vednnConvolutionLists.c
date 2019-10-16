@@ -167,6 +167,7 @@ static vednnConvBackwardFilterImpls vednnConvBackwardFilterList_[] = {
     IMPL_FNS(vednnConvolutionBackwardFilter_direct_owU128,"cnvBkF-owU128"),
     IMPL_FNS(vednnConvolutionBackwardFilter_direct_default,"cnvBkF-def"),
     IMPL_WRAPNONE_FNS(vednnConvolutionBackwardFilter_direct_default,"cnvBkF-def"),
+    IMPL_WRAPNONE_FNS(vednnConvolutionBackwardFilter_direct_gemm,"cnvBkF-gemm"),
     // extras...
     //IMPL_FNS(vednnConvolutionBackwardData_direct_gendnn,"cnvBkD-gendnn"), // check if implemented XXX
     {NULL}

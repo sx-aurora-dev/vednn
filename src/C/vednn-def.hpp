@@ -14,7 +14,7 @@
 #define VERBOSE 0
 #endif
 #ifndef VEDNN_SCRATCH_DBG
-#if VERBOSE
+#if 1 || VERBOSE
 #define VEDNN_SCRATCH_DBG(...) do{ printf(__VA_ARGS__); fflush(stdout); }while(0)
 #else
 #define VEDNN_SCRATCH_DBG(...) do{}while(0)
@@ -38,6 +38,12 @@ struct ScratchpadBase {
     virtual ~ScratchpadBase() {}
     virtual char *get() const = 0;
     virtual float *pfloat() const = 0;
+    static void checkNonNULL(void* ptr, char const* file, size_t const line){
+        if(ptr == nullptr) {
+            fprintf(stderr,"failed alloc! %s:%lu",file,(long unsigned)line);
+            throw "failed alloc!";
+        }
+    }
 };
 // fwd decl
 struct ScratchpadMallocFree;
@@ -57,9 +63,9 @@ struct ScratchpadMallocFree : public ScratchpadBase {
     ScratchpadMallocFree(size_t size) {
         using mkldnn::impl::malloc;
         size_ = size;
-        const size_t page_size = 2097152;
+        const size_t page_size = 4096U; //2097152;
         scratchpad_ = (char *) malloc(size, page_size);
-        assert(scratchpad_ != nullptr);
+        ScratchpadBase::checkNonNULL(scratchpad_,__FILE__,__LINE__);
     }
     ~ScratchpadMallocFree() { free(scratchpad_); }
     virtual char *get() const { return scratchpad_; }
@@ -80,11 +86,11 @@ struct ScratchpadShared : public ScratchpadBase {
             if (scratchpad_ != nullptr) free(scratchpad_);
             size_ = bytes;
             /* Allocating on a page boundary to reduce TLB/page misses */
-            const size_t page_size = 2097152;
+            const size_t page_size = 4096U; //2097152;
             scratchpad_ = (char *) malloc(bytes, page_size);
             VEDNN_SCRATCH_DBG(" vednn ScratchpadShared[ %lu bytes ] @ %p\n",
                     (long unsigned)bytes, (void*)scratchpad_);
-            assert(scratchpad_ != nullptr);
+            ScratchpadBase::checkNonNULL(scratchpad_,__FILE__,__LINE__);
         }
         ++reference_count_;
     }
@@ -118,11 +124,11 @@ struct ScratchpadTLS : public ScratchpadBase {
             if (scratchpad_ != nullptr) free(scratchpad_);
             size_ = bytes;
             /* Allocating on a page boundary to reduce TLB/page misses */
-            const size_t page_size = 2097152;
+            const size_t page_size = 4096; //2097152;
             scratchpad_ = (char *) malloc(bytes, page_size);
             VEDNN_SCRATCH_DBG(" vednn ScratchpadTLS[ %lu bytes ] @ %p\n",
                     (long unsigned)bytes, (void*)scratchpad_);
-            assert(scratchpad_ != nullptr);
+            ScratchpadBase::checkNonNULL(scratchpad_,__FILE__,__LINE__);
         }
         ++reference_count_;
     }
@@ -161,12 +167,12 @@ struct ScratchpadFloatOnes : public ScratchpadBase {
             if (scratchpad_ != nullptr) free(scratchpad_);
             size_ = floats;
             /* Allocating memory buffers on a page boundary to reduce TLB/page misses */
-            const size_t page_size = 2097152;
+            const size_t page_size = 4096U;
             void* sp = malloc(floats*sizeof(float), page_size);
             VEDNN_SCRATCH_DBG(" vednn ScratchpadFloatOnes[ %lu bytes ] @ %p\n",
                     (long unsigned)(floats*sizeof(float)), sp);
+            ScratchpadBase::checkNonNULL(sp,__FILE__,__LINE__);
             scratchpad_ = (char *) sp;
-            assert(scratchpad_ != nullptr);
             // fill with 1.0 whenever resized
             float *spf = (float*) sp;
             for(size_t i=0U; i<floats; ++i){
