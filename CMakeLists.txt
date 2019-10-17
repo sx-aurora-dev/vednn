@@ -43,58 +43,27 @@ else() # specify USE_FTRACE 2 to instrument EVERY function, else just selected r
     endif()
 endif()
 message(STATUS "USE_FTRACE --------> ${USE_FTRACE}")
-# ncc-2.x I think supplies ftrace.h and veperf.h, and enables VE_PROGINFO by default,
-# so we no longer need a custom path and library as follows
-#if(USE_FTRACE)
-#	# ftrace/veperf location
-#	find_file(found_VEPERF_H NAME veperf.h
-#	    NO_DEFAULT_PATH
-#	    PATHS /usr/uhome/aurora/mpc/pub/veperf/latest
-#        /opt/nec/ve/include
-#	    PATH_SUFFIXES include
-#	    )
-#	message(STATUS "veperf.h --> ${found_VEPERF_H}")
-#	if(NOT found_VEPERF_H)
-#	    message(WARNING "ve.cmake: veperf.h not found (looking for veperf.h [ftrace.h might be there too])")
-#    else()
-#        get_filename_component(VE_VEPERF_INCLUDE "${found_VEPERF_H}" DIRECTORY)
-#        get_filename_component(VE_VEPERF_DIR "${VE_VEPERF_INCLUDE}" DIRECTORY)
-#        set(VE_VEPERF_DIR "${VE_VEPERF_DIR}" CACHE PATH "Aurora ftrace/veperf root directory" FORCE)
-#        set(VE_VEPERF_INCLUDE "${VE_VEPERF_INCLUDE}" CACHE PATH "Aurora ftrace/veperf include path" FORCE)
-#        set(VE_VEPERF_INCFLAGS "-I${VE_VEPERF_INCLUDE}" CACHE STRING "Aurora ftrace/veperf include path" FORCE)
-#        set(VE_VEPERF_LDFLAGS "-L${VE_VEPERF_DIR}/lib" CACHE STRING "Aurora ftrace/veperf C/CXX compile/link options" FORCE)
-#        set(VE_VEPERF_LIBS "-lveperf") # NOTE: there are static and shared libs
-#        mark_as_advanced(VE_VEPERF_DIR VE_VEPERF_INCLUDE VE_VEPERF_LDFLAGS VE_VEPERF_LIBS)
-#        # Q: What is difference between   libveperf and libveperf_sp
-#        # TODO: add library existence and compilation checks
-#        message(STATUS "veperf.h                         : ${found_VEPERF_H}")
-#        message(STATUS "VE_VEPERF_INCLUDE                : ${VE_VEPERF_INCLUDE}")
-#        message(STATUS "VE_VEPERF_DIR [ftrace|veperf]    : ${VE_VEPERF_DIR}")
-#        message(STATUS "VE_VEPERF_INCFLAGS               : ${VE_VEPERF_INCFLAGS}")
-#        message(STATUS "VE_VEPERF_LDFLAGS                : ${VE_VEPERF_LDFLAGS}")
-#        message(STATUS "VE_VEPERF_LIBS                   : ${VE_VEPERF_LIBS}")
-#        # Expected libraries: libveperf.{a|so} headers: ftrace.h veperf.h
-#        # add LDFLAGS="-lveperf" (nothing for ftrace)
-#        # VE_VEPERF_DIR for ftrace/veperf
-#        #
-#        # Note: If wanting to use CMAKE_FIND_ROOT_PATH, how does one automatically add lib subdirs?
-#        #  ... so I set up SYSTEM search paths instead ...
-#        #
-#        #set(CMAKE_SYSTEM_PREFIX_PATH  ${CMAKE_SYSTEM_PREFIX_PATH} ${VE_VEPERF_DIR})
-#        #set(CMAKE_SYSTEM_LIBRARY_PATH ${CMAKE_SYSTEM_LIBRARY_PATH} ${VE_VEPERF_DIR}/lib)
-#        #set(CMAKE_SYSTEM_INCLUDE_PATH ${CMAKE_SYSTEM_INCLUDE_PATH} ${VE_VEPERF_DIR}/include)
-#        #set(CMAKE_SYSTEM_PROGRAM_PATH ${CMAKE_SYSTEM_PROGRAM_PATH} ${VE_VEPERF_DIR}/bin)
-#        #
-#        set(CMAKE_C_FLAGS   "${CMAKE_C_FLAGS}   -DFTRACE=${USE_FTRACE} -I${VE_VEPERF_INCLUDE}")
-#        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DFTRACE=${USE_FTRACE} -I${VE_VEPERF_INCLUDE}")
-#        #set(CMAKE_SHARED_LINKER_FLAGS ${CMAKE_SHARED_LINKER_FLAGS} -Wl,-rpath,${VE_VEPERF_DIR}/lib)
-#        link_directories(${VE_VEPERF_DIR}/lib)
-#    endif()
-#    find_library(veperf NAMES libveperf.a PATHS ${VE_VEPERF_DIR}/lib NO_DEFAULT_PATH)
-#endif()
+message(STATUS "USE_OPENMP --------> ${USE_OPENMP}")
+message(STATUS "BUILD_SHARED ------> ${BUILD_SHARED}")
 
 # vednnx may link to blas libraries (for gen-dnn im2col in 'src/wrap/vconv')
 set(NLCDIR "/opt/nec/ve/nlc/2.0.0" CACHE STRING "VE blas install directory")
+set(NLCDIR "/opt/nec/ve/nlc/2.0.0" CACHE STRING "VE blas install directory")
+if(USE_FTRACE AND USE_FTRACE STREQUAL 2)
+    message(STATUS "adding -ftrace compilation flag")
+    set(CMAKE_C_FLAGS   "${CMAKE_C_FLAGS}   -ftrace")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -ftrace")
+endif()
+# Some targets want finer control of optimization flags,
+# so let defaults only add debug flags for now:
+set(CMAKE_C_FLAGS_RELEASE "-DNDEBUG -DTMP11")
+set(CMAKE_C_FLAGS_RELWITHDEBINFO "-g2 -DNDEBUG -DTMP12")
+#set(CMAKE_C_FLAGS_MINSIZEREL "")
+set(CMAKE_C_FLAGS_DEBUG "-g2 -DTMP10")
+set(CMAKE_CXX_FLAGS_RELEASE "-DNDEBUG -DTMP13")
+set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "-g2 -DNDEBUG -DTMP14")
+#set(CMAKE_C_FLAGS_MINSIZEREL "")
+set(CMAKE_CXX_FLAGS_DEBUG "-g2 -DTMP15")
 
 message(STATUS "PROJECT_ROOT/ CMAKE_C_FLAGS=${CMAKE_C_FLAGS}")
 add_subdirectory(src)

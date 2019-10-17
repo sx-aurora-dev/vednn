@@ -29,6 +29,12 @@ add_library(vednn_wrap OBJECT
     vednnConvolutionLists.c
     vednnConvolution_ok.c
     )
+target_compile_options(vednn_wrap PRIVATE
+    $<$<CONFIG:Release>:-O4>
+    $<$<CONFIG:RelWithDebInfo>:-O4>
+    $<$<CONFIG:Debug>:-O0> # gdb func args show in backtrace
+    )
+
 install(FILES vednnx.h DESTINATION include)
 # TODO modify vednnx.h public API to pull in the wrap/ headers so all
 #      external projects may need to call 'ok' functions and access

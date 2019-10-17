@@ -655,10 +655,12 @@ jitconv-dev: jitconv.o d1s1pSB.o $(CONVGEMM).o libcjitConv-ve.so vednn_helper.o 
 		$(filter %.a,%^) $(filter %.so,$^) \
 		-l${LIBJIT} -o $@ \
 		${LDLIBS} -ldl
-.PHONY: resnext resnext-t8.log
-resnext-t8.log:
+resnext-t8.log: jitconv
 	{ cmd='./jitconv -k -t 8 -S resnext -M params/conv/resnext2.txt'; rm -f ftrace.out \
-	       echo "$$cmd"; time $$cmd; ftrace || true; } >& resnext-t8.log
+	       echo "$$cmd"; time $$cmd; status=$$?; ftrace || true; } >& resnext-t8.log; \
+	       if [ "$${status}" != "0" ]; then echo "$@ FAILED"; fi; \
+	       [ "$${status}" == "0" ];
+	@echo "$@ OK"
 resnext: jitconv
 	{ cmd='./jitconv -k -t 8 -M params/conv/resnext2.txt'; rm -f ftrace.out \
 	       echo "$$cmd"; time $$cmd; ftrace || true; } >& resnext-t8.log
@@ -757,14 +759,19 @@ clean:
 		convolution_gemm.o ejk_convolution_gemm.o vednn_conv_test.o ve_cmpconv*.o \
 		jitconv.o direct_*.o testdata.o cjitConv00-x86 cjitConv01-x86
 	rm -rf tmp_cjitConv01-x86
-realclean: clean
+clean_vednn:
+	for d in vednn vednn-ftrace1 ; do \
+		if [ -d "$${d}" ]; then \
+		echo "Removing subdir $${d}"; \
+		chmod -R ugo+rw "$${d}"; rm -rf "$${d}"; \
+		fi; \
+		done;
+realclean: clean clean_vednn
 	rm -f [a-z].log mk.log # but keep other-named log files
 	rm -f a.out bug2 bug2B bug2pp cjitConv00 cjitConv01f cjitConv02 cjitConv02-x86 helloe hellof \
 		testdom1 testdom1-ve ve_cmpconv ve_cmpconv22 ve_mnist_train \
 		jitconv jitconv-wrk
-	for d in vejit vednn vednn-ftrace1 mnist \
-		tmp_cjitConv tmp_cjitConv01 z.dir \
-		; do \
+	for d in vejit tmp_cjitConv tmp_cjitConv01 z.dir; do \
 		if [ -d "$${d}" ]; then \
 		echo "Removing subdir $${d}"; \
 		chmod -R ugo+rw "$${d}"; rm -rf "$${d}"; \

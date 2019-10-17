@@ -43,7 +43,6 @@ add_library(vednn_c_code OBJECT
     vednnConvolutionForward_owU128_T.cpp
 	vednnConvolutionBackwardData.c
 	vednnConvolutionBackwardFilter.c
-    convolution_gemm.cpp
 	vednnLinearForward.c
 	vednnLinearBackwardData.c
 	vednnLinearBackwardWeight.c
@@ -55,9 +54,26 @@ add_library(vednn_c_code OBJECT
 	vednnMaxPoolingBackward_default.c
 	vednnSoftmaxForward.c
 	vednnInit.c
-    vednnInitScratchpad.cpp
     ve_fastdiv.c
 )
+add_library(vednn_gemm_convolution OBJECT
+    vednnInitScratchpad.cpp
+    convolution_gemm.cpp
+    )
+set(SRC_C_OPT4 -O4) # original default setting
+set(SRC_C_OPT3 -O3 -finline -finline-functions -fcse-after-vectorization -msched-block)
+target_compile_options(vednn_c_code PRIVATE
+    $<$<CONFIG:Release>:${SRC_C_OPT4} -DTMP00>
+    $<$<CONFIG:RelWithDebInfo>:${SRC_C_OPT4} -DTMP01>
+    $<$<CONFIG:Debug>:-O3 -DTMP02>
+    )
+# having some trouble with SCRATCHPAD=1 (reduce malloc calls)
+# -fcse-after-vectorization -msched-block important for convolution_gemm speed:
+target_compile_options(vednn_gemm_convolution PRIVATE
+    $<$<CONFIG:Release>:${SRC_C_OPT3} -DVERBOSE=0 -DSCRATCHPAD=0 -DTMP03>
+    $<$<CONFIG:RelWithDebInfo>:${SRC_C_OPT3} -DVERBOSE=0 -DSCRATCHPAD=0 -DTMP04>
+    $<$<CONFIG:Debug>:-O0 -DVERBOSE=1 -DSCRATCHPAD=1 -DTMP05>
+    )
 
 add_subdirectory(vconv)
 

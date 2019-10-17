@@ -71,6 +71,13 @@ void vednn_free_global_scratchpads(); // called during __vednn_init
 	return ret; \
 } while(0)
 
+#define VEDNN_INVALID_PRINTF_ret(F,L,...) do{ \
+    fprintf(stderr,"\n%s:%lu INVALID PARAM ",__FILE__,(long unsigned)__LINE__); \
+    fprintf(stderr,__VA_ARGS__); \
+    return VEDNN_INVALID_PARAM; \
+}while(0)
+#define VEDNN_INVALID_PRINTF_RET(...) VEDNN_INVALID_PRINTF_ret(__FILE__,__LINE__,__VA_ARGS__)
+
 /** For __vr \c VR, as int64_t, calculate { VM[i]=1 iff 0<=VR[i]<END } 256-bit mask reg.
  * Ex. __vm256 vm23 = MASK_0TO(vrw,inWidth) to check that input pixels vrw[i] lie
  *     in range [0,inWidth). */

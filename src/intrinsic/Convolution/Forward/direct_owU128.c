@@ -49,7 +49,9 @@ vednnConvolutionForward_direct_owU128(
 
     const int64_t maxvl = nY * outWidth ;
 
-    __vr vrseq = _vel_vseq_vl(maxvl) ;
+    __vr vrseq = _vel_vseq_vl(maxvl) ; // vrseq = [0,1,2,...,255]
+    // add opixel = 0 to above vector
+    // output image pixel 
     __vr vry  = _vel_vdivsl_vvsl(vrseq, outWidth, maxvl) ;
     __vr vrx  = _vel_vsubsl_vvvl(vrseq, _vel_vmulul_vsvl(outWidth,vry, maxvl), maxvl) ;
 

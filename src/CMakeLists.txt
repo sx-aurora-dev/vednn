@@ -3,12 +3,6 @@ cmake_minimum_required(VERSION 3.0)
 set(CMAKE_C_COMPILER /opt/nec/ve/bin/ncc)
 set(CMAKE_CXX_COMPILER /opt/nec/ve/bin/nc++)
 
-#set(CMAKE_C_FLAGS   "${CMAKE_C_FLAGS}   -O4")
-#set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O4")
-set(CMAKE_C_FLAGS   "${CMAKE_C_FLAGS}   -O3 -fcse-after-vectorization -msched-block")
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3 -fcse-after-vectorization -msched-block")
-message(STATUS "src/ CMAKE_C_FLAGS=${CMAKE_C_FLAGS}")
-
 # vednn   : core vednn library
 # vednnx  : extensions for tests (is impl ok? iteration over ok impls)
 if(USE_OPENMP)
@@ -33,9 +27,12 @@ set(CMAKE_CXXFLAGS "${CMAKE_CXXFLAGS} -I${NLCDIR}/include")
 #set(CMAKE_INSTALL_RPATH "${CMAKE_INSTALL_RPATH} ${NLCDIR}/lib")
 set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -Wl,-rpath,${NLCDIR}/lib")
 
+message(STATUS "src/ CMAKE_C_FLAGS=${CMAKE_C_FLAGS}")
+
 add_library(${LIBNAME} ${LIB_MODE}
         $<TARGET_OBJECTS:vconv_code>
         $<TARGET_OBJECTS:vednn_c_code>
+        $<TARGET_OBJECTS:vednn_gemm_convolution>
         $<TARGET_OBJECTS:vednn_intrinsic_convolution_forward>
         $<TARGET_OBJECTS:vednn_intrinsic_convolution_forward_addbias>
         $<TARGET_OBJECTS:vednn_intrinsic_convolution_backward_data>
@@ -67,8 +64,15 @@ add_library(${LIBWRAP} ${LIB_MODE}
 #    endif()
 #endif()
 
-target_link_libraries(${LIBNAME} -L${NLCDIR}/lib -lcblas -lblas_openmp)
-#target_link_libraries(${LIBWRAP} -L${NLCDIR}/lib -lcblas -lblas_openmp)
+if(USE_OPENMP)
+    #target_link_libraries(${LIBNAME} ${NLCDIR}/libcblas ${NLCDIR}/libblas_openmp.so)
+    target_link_libraries(${LIBWRAP} -L${NLCDIR}
+        -lcblas -lcblas_openmp)
+else()
+    target_link_libraries(${LIBWRAP}
+        ${NLCDIR}/libcblas.so ${NLCDIR}/libblas_sequential.so)
+endif()
+#
 
 install(TARGETS ${LIBNAME} ${LIBWRAP} ARCHIVE DESTINATION lib LIBRARY DESTINATION lib)
 install(FILES vednn.h DESTINATION include)
