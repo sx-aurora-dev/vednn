@@ -2,8 +2,8 @@
 #include "vednn-def.hpp"
 #include <stdio.h>
 
-#define DBG(...) do{ printf(__VA_ARGS__); fflush(stdout); }while(0)
-//#define DBG(...) do{}while(0)
+//#define DBG(...) do{ printf(__VA_ARGS__); fflush(stdout); }while(0)
+#define DBG(...) do{}while(0)
 
 namespace vednn {
 namespace scratchpad {

@@ -10,6 +10,8 @@ if(USE_OPENMP)
     add_definitions(-DVEDNN_USE_OPENMP)
 endif()
 
+# clang does not accept -ftrace as compiler flag
+
 if(BUILD_SHARED_LIB)
     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fPIC")
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fPIC")

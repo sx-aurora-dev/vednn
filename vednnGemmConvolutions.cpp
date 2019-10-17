@@ -1,8 +1,6 @@
 /* -*- Mode: C; c-basic-offset:4 ; indent-tabs-mode:nil ; -*- */
 
 #include "vednn-def.hpp" // vednn.h + C++ scratchpad API (C++ can inline one call)
-//#include "vednn_helper.h"
-#include "convolution_gemm.h"
 #include "vednnConvolutionForward.h"
 #include "vednnConvolutionBackwardData.h"
 #include "vednnConvolutionBackwardFilter.h"

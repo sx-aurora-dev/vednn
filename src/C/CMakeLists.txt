@@ -8,7 +8,7 @@ set(CMAKE_CXX_COMPILER ${NCXX})
 #set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O4 -finline -finline-functions -DNDEBUG")
 
 if(USE_FTRACE AND NOT USE_FTRACE STREQUAL 1)
-    message(STATUS " ??? adding ftrace compilation flag ??? ")
+    message(STATUS " ??? adding ftrace compilation flag ??? check if -pthread is for link/compile")
     set(CMAKE_C_FLAGS   "${CMAKE_C_FLAGS}   -ftrace")
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -ftrace")
 endif()
@@ -48,7 +48,7 @@ add_library(vednn_c_code OBJECT
 )
 add_library(vednn_gemm_convolution OBJECT
     vednnInitScratchpad.cpp
-    convolution_gemm.cpp
+    vednnConvolutionGemm.cpp
     )
 set(SRC_C_OPT4 -O4) # original default setting
 set(SRC_C_OPT3 -O3 -finline -finline-functions -fcse-after-vectorization -msched-block)

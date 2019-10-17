@@ -74,11 +74,6 @@ message(STATUS "BUILD_SHARED ------> ${BUILD_SHARED}")
 
 # vednnx may link to blas libraries (for gen-dnn im2col in 'src/wrap/vconv')
 set(NLCDIR "/opt/nec/ve/nlc/2.0.0" CACHE STRING "VE blas install directory")
-if(USE_FTRACE AND USE_FTRACE STREQUAL 2)
-    message(STATUS "adding -ftrace compilation flag")
-    set(CMAKE_C_FLAGS   "${CMAKE_C_FLAGS}   -ftrace")
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -ftrace")
-endif()
 # Some targets want finer control of optimization flags,
 # so let defaults only add debug flags for now:
 set(CMAKE_C_FLAGS_RELEASE "-DNDEBUG -DTMP11")
