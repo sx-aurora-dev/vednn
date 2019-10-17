@@ -603,7 +603,7 @@ jitconv: vejit-unpack jitconv.o $(LOCALIMPLS) $(CONVGEMM).o libcjitConv-ve.so co
 		-Lvejit/lib  -Wl,-rpath,${mkfile_dir}/vejit/lib -l${LIBJIT} \
 		-o $@ \
 		${LDLIBS} -l$(LIBVEDNNX) -l$(LIBVEDNN) -ldl
-	ls -l $@
+	-ls -l libmegajit* $@
 	nreadelf -d $@ | grep NEEDED
 # jitconv-dev is a convenience:
 #    override individual "test impls" WITHOUT slow recompile of vednn

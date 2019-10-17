@@ -54,11 +54,11 @@ add_library(${LIBWRAP} ${LIB_MODE}
 
 if(USE_OPENMP)
     #target_link_libraries(${LIBNAME} ${NLCDIR}/libcblas ${NLCDIR}/libblas_openmp.so)
-    target_link_libraries(${LIBNAME} -L${NLCDIR}/lib
-        -lcblas -lblas_openmp)
+    target_link_libraries(${LIBNAME} -L${NLCDIR}/lib -lcblas -lblas_openmp)
+    target_link_libraries(${LIBWRAP} -L${NLCDIR}/lib -lcblas -lblas_openmp)
 else()
-    target_link_libraries(${LIBNAME}
-        ${NLCDIR}/lib/libcblas.so ${NLCDIR}/lib/libblas_sequential.so)
+    target_link_libraries(${LIBNAME} ${NLCDIR}/lib/libcblas.so ${NLCDIR}/lib/libblas_sequential.so)
+    target_link_libraries(${LIBWRAP} ${NLCDIR}/lib/libcblas.so ${NLCDIR}/lib/libblas_sequential.so)
 endif()
 #
 
