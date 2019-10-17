@@ -1,7 +1,9 @@
 cmake_minimum_required(VERSION 3.0)
 
+set(CMAKE_CLANG_FLAGS "${CMAKE_C_FLAGS} -target ve -O3 -mllvm -show-spill-message-vec -fno-vectorize -fno-unroll-loops -fno-slp-vectorize -fno-crash-diagnostics")
 set(CMAKE_C_COMPILER ${LLVM_INSTALL_PREFIX}/bin/clang)
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -target ve -O3 -mllvm -show-spill-message-vec -fno-vectorize -fno-unroll-loops -fno-slp-vectorize -fno-crash-diagnostics")
+
 set(CMAKE_CXX_COMPILER ${CMAKE_C_COMPILER})
 set(CMAKE_CXX_FLAGS ${CMAKE_C_FLAGS})
 
@@ -15,6 +17,8 @@ if(BUILD_SHARED_LIB)
 endif()
 message(STATUS "libvednn intrinsics using CMAKE_C_COMPILER    : ${CMAKE_C_COMPILER}")
 message(STATUS "src/intrinsics/ CMAKE_C_FLAGS=${CMAKE_C_FLAGS}")
+message(STATUS "src/intrinsics/ CFLAGS=${CFLAGS}")
+message(STATUS "src/intrinsics/ CMAKE_C_FLAGS_RELWITHDEBINFO=${CMAKE_C_FLAGS_RELWITHDEBINFO}")
 
 include_directories("../")
 

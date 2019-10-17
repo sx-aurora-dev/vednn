@@ -51,21 +51,17 @@ if(BUILD_SHARED)
 endif()
 #set(CMAKE_C_FLAGS   "${CMAKE_C_FLAGS}   -O3 -fcse-after-vectorization -msched-block")
 #set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3 -fcse-after-vectorization -msched-block")
-target_compile_options( ${LIBNAME} PRIVATE
-    "$<$<CONFIG:Release>:-g -O3 -fcse-after-vectorization -msched-block -DNDEBUG -DHI_SRC_RELEASE>"
-    "$<$<CONFIG:Debug>:-g2 -O3 -fcse-after-vectorization -msched-block -DHI_SRC_DEBUG>"
-    )
-
 
 # vednnx extensions: iterator and jit api, gen-dnn subset
 add_library(${LIBWRAP} ${LIB_MODE}
     $<TARGET_OBJECTS:vednn_wrap>
     $<TARGET_OBJECTS:vconv_code>
     )
-# never used -- set in sub-targets
+# never used -- please set in sub-targets
+#target_compile_options( ${LIBNAME} PRIVATE .. never used)
 #target_compile_options(${LIBWRAP} PRIVATE
 #    $<$<CONFIG:Release>:-O4 -DNDEBUG>
-#    $<$<CONFIG:ReleaseWithDebInfo>:-g -O4 -DNDEBUG>
+#    $<$<CONFIG:RelWithDebInfo>:-g -O4 -DNDEBUG>
 #    $<$<CONFIG:Debug>:-g2 -O1>
 #    )
 

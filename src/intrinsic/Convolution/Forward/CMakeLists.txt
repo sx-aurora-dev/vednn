@@ -21,4 +21,5 @@ add_library(vednn_intrinsic_convolution_forward OBJECT
     direct_dil1_str2_pad1_ker3_owU128.cc
     direct_owU128.cc
 )
+target_compile_options(vednn_intrinsic_convolution_forward PRIVATE "-DTMP20")
 # vim: sw=4 ts=4 et ai

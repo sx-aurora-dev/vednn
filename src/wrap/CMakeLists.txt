@@ -11,13 +11,14 @@ endif()
 if(USE_OPENMP)
     add_definitions(-DVEDNN_USE_OPENMP)
     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fopenmp")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fopenmp")
 endif()
 
 if(BUILD_SHARED_LIB)
     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fPIC")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fPIC")
 endif()
 
-message(STATUS "src/wrap/ CMAKE_C_FLAGS=${CMAKE_C_FLAGS}")
 
 include_directories(".." "../C")
 
@@ -27,14 +28,16 @@ set(CMAKE_CXXFLAGS "${CMAKE_CXXFLAGS} -I${NLCDIR}/include")
 #set(CMAKE_INSTALL_RPATH "${CMAKE_INSTALL_RPATH} ${NLCDIR}/lib")
 set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -Wl,-rpath,${NLCDIR}/lib")
 
+message(STATUS "src/wrap/ CMAKE_C_FLAGS=${CMAKE_C_FLAGS}")
+
 add_library(vednn_wrap OBJECT
     vednnConvolutionLists.c
     vednnConvolution_ok.c
     )
 target_compile_options(vednn_wrap PRIVATE
-    $<$<CONFIG:Release>:-O4 -DNDEBUG>
-    $<$<CONFIG:RelWithDebInfo>:-g2 -O4 -DNDEBUG>
-    $<$<CONFIG:Debug>:-g2 -O0 -DVERBOSE>
+    $<$<CONFIG:Release>:-O4>
+    $<$<CONFIG:RelWithDebInfo>:-O4>
+    $<$<CONFIG:Debug>:-O0> # gdb func args show in backtrace
     )
 
 

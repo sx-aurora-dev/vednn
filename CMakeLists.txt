@@ -1,4 +1,9 @@
 cmake_minimum_required(VERSION 3.0)
+set(CMAKE_C_FLAGS_INIT "")
+set(CMAKE_C_FLAGS_DEBUG_INIT "")
+set(CMAKE_C_FLAGS_MINSIZEREL_INIT "")
+set(CMAKE_C_FLAGS_RELEASE_INIT "")
+set(CMAKE_C_FLAGS_RELWITHDEBINFO_INIT "")
 
 project(vednn)
 
@@ -80,6 +85,16 @@ if(USE_FTRACE AND USE_FTRACE STREQUAL 2)
     set(CMAKE_C_FLAGS   "${CMAKE_C_FLAGS}   -ftrace")
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -ftrace")
 endif()
+# Some targets want finer control of optimization flags,
+# so let defaults only add debug flags for now:
+set(CMAKE_C_FLAGS_RELEASE "-DNDEBUG -DTMP11")
+set(CMAKE_C_FLAGS_RELWITHDEBINFO "-g2 -DNDEBUG -DTMP12")
+#set(CMAKE_C_FLAGS_MINSIZEREL "")
+set(CMAKE_C_FLAGS_DEBUG "-g2 -DTMP10")
+set(CMAKE_CXX_FLAGS_RELEASE "-DNDEBUG -DTMP13")
+set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "-g2 -DNDEBUG -DTMP14")
+#set(CMAKE_C_FLAGS_MINSIZEREL "")
+set(CMAKE_CXX_FLAGS_DEBUG "-g2 -DTMP15")
 
 message(STATUS "PROJECT_ROOT/ CMAKE_C_FLAGS=${CMAKE_C_FLAGS}")
 add_subdirectory(src)

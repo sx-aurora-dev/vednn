@@ -166,8 +166,8 @@ static vednnConvBackwardFilterImpls vednnConvBackwardFilterList_[] = {
     IMPL_FNS(vednnConvolutionBackwardFilter_direct_dil1_pad0,"cnvBkF-d1p0"),
     IMPL_FNS(vednnConvolutionBackwardFilter_direct_owU128,"cnvBkF-owU128"),
     IMPL_FNS(vednnConvolutionBackwardFilter_direct_default,"cnvBkF-def"),
-    IMPL_WRAPNONE_FNS(vednnConvolutionBackwardFilter_direct_default,"cnvBkF-def"),
-    IMPL_WRAPNONE_FNS(vednnConvolutionBackwardFilter_direct_gemm,"cnvBkF-gemm"),
+    // ouch. perhaps 'impl' should be a union with normal and _nowrap function ptrs?
+    IMPL_WRAPNONE_FNS((vednnConvBackwardFilter_t)(void*)vednnConvolutionBackwardFilter_direct_gemm,"cnvBkF-gemm"),
     // extras...
     //IMPL_FNS(vednnConvolutionBackwardData_direct_gendnn,"cnvBkD-gendnn"), // check if implemented XXX
     {NULL}
