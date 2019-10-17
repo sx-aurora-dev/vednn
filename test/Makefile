@@ -737,8 +737,8 @@ ve_cmpconv2 : ve_cmpconv.c $(CONVGEMM).o cjitConv-ve.o vednn_helper.o conv_test_
 	 #3  0x00007ff80023d668 in std::locale::_Init(bool) () from /r/home/nlabhpg/kruus/vednn-ek/test/vejit/lib/libjit1.so
 
 ve_simpleconv : ve_simpleconv.o vednn_helper.o conv_test_param.o $(CONVGEMM).o
-vednn_linear_test : vednn_linear_test.o vednn_helper.o linear_gemm.o conv_test_param.o
-vednn_pool_test : vednn_pool_test.o vednn_helper.o maxpooling.o conv_test_param.o
+vednn_linear_test : vednn_linear_test.o vednn_helper.o linear_gemm.o conv_test_param.o $(CONVGEMM).o
+vednn_pool_test : vednn_pool_test.o vednn_helper.o maxpooling.o conv_test_param.o $(CONVGEMM).o
 ve_mnist_read : ve_mnist_read.cpp
 	$(CXX) $(CXXFLAGS) -o $@ $^
 ve_mnist_train : ve_mnist_train.cpp vednn_helper.o maxpooling.o conv_test_param.o

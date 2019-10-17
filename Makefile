@@ -24,19 +24,19 @@ lib${PRJ}.tar.gz:
 	# tarball
 	rm -f ${PRJ}.tar.gz
 	tar cvzf ${PRJ}.tar.gz ${PRJ} 2>&1 | tee -a mk-${PRJ}.log
-lib${PRJ}-ftrace1.tar.gz:
+lib${PRJ}-ftrace1.tar.gz: # NOTE check USE_FTRACE value (sometimes I switch it to 2)
 	rm -rf ${PRJ}
 	# now for sequential + ftrace 1
 	rm -rf build-ft1-${PRJ} ${PRJ}
 	mkdir build-ft1-${PRJ}
-	cd build-ft1-${PRJ} && cmake -DCMAKE_INSTALL_PREFIX=../${PRJ} -DUSE_OPENMP=OFF -DUSE_FTRACE=1 ${CMAKE_ARGS} .. 2>&1 | tee ../mk-ft1-${PRJ}.log
+	cd build-ft1-${PRJ} && cmake -DCMAKE_INSTALL_PREFIX=../${PRJ} -DUSE_OPENMP=OFF -DUSE_FTRACE=2 ${CMAKE_ARGS} .. 2>&1 | tee ../mk-ft1-${PRJ}.log
 	cd build-ft1-${PRJ} && make ${MKJOB} >> ../mk-ft1-${PRJ}.log 2>&1
 	cd build-ft1-${PRJ} && make VERBOSE=1 install >> ../mk-ft1-${PRJ}.log 2>&1
 	# now for omp + ftrace 1
 	echo "--- see mk-ft1-${PRJ}_omp.log for the USE_FTRACE=1 omp build log ---" >> mk-${PRJ}.log
 	rm -rf build-ft1-${PRJ}_omp
 	mkdir build-ft1-${PRJ}_omp
-	cd build-ft1-${PRJ}_omp && cmake -DCMAKE_INSTALL_PREFIX=../${PRJ} -DUSE_OPENMP=ON -DUSE_FTRACE=1 ${CMAKE_ARGS} .. >& ../mk-ft1-${PRJ}_omp.log
+	cd build-ft1-${PRJ}_omp && cmake -DCMAKE_INSTALL_PREFIX=../${PRJ} -DUSE_OPENMP=ON -DUSE_FTRACE=2 ${CMAKE_ARGS} .. >& ../mk-ft1-${PRJ}_omp.log
 	cd build-ft1-${PRJ}_omp && make ${MKJOB} >> ../mk-ft1-${PRJ}_omp.log 2>&1
 	cd build-ft1-${PRJ}_omp && make VERBOSE=1 install >> ../mk-ft1-${PRJ}_omp.log 2>&1
 	# tarball

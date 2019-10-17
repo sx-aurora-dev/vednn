@@ -1,4 +1,5 @@
 #include "conv_test_param.h"
+#include "convolution_gemm.h"
 
 #include <assert.h>
 #include <stdio.h>

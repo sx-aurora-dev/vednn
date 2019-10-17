@@ -6,6 +6,7 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O4")
 
 if(USE_FTRACE AND NOT USE_FTRACE STREQUAL 1)
     message(STATUS " ??? adding ftrace compilation flag ??? ")
+    # check whether compile/link needs -pthread for ftrace correctness XXX
     set(CMAKE_C_FLAGS   "${CMAKE_C_FLAGS}   -ftrace")
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -ftrace")
 endif()

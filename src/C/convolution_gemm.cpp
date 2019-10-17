@@ -60,21 +60,22 @@ static inline int64_t is_a_ge_zero_and_a_lt_b(int64_t a, int64_t b) {
 
 /** data_col size to hold float[ic*kw*kh*ow*oh]. */
     static void
-im2col_cpu(const float * restrict data_im, const int64_t channels,
+vednn_im2col(const float * restrict data_im, const int64_t channels,
         const int64_t height, const int64_t width, const int64_t kernel_h, const int64_t kernel_w,
         const int64_t pad_h, const int64_t pad_w,
         const int64_t stride_h, const int64_t stride_w,
         const int64_t dilation_h, const int64_t dilation_w,
         float * restrict data_col)
 {
-    LFTRACE_BEGIN("im2col_cpu");
+    LFTRACE_BEGIN("vednn_im2col");
     const int64_t output_h = (height + 2 * pad_h - (dilation_h * (kernel_h - 1) + 1)) / stride_h + 1;
     const int64_t output_w = (width + 2 * pad_w -  (dilation_w * (kernel_w - 1) + 1)) / stride_w + 1;
     const int64_t channel_size = height * width;
 
     int64_t channel;
 
-    // nc++ does not support 'if' clause : omp if(channel>=3)
+    // nc++ may now support if clause?
+    // dnnl tests and special-cases: stride==1 (and some other thing)
     OMP(parallel for if(channels>=3))//;
     for (channel = 0 ; channel < channels; channel++) {             // inChannel
         int64_t kernel_row, kernel_col, output_rows, output_cols, output_col;
@@ -105,11 +106,11 @@ im2col_cpu(const float * restrict data_im, const int64_t channels,
             }
         }
     }
-    LFTRACE_END("im2col_cpu");
+    LFTRACE_END("vednn_im2col");
 }
 
     static void
-col2im_cpu(
+vednn_col2im(
         const float* data_col, const int channels,
         const int height, const int width, const int kernel_h, const int kernel_w,
         const int pad_h, const int pad_w,
@@ -117,7 +118,7 @@ col2im_cpu(
         const int dilation_h, const int dilation_w,
         float* data_im)
 {
-    LFTRACE_BEGIN("col2im_cpu");
+    LFTRACE_BEGIN("vednn_col2im");
     memset(data_im, 0, sizeof(float)*height*width*channels) ;
 
     const int output_h = (height + 2 * pad_h - (dilation_h * (kernel_h - 1) + 1)) / stride_h + 1;
@@ -162,7 +163,7 @@ col2im_cpu(
             }
         }
     }
-    LFTRACE_END("col2im_cpu");
+    LFTRACE_END("vednn_col2im");
 }
 
 extern "C" { //}
@@ -243,7 +244,7 @@ vednnConvFwd_gemm(
                 int N = outWidth * outHeight;
                 int K = inChannelGroup * kernWidth * kernHeight;
 
-                im2col_cpu(&pIn[inOffset],
+                vednn_im2col(&pIn[inOffset],
                         inChannelGroup, inHeight, inWidth, kernHeight, kernWidth,
                         padHeight, padWidth, strideHeight, strideWidth, dilationHeight, dilationWidth,
                         pColBuff);
@@ -334,7 +335,7 @@ vednnConvBkD_Gemm(
                         (float *) &pKernel[kernGroupOffset], &M,
                         &FZERO, pColBuff, &N);
 
-                col2im_cpu(pColBuff,
+                vednn_col2im(pColBuff,
                         gInChannelGroup, gInHeight, gInWidth, kernHeight, kernWidth,
                         padHeight, padWidth, strideHeight, strideWidth, dilationHeight, dilationWidth,
                         &pGradIn[gInOffset]);
@@ -407,7 +408,7 @@ vednnConvBkF_gemm(
                         &FONE, &pKernel[kernGroupOffset], &N);
             }
             else {
-                im2col_cpu(&pIn[inOffset],
+                vednn_im2col(&pIn[inOffset],
                         inChannelGroup, inHeight, inWidth, kernHeight, kernWidth,
                         padHeight, padWidth, strideHeight, strideWidth, dilationHeight, dilationWidth,
                         pColBuff);
