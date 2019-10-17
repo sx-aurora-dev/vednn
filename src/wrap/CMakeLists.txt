@@ -1,5 +1,8 @@
 cmake_minimum_required(VERSION 3.0)
 
+# Isn't this propagated to us?
+set(CMAKE_C_COMPILER ${NCC})
+set(CMAKE_CXX_COMPILER ${NCXX})
 #set(CMAKE_C_COMPILER /opt/nec/ve/bin/ncc)
 #set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -O4")
 if(USE_FTRACE AND NOT USE_FTRACE STREQUAL 1)
