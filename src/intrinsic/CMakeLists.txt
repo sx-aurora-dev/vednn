@@ -4,7 +4,7 @@ set(CMAKE_CLANG_FLAGS "${CMAKE_C_FLAGS} -target ve -O3 -mllvm -show-spill-messag
 set(CMAKE_C_COMPILER ${LLVM_INSTALL_PREFIX}/bin/clang)
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -target ve -O3 -mllvm -show-spill-message-vec -fno-vectorize -fno-unroll-loops -fno-slp-vectorize -fno-crash-diagnostics")
 
-set(CMAKE_C_COMPILER ${LLVM_INSTALL_PREFIX}/bin/clang++)
+set(CMAKE_CXX_COMPILER ${LLVM_INSTALL_PREFIX}/bin/clang++)
 set(CMAKE_CXX_FLAGS ${CMAKE_C_FLAGS})
 
 if(USE_OPENMP)
