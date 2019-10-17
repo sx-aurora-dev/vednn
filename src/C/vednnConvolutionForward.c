@@ -80,6 +80,19 @@ vednnError_t vednnConvolutionForward(
 	    pParamIn, pDataIn, pParamKernel, pDataKernel,
 	    pParamConv, pParamOut, pDataOut);
     }
+    // try using gemm in most cases with stride > 1
+    else if (pParamConv->strideWidth > 1 || pParamConv->strideHeight > 1) {
+        if(pParamOut->channel / pParamConv->group <= 256
+           && pParamOut->width <= 128) {
+	    return vednnConvolutionForward_direct_owU128_T(
+                pParamIn, pDataIn, pParamKernel, pDataKernel,
+                pParamConv, pParamOut, pDataOut );
+        } else {
+	    return vednnConvolutionForward_direct_gemm(
+                pParamIn, pDataIn, pParamKernel, pDataKernel,
+                pParamConv, pParamOut, pDataOut );
+        }
+    }
     else if (pParamConv->strideHeight == 1 && pParamConv->strideWidth == 1
 	&& pParamConv->dilationHeight == 1 && pParamConv->dilationWidth == 1
 	&& pParamIn->height == pParamOut->height
@@ -87,10 +100,15 @@ vednnError_t vednnConvolutionForward(
     {
       if (pParamKernel->width == 1 && pParamKernel->height == 1)
       {
-	return vednnConvolutionForward_wrapper(
-	    vednnConvolutionForward_direct_dil1_str1_pad0_ker1,
-	    pParamIn, pDataIn, pParamKernel, pDataKernel,
-	    pParamConv, pParamOut, pDataOut);
+        if(pParamOut->width <= 128) {
+          return vednnConvolutionForward_direct_dil1_str1_pad0_ker1_T(
+              pParamIn, pDataIn, pParamKernel, pDataKernel,
+              pParamConv, pParamOut, pDataOut);
+        } else {
+          return vednnConvolutionForward_direct_gemm(
+              pParamIn, pDataIn, pParamKernel, pDataKernel,
+              pParamConv, pParamOut, pDataOut );
+        }
       }
       else if (pParamKernel->height == 3 && pParamKernel->width == 3)
       {
@@ -119,8 +137,7 @@ vednnError_t vednnConvolutionForward(
 	}
 	else
 	{
-	  return vednnConvolutionForward_wrapper(
-	      vednnConvolutionForward_direct_dil1_str1_padsame_ker3,
+	  return vednnConvolutionForward_direct_dil1_str1_padsame_ker3_T(
 	      pParamIn, pDataIn, pParamKernel, pDataKernel,
 	      pParamConv, pParamOut, pDataOut );
 	}
@@ -222,16 +239,18 @@ vednnError_t vednnConvolutionForward(
     else {
       if (pParamOut->width <= 128)
       {
-	return vednnConvolutionForward_wrapper (
-	    vednnConvolutionForward_direct_owU128,
+	return vednnConvolutionForward_direct_owU128_T(
 	    pParamIn, pDataIn, pParamKernel, pDataKernel,
 	    pParamConv, pParamOut, pDataOut );
       }
       else {
-	return vednnConvolutionForward_wrapper(
-	    vednnConvolutionForward_direct_default,
-	    pParamIn, pDataIn, pParamKernel, pDataKernel,
-	    pParamConv, pParamOut, pDataOut );
+        return vednnConvolutionForward_direct_gemm(
+            pParamIn, pDataIn, pParamKernel, pDataKernel,
+            pParamConv, pParamOut, pDataOut );
+	// return vednnConvolutionForward_wrapper(
+	//     vednnConvolutionForward_direct_default,
+	//     pParamIn, pDataIn, pParamKernel, pDataKernel,
+	//     pParamConv, pParamOut, pDataOut );
       }
     }
   }

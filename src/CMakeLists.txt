@@ -53,24 +53,11 @@ endif()
 add_library(${LIBWRAP} ${LIB_MODE}
         $<TARGET_OBJECTS:vednn_wrap>)
 
-#if(USE_FTRACE)
-#    if(BUILD_SHARED_LIB)
-#        target_link_libraries(${LIBNAME} -L${VE_VEPERF_DIR}/lib veperf)
-#        target_link_libraries(${LIBWRAP} -L${VE_VEPERF_DIR}/lib veperf)
-#        set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -Wl,-rpath,${VE_VEPERF_DIR}/lib")
-#    else()
-#        target_link_libraries(${LIBNAME} ${veperf})
-#        target_link_libraries(${LIBWRAP} ${veperf})
-#    endif()
-#endif()
-
 if(USE_OPENMP)
-    #target_link_libraries(${LIBNAME} ${NLCDIR}/libcblas ${NLCDIR}/libblas_openmp.so)
-    target_link_libraries(${LIBWRAP} -L${NLCDIR}
-        -lcblas -lcblas_openmp)
+    target_link_libraries(${LIBNAME} -L${NLCDIR}/lib -lcblas -lblas_openmp)
 else()
-    target_link_libraries(${LIBWRAP}
-        ${NLCDIR}/libcblas.so ${NLCDIR}/libblas_sequential.so)
+    target_link_libraries(${LIBNAME}
+        ${NLCDIR}/lib/libcblas.so ${NLCDIR}/lib/libblas_sequential.so)
 endif()
 #
 
