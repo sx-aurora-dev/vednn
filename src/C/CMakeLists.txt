@@ -52,8 +52,6 @@ add_library(vednn_gemm_convolution OBJECT
     )
 set(SRC_C_OPT4 -O4) # original default setting
 set(SRC_C_OPT3 -O3 -finline -finline-functions -fcse-after-vectorization -msched-block)
-#set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${SRC_C_OPT}")
-#set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${SRC_C_OPT}")
 target_compile_options(vednn_c_code PRIVATE
     $<$<CONFIG:Release>:${SRC_C_OPT4} -DTMP00>
     $<$<CONFIG:RelWithDebInfo>:${SRC_C_OPT4} -DTMP01>

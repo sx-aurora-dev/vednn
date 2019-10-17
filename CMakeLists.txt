@@ -1,10 +1,4 @@
 cmake_minimum_required(VERSION 3.0)
-set(CMAKE_C_FLAGS_INIT "")
-set(CMAKE_C_FLAGS_DEBUG_INIT "")
-set(CMAKE_C_FLAGS_MINSIZEREL_INIT "")
-set(CMAKE_C_FLAGS_RELEASE_INIT "")
-set(CMAKE_C_FLAGS_RELWITHDEBINFO_INIT "")
-
 project(vednn)
 
 option(USE_OPENMP   "Use OpenMP" ON)
