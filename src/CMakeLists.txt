@@ -3,12 +3,6 @@ cmake_minimum_required(VERSION 3.0)
 set(CMAKE_C_COMPILER ${NCC})
 set(CMAKE_CXX_COMPILER ${NCXX})
 
-#set(CMAKE_C_FLAGS "-O4")
-#set(CMAKE_CXX_FLAGS "-O4")
-#set(CMAKE_C_FLAGS   "${CMAKE_C_FLAGS}   -O3 -fcse-after-vectorization -msched-block")
-#set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3 -fcse-after-vectorization -msched-block")
-message(STATUS "src/ CMAKE_C_FLAGS=${CMAKE_C_FLAGS}")
-
 if(USE_OPENMP)
 	set(LIBNAME vednn_openmp)
 	set(LIBWRAP vednnx_openmp)
@@ -31,6 +25,8 @@ set(CMAKE_CXXFLAGS "${CMAKE_CXXFLAGS} -I${NLCDIR}/include")
 #set(CMAKE_INSTALL_RPATH "${CMAKE_INSTALL_RPATH} ${NLCDIR}/lib")
 set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -Wl,-rpath,${NLCDIR}/lib")
 
+message(STATUS "src/ CMAKE_C_FLAGS=${CMAKE_C_FLAGS}")
+
 add_library(${LIBNAME} ${LIB_MODE}
     $<TARGET_OBJECTS:vednn_c_code>
     $<TARGET_OBJECTS:vednn_gemm_convolution>
@@ -49,33 +45,20 @@ if(BUILD_SHARED)
         INSTALL_RPATH "\$ORIGIN/../lib"
         )
 endif()
-#set(CMAKE_C_FLAGS   "${CMAKE_C_FLAGS}   -O3 -fcse-after-vectorization -msched-block")
-#set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3 -fcse-after-vectorization -msched-block")
-target_compile_options( ${LIBNAME} PRIVATE
-    "$<$<CONFIG:Release>:-g -O3 -fcse-after-vectorization -msched-block -DNDEBUG -DHI_SRC_RELEASE>"
-    "$<$<CONFIG:Debug>:-g2 -O3 -fcse-after-vectorization -msched-block -DHI_SRC_DEBUG>"
-    )
-
 
 # vednnx extensions: iterator and jit api, gen-dnn subset
 add_library(${LIBWRAP} ${LIB_MODE}
     $<TARGET_OBJECTS:vednn_wrap>
     $<TARGET_OBJECTS:vconv_code>
     )
-# never used -- set in sub-targets
-#target_compile_options(${LIBWRAP} PRIVATE
-#    $<$<CONFIG:Release>:-O4 -DNDEBUG>
-#    $<$<CONFIG:ReleaseWithDebInfo>:-g -O4 -DNDEBUG>
-#    $<$<CONFIG:Debug>:-g2 -O1>
-#    )
 
 if(USE_OPENMP)
     #target_link_libraries(${LIBNAME} ${NLCDIR}/libcblas ${NLCDIR}/libblas_openmp.so)
-    target_link_libraries(${LIBWRAP} -L${NLCDIR}
-        -lcblas -lcblas_openmp)
+    target_link_libraries(${LIBNAME} -L${NLCDIR}/lib -lcblas -lblas_openmp)
+    target_link_libraries(${LIBWRAP} -L${NLCDIR}/lib -lcblas -lblas_openmp)
 else()
-    target_link_libraries(${LIBWRAP}
-        ${NLCDIR}/libcblas.so ${NLCDIR}/libblas_sequential.so)
+    target_link_libraries(${LIBNAME} ${NLCDIR}/lib/libcblas.so ${NLCDIR}/lib/libblas_sequential.so)
+    target_link_libraries(${LIBWRAP} ${NLCDIR}/lib/libcblas.so ${NLCDIR}/lib/libblas_sequential.so)
 endif()
 #
 

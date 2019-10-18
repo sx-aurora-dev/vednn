@@ -1,8 +1,9 @@
 /* -*- Mode: C; c-basic-offset:4 ; indent-tabs-mode:nil ; -*- */
 
 #include "vednn-def.hpp" // vednn.h + C++ scratchpad API (C++ can inline one call)
-//#include "vednn_helper.h"
-#include "convolution_gemm.h"
+#include "vednnConvolutionForward.h"
+#include "vednnConvolutionBackwardData.h"
+#include "vednnConvolutionBackwardFilter.h"
 
 #include <stdio.h>
 #include <assert.h>
@@ -10,7 +11,9 @@
 #include <stdint.h>
 
 /** 0=malloc+free, 1=vednn_scratchpad_shared */
-#define SCRATCHPAD 1
+#ifndef SCRATCHPAD
+#define SCRATCHPAD 0
+#endif
 
 // This header code is a pure internal detail (and these original function signatures
 // can be removed to save a function call XXX
@@ -49,8 +52,8 @@ extern "C" {
  *  layers, layer types).
  */
 //@{
-vednnError_t
-convolution_forward_gemm(
+static vednnError_t
+vednnConvFwd_gemm(
     const vednnTensorParam_t * restrict pParamIn, const void * restrict pDataIn,
     const vednnFilterParam_t * restrict pParamKernel, const void * restrict pDataKernel,
     const vednnBiasParam_t * restrict pParamBias, const void * restrict pDataBias,
@@ -58,16 +61,16 @@ convolution_forward_gemm(
     const float * restrict pOne,  float * restrict pColBuff,
     const vednnConvolutionParam_t * restrict pParamConv ) ;
 
-vednnError_t
-convolution_backward_data_gemm(
+static vednnError_t
+vednnConvBwD_gemm(
     const vednnTensorParam_t * restrict pParamGradOut, const void * restrict pDataGradOut,
     const vednnFilterParam_t * restrict pParamKernel, const void * restrict pDataKernel,
     const vednnTensorParam_t * restrict pParamGradIn, void * restrict pDataGradIn,
     float * restrict pColBuff,
     const vednnConvolutionParam_t * restrict pParamConv ) ;
 
-vednnError_t
-convolution_backward_filter_gemm(
+static vednnError_t
+vednnConvBwF_gemm(
     const vednnTensorParam_t * restrict pParamIn, const void * restrict pDataIn,
     const vednnTensorParam_t * restrict pParamGradOut, const void * restrict pDataGradOut,
     const vednnFilterParam_t * restrict pParamGradKernel, void * restrict pDataGradKernel,
@@ -133,14 +136,14 @@ static inline int64_t is_a_ge_zero_and_a_lt_b(int64_t a, int64_t b) {
 
 /** data_col size to hold float[ic*kw*kh*ow*oh]. */
     static void
-im2col_cpu(const float * restrict data_im, const int64_t channels,
+vednn_im2col(const float * restrict data_im, const int64_t channels,
         const int64_t height, const int64_t width, const int64_t kernel_h, const int64_t kernel_w,
         const int64_t pad_h, const int64_t pad_w,
         const int64_t stride_h, const int64_t stride_w,
         const int64_t dilation_h, const int64_t dilation_w,
         float * restrict data_col)
 {
-    LFTRACE_BEGIN("im2col_cpu");
+    LFTRACE_BEGIN("vednn_im2col");
     const int64_t output_h = (height + 2 * pad_h - (dilation_h * (kernel_h - 1) + 1)) / stride_h + 1;
     const int64_t output_w = (width + 2 * pad_w -  (dilation_w * (kernel_w - 1) + 1)) / stride_w + 1;
     const int64_t channel_size = height * width;
@@ -178,11 +181,11 @@ im2col_cpu(const float * restrict data_im, const int64_t channels,
             }
         }
     }
-    LFTRACE_END("im2col_cpu");
+    LFTRACE_END("vednn_im2col");
 }
 
     static void
-col2im_cpu(
+vednn_col2im_cpu(
         const float* data_col, const int channels,
         const int height, const int width, const int kernel_h, const int kernel_w,
         const int pad_h, const int pad_w,
@@ -190,7 +193,7 @@ col2im_cpu(
         const int dilation_h, const int dilation_w,
         float* data_im)
 {
-    LFTRACE_BEGIN("col2im_cpu");
+    LFTRACE_BEGIN("vednn_col2im_cpu");
     memset(data_im, 0, sizeof(float)*height*width*channels) ;
 
     const int output_h = (height + 2 * pad_h - (dilation_h * (kernel_h - 1) + 1)) / stride_h + 1;
@@ -235,12 +238,12 @@ col2im_cpu(
             }
         }
     }
-    LFTRACE_END("col2im_cpu");
+    LFTRACE_END("vednn_col2im_cpu");
 }
 
 extern "C" { //}
-    vednnError_t
-convolution_forward_gemm(
+    static vednnError_t
+vednnConvFwd_gemm(
         const vednnTensorParam_t * restrict pParamIn, const void * restrict pDataIn,
         const vednnFilterParam_t * restrict pParamKernel, const void * restrict pDataKernel,
         const vednnBiasParam_t * restrict pParamBias, const void * restrict pDataBias,
@@ -248,7 +251,7 @@ convolution_forward_gemm(
         const float * restrict pOne,  float * restrict pColBuff,
         const vednnConvolutionParam_t * restrict pParamConv )
 {
-    LFTRACE_BEGIN("convolution_forward_gemm");
+    LFTRACE_BEGIN("vednnConvFwd_gemm");
     int n, g;
 
     int batch       = pParamIn->batch;
@@ -316,7 +319,7 @@ convolution_forward_gemm(
                 int N = outWidth * outHeight;
                 int K = inChannelGroup * kernWidth * kernHeight;
 
-                im2col_cpu(&pIn[inOffset],
+                vednn_im2col(&pIn[inOffset],
                         inChannelGroup, inHeight, inWidth, kernHeight, kernWidth,
                         padHeight, padWidth, strideHeight, strideWidth, dilationHeight, dilationWidth,
                         pColBuff);
@@ -337,19 +340,19 @@ convolution_forward_gemm(
         } // group
     } // batch
 
-    LFTRACE_END("convolution_forward_gemm");
+    LFTRACE_END("vednnConvFwd_gemm");
     return VEDNN_SUCCESS;
 }
 
-    vednnError_t
-convolution_backward_data_gemm(
+    static vednnError_t
+vednnConvBwD_gemm(
         const vednnTensorParam_t * restrict pParamGradOut, const void * restrict pDataGradOut,
         const vednnFilterParam_t * restrict pParamKernel, const void * restrict pDataKernel,
         const vednnTensorParam_t * restrict pParamGradIn, void * restrict pDataGradIn,
         float * restrict pColBuff,
         const vednnConvolutionParam_t * restrict pParamConv )
 {
-    LFTRACE_BEGIN("convolution_backward_data_gemm");
+    LFTRACE_BEGIN("vednnConvBwD_gemm");
     int n, g;
 
     int batch       = pParamGradOut->batch;
@@ -407,7 +410,7 @@ convolution_backward_data_gemm(
                         (float *) &pKernel[kernGroupOffset], &M,
                         &FZERO, pColBuff, &N);
 
-                col2im_cpu(pColBuff,
+                vednn_col2im_cpu(pColBuff,
                         gInChannelGroup, gInHeight, gInWidth, kernHeight, kernWidth,
                         padHeight, padWidth, strideHeight, strideWidth, dilationHeight, dilationWidth,
                         &pGradIn[gInOffset]);
@@ -415,19 +418,19 @@ convolution_backward_data_gemm(
         } // group
     } // batch
 
-    LFTRACE_END("convolution_backward_data_gemm");
+    LFTRACE_END("vednnConvBwD_gemm");
     return VEDNN_SUCCESS;
 }
 
-    vednnError_t
-convolution_backward_filter_gemm(
+    static vednnError_t
+vednnConvBwF_gemm(
         const vednnTensorParam_t * restrict pParamIn, const void * restrict pDataIn,
         const vednnTensorParam_t * restrict pParamGradOut, const void * restrict pDataGradOut,
         const vednnFilterParam_t * restrict pParamGradKernel, void * restrict pDataGradKernel,
         float * restrict pColBuff,
         const vednnConvolutionParam_t * restrict pParamConv )
 {
-    LFTRACE_BEGIN("convolution_backward_filter_gemm");
+    LFTRACE_BEGIN("vednnConvBwF_gemm");
     int n, g;
 
     int batch       = pParamIn->batch;
@@ -480,7 +483,7 @@ convolution_backward_filter_gemm(
                         &FONE, &pKernel[kernGroupOffset], &N);
             }
             else {
-                im2col_cpu(&pIn[inOffset],
+                vednn_im2col(&pIn[inOffset],
                         inChannelGroup, inHeight, inWidth, kernHeight, kernWidth,
                         padHeight, padWidth, strideHeight, strideWidth, dilationHeight, dilationWidth,
                         pColBuff);
@@ -497,75 +500,41 @@ convolution_backward_filter_gemm(
         } // group
     } // batch
 
-    LFTRACE_END("convolution_backward_filter_gemm");
+    LFTRACE_END("vednnConvBwF_gemm");
     return VEDNN_SUCCESS;
 }
 
 vednnError_t
 vednnConvolutionForward_direct_gemm(
-    const vednnTensorParam_t * restrict         pParamIn,
-    const void * restrict                       pDataIn,
-    const vednnFilterParam_t * restrict         pParamKernel,
-    const void * restrict                       pDataKernel,
-    const vednnConvolutionParam_t * restrict    pParamConv,
-    const vednnTensorParam_t * restrict         pParamOut,
-    void * restrict                             pDataOut
-){
-    size_t pColrows = pParamKernel->inChannel * pParamKernel->width * pParamKernel->height;
-    size_t pColcols = pParamOut->width * pParamOut->height;
-    // This buffer is only used for bias term
-    float * restrict pOnes = nullptr;
-    //float const* restrict pOnes = (float const*)
-    //    (void*)vednn_scratchpad_float_ones(pColcols); // ow * oh float 1.0f
-
-    // This buffer is used for a monolithic im2col
-    // (could use a smaller buffer if im2col were done "as-needed")
-    size_t const nBytes = pColrows * pColcols * getTensorDataSize(pParamIn);
-#if SCRATCHPAD==0
-    float * restrict pColBuff = (float*) malloc(nBytes);
-#else
-    using vednn::scratchpad::vednn_scratchpad_shared;
-    float * restrict pColBuff = (float*)(void*)
-        vednn_scratchpad_shared(nBytes);
-#endif
-
-    vednnError_t ret = convolution_forward_gemm(
-            pParamIn, pDataIn,
-            pParamKernel, pDataKernel,
-            nullptr, nullptr/*avoids bias gemm call*/ ,
-            pParamOut, pDataOut/*output*/,
-            pOnes, pColBuff, pParamConv );
-#if SCRATCHPAD==0
-    free(pColBuff);
-#endif
-    return ret;
-} 
-vednnError_t
-vednnConvolutionForwardAddBias_direct_gemm(
-    const vednnTensorParam_t * restrict         pParamIn,
-    const void * restrict                       pDataIn,
-    const vednnFilterParam_t * restrict         pParamKernel,
-    const void * restrict                       pDataKernel,
-    const vednnBiasParam_t * restrict           pParamBias,
-    const void * restrict                       pDataBias,
-    const vednnConvolutionParam_t * restrict    pParamConv,
-    const vednnTensorParam_t * restrict         pParamOut,
-    void * restrict                             pDataOut
+        VEDNN_CONVFWD_ARGS
+    //const vednnTensorParam_t * restrict         pParamIn,
+    //const void * restrict                       pDataIn,
+    //const vednnFilterParam_t * restrict         pParamKernel,
+    //const void * restrict                       pDataKernel,
+    //const vednnBiasParam_t * restrict           pParamBias,
+    //const void * restrict                       pDataBias,
+    //const vednnConvolutionParam_t * restrict    pParamConv,
+    //const vednnTensorParam_t * restrict         pParamOut,
+    //void * restrict                             pDataOut
 )
 {
     size_t pColrows = pParamKernel->inChannel * pParamKernel->width * pParamKernel->height;
     size_t pColcols = pParamOut->width * pParamOut->height;
 
     // This buffer is only used for bias term
+    float * pOnes = nullptr;
+    if(pDataBias){
+        // assert pColcols is consistent with pParamBias
 #if SCRATCHPAD==0
-    float * restrict pOnes = (float *) malloc(pColcols * sizeof(float)/*bytes*/);
-    for(int i = 0; i < pColcols; ++i)
-      pOnes[i] = 1.0f;
+        pOnes = (float *) malloc(pColcols * sizeof(float)/*bytes*/);
+        for(int i = 0; i < pColcols; ++i)
+            pOnes[i] = 1.0f;
 #else
-    using vednn::scratchpad::vednn_scratchpad_float_ones;
-    float const* restrict pOnes = (float const*)
-        vednn_scratchpad_float_ones(pColcols/*floats*/); // ow * oh float 1.0f
+        using vednn::scratchpad::vednn_scratchpad_float_ones;
+        pOnes = (float *)
+            vednn_scratchpad_float_ones(pColcols/*floats*/); // ow * oh float 1.0f
 #endif
+    }
 
     // This buffer is used for a monolithic im2col
     // (could use a smaller buffer if im2col were done "as-needed")
@@ -577,7 +546,7 @@ vednnConvolutionForwardAddBias_direct_gemm(
     float * restrict pColBuff = (float*)(void*)
         vednn_scratchpad_shared(nBytes);
 #endif
-    vednnError_t ret = convolution_forward_gemm(
+    vednnError_t ret = vednnConvFwd_gemm(
             pParamIn, pDataIn,
             pParamKernel, pDataKernel,
             pParamBias, pDataBias,
@@ -615,7 +584,7 @@ vednnConvolutionBackwardFilter_direct_gemm(
     float * restrict pColBuff = (float*)(void*)
         vednn_scratchpad_shared(nBytes);
 #endif
-    vednnError_t ret = convolution_backward_filter_gemm(
+    vednnError_t ret = vednnConvBwF_gemm(
             pParamIn, pDataIn,
             pParamGradOut, pDataGradOut,
             pParamGradKernel, pDataGradKernel/*output*/,
@@ -647,7 +616,7 @@ vednnConvolutionBackwardData_direct_gemm(
     float * restrict pColBuff = (float*)(void*)
         vednn_scratchpad_shared(nBytes);
 #endif
-    vednnError_t ret =  convolution_backward_data_gemm(
+    vednnError_t ret =  vednnConvBwD_gemm(
             pParamGradOut, pDataGradOut,
             pParamKernel, pDataKernel,
             pParamGradIn, pDataGradIn/*output*/,

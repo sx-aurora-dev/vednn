@@ -1,5 +1,7 @@
 cmake_minimum_required(VERSION 3.0)
 
+message(STATUS "intrinsic/Linear/BackwardData CMAKE_C_COMPILER = ${CMAKE_C_COMPILER}")
+
 add_library(vednn_intrinsic_linear_backward_data OBJECT
     default.cc
     o2X_woaligned.cc

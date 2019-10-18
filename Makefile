@@ -3,7 +3,7 @@ CMAKE_ARGS:='-DCMAKE_BUILD_TYPE=Release'
 all: force-build lib${PRJ}.tar.gz lib${PRJ}-ftrace1.tar.gz test
 # unpack one of the distro tarballs only in external projects.
 # -ft1 tarball will need to be linked with veperf library
-.PHONY: test build force-build clean realclean
+.PHONY: test build empty-build force-build clean realclean
 MKJOB:=VERBOSE=1 -j8
 lib${PRJ}.tar.gz:
 	rm -rf ${PRJ}
@@ -24,19 +24,19 @@ lib${PRJ}.tar.gz:
 	# tarball
 	rm -f ${PRJ}.tar.gz
 	tar cvzf ${PRJ}.tar.gz ${PRJ} 2>&1 | tee -a mk-${PRJ}.log
-lib${PRJ}-ftrace1.tar.gz:
+lib${PRJ}-ftrace1.tar.gz: # CHECK USE_FTRACE setting (sometimes I set it to 2 instead)
 	rm -rf ${PRJ}
 	# now for sequential + ftrace 1
 	rm -rf build-ft1-${PRJ} ${PRJ}
 	mkdir build-ft1-${PRJ}
-	cd build-ft1-${PRJ} && cmake -DCMAKE_INSTALL_PREFIX=../${PRJ} -DUSE_OPENMP=OFF -DUSE_FTRACE=1 ${CMAKE_ARGS} .. 2>&1 | tee ../mk-ft1-${PRJ}.log
+	cd build-ft1-${PRJ} && cmake -DCMAKE_INSTALL_PREFIX=../${PRJ} -DUSE_OPENMP=OFF -DUSE_FTRACE=2 ${CMAKE_ARGS} .. 2>&1 | tee ../mk-ft1-${PRJ}.log
 	cd build-ft1-${PRJ} && make ${MKJOB} >> ../mk-ft1-${PRJ}.log 2>&1
 	cd build-ft1-${PRJ} && make VERBOSE=1 install >> ../mk-ft1-${PRJ}.log 2>&1
 	# now for omp + ftrace 1
 	echo "--- see mk-ft1-${PRJ}_omp.log for the USE_FTRACE=1 omp build log ---" >> mk-${PRJ}.log
 	rm -rf build-ft1-${PRJ}_omp
 	mkdir build-ft1-${PRJ}_omp
-	cd build-ft1-${PRJ}_omp && cmake -DCMAKE_INSTALL_PREFIX=../${PRJ} -DUSE_OPENMP=ON -DUSE_FTRACE=1 ${CMAKE_ARGS} .. >& ../mk-ft1-${PRJ}_omp.log
+	cd build-ft1-${PRJ}_omp && cmake -DCMAKE_INSTALL_PREFIX=../${PRJ} -DUSE_OPENMP=ON -DUSE_FTRACE=2 ${CMAKE_ARGS} .. >& ../mk-ft1-${PRJ}_omp.log
 	cd build-ft1-${PRJ}_omp && make ${MKJOB} >> ../mk-ft1-${PRJ}_omp.log 2>&1
 	cd build-ft1-${PRJ}_omp && make VERBOSE=1 install >> ../mk-ft1-${PRJ}_omp.log 2>&1
 	# tarball
@@ -63,9 +63,9 @@ test: build
 	echo "make test ---> mk-test.log, test/resnext-t8.log : PIPESTATUS $${ps[@]}"; \
 	[ "$${ps[0]}" == "0" ];
 	@echo "make test OK"
-force-build:
+empty-build:
 	rm -rf build; mkdir build;
-	$(MAKE) build
+force-build: empty-build build
 # close to default build...
 build: # if no tarballs, test/original tests/Makefile always links against this build directory
 	if [ ! -d build ]; then mkdir build; echo "Fresh build/"; else echo "Remake in build/"; fi

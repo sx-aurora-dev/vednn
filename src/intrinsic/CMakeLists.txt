@@ -2,19 +2,20 @@ cmake_minimum_required(VERSION 3.0)
 
 set(CMAKE_C_COMPILER ${LLVM_INSTALL_PREFIX}/bin/clang)
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -target ve -O3 -mllvm -show-spill-message-vec -fno-vectorize -fno-unroll-loops -fno-slp-vectorize -fno-crash-diagnostics")
-set(CMAKE_CXX_COMPILER ${CMAKE_C_COMPILER})
+
+set(CMAKE_CXX_COMPILER ${LLVM_INSTALL_PREFIX}/bin/clang++)
 set(CMAKE_CXX_FLAGS ${CMAKE_C_FLAGS})
 
 if(USE_OPENMP)
     add_definitions(-DVEDNN_USE_OPENMP)
 endif()
 
+# clang does not accept -ftrace as compiler flag
+
 if(BUILD_SHARED_LIB)
     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fPIC")
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fPIC")
 endif()
-message(STATUS "libvednn intrinsics using CMAKE_C_COMPILER    : ${CMAKE_C_COMPILER}")
-message(STATUS "src/intrinsics/ CMAKE_C_FLAGS=${CMAKE_C_FLAGS}")
 
 include_directories("../")
 

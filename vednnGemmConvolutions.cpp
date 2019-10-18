@@ -1,8 +1,6 @@
 /* -*- Mode: C; c-basic-offset:4 ; indent-tabs-mode:nil ; -*- */
 
 #include "vednn-def.hpp" // vednn.h + C++ scratchpad API (C++ can inline one call)
-//#include "vednn_helper.h"
-#include "convolution_gemm.h"
 #include "vednnConvolutionForward.h"
 #include "vednnConvolutionBackwardData.h"
 #include "vednnConvolutionBackwardFilter.h"
@@ -211,8 +209,8 @@ convolution_forward_gemm(
         const float * restrict pOne,  float * restrict pColBuff,
         const vednnConvolutionParam_t * restrict pParamConv )
 {
-    DBG(" convolution_forward_gemm");
-    LFTRACE_BEGIN("convolution_forward_gemm");
+    DBG(" vednn-ConvFwd-gemm");
+    LFTRACE_BEGIN("vednn-ConvFwd-gemm");
     int n, g;
 
     int batch       = pParamIn->batch;
@@ -303,8 +301,8 @@ convolution_forward_gemm(
         } // group
     } // batch
 
-    LFTRACE_END("convolution_forward_gemm");
-    DBG(" convolution_forward_gemm DONE");
+    LFTRACE_END("vednn-ConvFwd-gemm");
+    DBG(" vednn-ConvFwd-gemm DONE");
     return VEDNN_SUCCESS;
 }
 
@@ -316,7 +314,7 @@ convolution_backward_data_gemm(
         float * restrict pColBuff,
         const vednnConvolutionParam_t * restrict pParamConv )
 {
-    LFTRACE_BEGIN("convolution_backward_data_gemm");
+    LFTRACE_BEGIN("vednn-ConvBkD-gemm");
     int n, g;
 
     int batch       = pParamGradOut->batch;
@@ -382,7 +380,7 @@ convolution_backward_data_gemm(
         } // group
     } // batch
 
-    LFTRACE_END("convolution_backward_data_gemm");
+    LFTRACE_END("vednn-ConvBkD-gemm");
     return VEDNN_SUCCESS;
 }
 
@@ -394,7 +392,7 @@ convolution_backward_filter_gemm(
         float * restrict pColBuff,
         const vednnConvolutionParam_t * restrict pParamConv )
 {
-    LFTRACE_BEGIN("convolution_backward_filter_gemm");
+    LFTRACE_BEGIN("vednn-ConvBkF-gemm");
     int n, g;
 
     int batch       = pParamIn->batch;
@@ -464,7 +462,7 @@ convolution_backward_filter_gemm(
         } // group
     } // batch
 
-    LFTRACE_END("convolution_backward_filter_gemm");
+    LFTRACE_END("vednn-ConvBkF-gemm");
     return VEDNN_SUCCESS;
 }
 

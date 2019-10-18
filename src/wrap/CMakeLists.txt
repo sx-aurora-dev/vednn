@@ -1,9 +1,12 @@
 cmake_minimum_required(VERSION 3.0)
 
+# Isn't this propagated to us?
+set(CMAKE_C_COMPILER ${NCC})
+set(CMAKE_CXX_COMPILER ${NCXX})
 #set(CMAKE_C_COMPILER /opt/nec/ve/bin/ncc)
 #set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -O4")
 if(USE_FTRACE AND NOT USE_FTRACE STREQUAL 1)
-    message(STATUS " ??? adding ftrace compilation flag ??? ")
+    message(STATUS " ??? adding ftrace compilation flag ??? check if -pthread is for link/compile")
     set(CMAKE_C_FLAGS   "${CMAKE_C_FLAGS}   -ftrace")
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -ftrace")
 endif()
@@ -11,13 +14,14 @@ endif()
 if(USE_OPENMP)
     add_definitions(-DVEDNN_USE_OPENMP)
     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fopenmp")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fopenmp")
 endif()
 
 if(BUILD_SHARED_LIB)
     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fPIC")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fPIC")
 endif()
 
-message(STATUS "src/wrap/ CMAKE_C_FLAGS=${CMAKE_C_FLAGS}")
 
 include_directories(".." "../C")
 
@@ -27,14 +31,16 @@ set(CMAKE_CXXFLAGS "${CMAKE_CXXFLAGS} -I${NLCDIR}/include")
 #set(CMAKE_INSTALL_RPATH "${CMAKE_INSTALL_RPATH} ${NLCDIR}/lib")
 set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -Wl,-rpath,${NLCDIR}/lib")
 
+message(STATUS "src/wrap/ CMAKE_C_FLAGS=${CMAKE_C_FLAGS}")
+
 add_library(vednn_wrap OBJECT
     vednnConvolutionLists.c
     vednnConvolution_ok.c
     )
 target_compile_options(vednn_wrap PRIVATE
-    $<$<CONFIG:Release>:-O4 -DNDEBUG>
-    $<$<CONFIG:RelWithDebInfo>:-g2 -O4 -DNDEBUG>
-    $<$<CONFIG:Debug>:-g2 -O0 -DVERBOSE>
+    $<$<CONFIG:Release>:-O4>
+    $<$<CONFIG:RelWithDebInfo>:-O4>
+    $<$<CONFIG:Debug>:-O0> # gdb func args show in backtrace
     )
 
 

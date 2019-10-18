@@ -1,5 +1,4 @@
 cmake_minimum_required(VERSION 3.0)
-
 project(vednn)
 
 option(USE_OPENMP   "Use OpenMP" ON)
@@ -75,11 +74,16 @@ message(STATUS "BUILD_SHARED ------> ${BUILD_SHARED}")
 
 # vednnx may link to blas libraries (for gen-dnn im2col in 'src/wrap/vconv')
 set(NLCDIR "/opt/nec/ve/nlc/2.0.0" CACHE STRING "VE blas install directory")
-if(USE_FTRACE AND USE_FTRACE STREQUAL 2)
-    message(STATUS "adding -ftrace compilation flag")
-    set(CMAKE_C_FLAGS   "${CMAKE_C_FLAGS}   -ftrace")
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -ftrace")
-endif()
+# Some targets want finer control of optimization flags,
+# so let defaults only add debug flags for now:
+set(CMAKE_C_FLAGS_RELEASE "-DNDEBUG -DTMP11")
+set(CMAKE_C_FLAGS_RELWITHDEBINFO "-g2 -DNDEBUG -DTMP12")
+#set(CMAKE_C_FLAGS_MINSIZEREL "")
+set(CMAKE_C_FLAGS_DEBUG "-g2 -DTMP10")
+set(CMAKE_CXX_FLAGS_RELEASE "-DNDEBUG -DTMP13")
+set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "-g2 -DNDEBUG -DTMP14")
+#set(CMAKE_C_FLAGS_MINSIZEREL "")
+set(CMAKE_CXX_FLAGS_DEBUG "-g2 -DTMP15")
 
 message(STATUS "PROJECT_ROOT/ CMAKE_C_FLAGS=${CMAKE_C_FLAGS}")
 add_subdirectory(src)

@@ -1,12 +1,14 @@
 cmake_minimum_required(VERSION 3.0)
 
+# Isn't this propagated to us?
 set(CMAKE_C_COMPILER ${NCC})
 set(CMAKE_CXX_COMPILER ${NCXX})
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -O4 -DNDEBUG")
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O4 -finline -finline-functions -DNDEBUG")
+# Need some targets with different compile flags
+#set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -O4 -DNDEBUG")
+#set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O4 -finline -finline-functions -DNDEBUG")
 
 if(USE_FTRACE AND NOT USE_FTRACE STREQUAL 1)
-    message(STATUS " ??? adding ftrace compilation flag ??? ")
+    message(STATUS " ??? adding ftrace compilation flag ??? check if -pthread is for link/compile")
     set(CMAKE_C_FLAGS   "${CMAKE_C_FLAGS}   -ftrace")
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -ftrace")
 endif()
@@ -46,21 +48,21 @@ add_library(vednn_c_code OBJECT
 )
 add_library(vednn_gemm_convolution OBJECT
     vednnInitScratchpad.cpp
-    convolution_gemm.cpp
+    vednnConvolutionGemm.cpp
     )
-#set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -O4 -DNDEBUG")
-#set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O4 -finline -finline-functions -DNDEBUG")
+set(SRC_C_OPT4 -O4) # original default setting
+set(SRC_C_OPT3 -O3 -finline -finline-functions -fcse-after-vectorization -msched-block)
 target_compile_options(vednn_c_code PRIVATE
-    $<$<CONFIG:Release>:-O4 -DNDEBUG>
-    $<$<CONFIG:ReleaseWithDebInfo>:-g -O4 -DNDEBUG>
-    $<$<CONFIG:Debug>:-g2 -O3>
+    $<$<CONFIG:Release>:${SRC_C_OPT4} -DTMP00>
+    $<$<CONFIG:RelWithDebInfo>:${SRC_C_OPT4} -DTMP01>
+    $<$<CONFIG:Debug>:-O3 -DTMP02>
     )
 # having some trouble with SCRATCHPAD=1 (reduce malloc calls)
+# -fcse-after-vectorization -msched-block important for convolution_gemm speed:
 target_compile_options(vednn_gemm_convolution PRIVATE
-    -DVERBOSE=1
-    $<$<CONFIG:Release>:-O4 -DNDEBUG -DVERBOSE=0 -DSCRATCHPAD=0>
-    $<$<CONFIG:ReleaseWithDebInfo>:-g -O4 -DNDEBUG -DVERBOSE=1 -DSCRATCHPAD=0>
-    $<$<CONFIG:Debug>:-g2 -O0 -DSCRATCHPAD=1>
+    $<$<CONFIG:Release>:${SRC_C_OPT3} -DVERBOSE=0 -DSCRATCHPAD=0 -DTMP03>
+    $<$<CONFIG:RelWithDebInfo>:${SRC_C_OPT3} -DVERBOSE=0 -DSCRATCHPAD=0 -DTMP04>
+    $<$<CONFIG:Debug>:-O0 -DVERBOSE=1 -DSCRATCHPAD=1 -DTMP05>
     )
 
 

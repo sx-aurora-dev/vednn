@@ -13,9 +13,9 @@ vednnError_t vednnActivationBackward_Relu(
     const uint64_t nElements
 )
 {
-  const float * restrict pGOut   = pDataGradOut;
-  const float * restrict pIn     = pDataIn;
-  float * restrict const pGIn    = pDataGradIn;
+  const float * restrict pGOut   = (float const* restrict)pDataGradOut;
+  const float * restrict pIn     = (float const* restrict)pDataIn;
+  float * restrict const pGIn    = (float      * restrict)pDataGradIn;
 
   const uint64_t alignGOut = ((uint64_t)pDataGradOut) & 0x07 ;
   const uint64_t alignIn   = ((uint64_t)pDataIn) & 0x07 ;
