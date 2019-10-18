@@ -41,6 +41,7 @@ add_library(vednn_c_code OBJECT
     vednnConvolutionForward_dil1_str1_padsame_ker3_T.cpp
     vednnConvolutionForward_dil1_str1_pad0_ker1_T.cpp
     vednnConvolutionForward_owU128_T.cpp
+    vednnConvolutionForward_dil1_str1_padsame_ker3_c1024x_T.cpp
 	vednnConvolutionBackwardData.c
 	vednnConvolutionBackwardFilter.c
 	vednnLinearForward.c
