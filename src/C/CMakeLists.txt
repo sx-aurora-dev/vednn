@@ -60,6 +60,7 @@ add_library(vednn_c_code OBJECT
 add_library(vednn_gemm_convolution OBJECT
     vednnInitScratchpad.cpp
     convolution_gemm.cpp
+    convgemmA.cpp
     )
 set(SRC_C_OPT4 -O4) # original default setting
 set(SRC_C_OPT3 -O3 -finline -finline-functions -fcse-after-vectorization -msched-block)

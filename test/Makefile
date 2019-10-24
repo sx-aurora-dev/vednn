@@ -26,6 +26,7 @@ LIBJITX86=${LIBJIT}-x86
 
 # libvednn basename:
 LIBVEDNN=vednn${VEDNN_SUFFIX}
+LIBVEDNNX=vednnx${VEDNN_SUFFIX}
 
 mkfile_path:=$(abspath $(lastword $(MAKEFILE_LIST)))
 mkfile_dir:=$(dir $(mkfile_path))
@@ -184,7 +185,7 @@ endif
 BLAS_DIR	= /opt/nec/ve/nlc/2.0.0
 BLAS_INC_DIR	= $(BLAS_DIR)/include
 BLAS_LIB_DIR	= $(BLAS_DIR)/lib
-CFLAGS			+= -I$(BLAS_INC_DIR) 
+CFLAGS		+= -I$(BLAS_INC_DIR) 
 CLANG_FLAGS     += -I$(BLAS_INC_DIR)
 
 CFLAGS		+= -I${VEDNN_DIR}/include
@@ -370,21 +371,6 @@ cjitConv01: cjitConv01.cpp vejit
 	#	-Wl,-rpath,/opt/nec/ve/ncc/1.7.21/lib
 	{ ve_exec ./$@ || echo "Exit status $$?"; } 2>&1 | tee $@.log
 	nreadelf -ds tmp_$@/lib$@.so >> $@.log 2>&1
-cjitConv-ve.o:	cjitConv.cpp cjitConv.hpp conv_test_param.h ve_cvecops.hpp
-	$(CJIT_CXX) -E $< -o cjitConv.i
-	$(CJIT_CXX) -c $< -o $@
-	@echo '$@ is made!'
-cjitConv-ve.lo:	cjitConv.cpp cjitConv.hpp conv_test_param.h ve_cvecops.hpp
-	$(CJIT_CXX) -fPIC -c $< -o $@
-cjitConv%-x86.o: cjitConv%.cpp cjitConv.hpp conv_test_param.h ve_cvecops.hpp
-	$(CJITX86) -c $< -o $@
-cjitConv%-x86.lo: cjitConv%.cpp cjitConv.hpp conv_test_param.h ve_cvecops.hpp
-	$(CJITX86) -fPIC -c $< -o $@
-cjitConv%-ve.o: cjitConv%.cpp cjitConv.hpp conv_test_param.h ve_cvecops.hpp
-	$(CJIT_CXX) -c $< -o $@
-cjitConv%-ve.lo: cjitConv%.cpp cjitConv.hpp conv_test_param.h ve_cvecops.hpp
-	$(CJIT_CXX) -fPIC -c $< -o $@
-# cjitConvFwd6vel-ve.o REMOVED	
 # small subset
 CJITCONV_SET:=cjitConvFwd1q cjitConvFwd6
 # larger subset --- enable for jit development work (slow compilations!)
@@ -402,6 +388,17 @@ libcjitConv-x86.a: cjitConv-x86.o $(patsubst %,%-x86.o,$(CJITCONV_SET)) ve_cveco
 cjitConv-ve.o:	cjitConv.cpp cjitConv.hpp conv_test_param.h ve_cvecops.hpp
 	$(CJIT_CXX) -E $< -o cjitConv.i
 	$(CJIT_CXX) -c $< -o $@
+	@echo '$@ is made!'
+cjitConv%-x86.o: cjitConv%.cpp cjitConv.hpp conv_test_param.h ve_cvecops.hpp
+	$(CJITX86) -c $< -o $@
+cjitConv%-x86.lo: cjitConv%.cpp cjitConv.hpp conv_test_param.h ve_cvecops.hpp
+	$(CJITX86) -fPIC -c $< -o $@
+cjitConv%-ve.o: cjitConv%.cpp cjitConv.hpp conv_test_param.h ve_cvecops.hpp
+	$(CJIT_CXX) -c $< -o $@
+cjitConv%-ve.lo: cjitConv%.cpp cjitConv.hpp conv_test_param.h ve_cvecops.hpp
+	$(CJIT_CXX) -fPIC -c $< -o $@
+cjitConv-ve.lo:	cjitConv.cpp cjitConv.hpp conv_test_param.h ve_cvecops.hpp
+	$(CJIT_CXX) -fPIC -c $< -o $@
 libcjitConv-ve.so: cjitConv-ve.lo $(patsubst %,%-ve.lo,$(CJITCONV_SET)) ve_cvecops-ve.lo
 	$(CJIT_CXX) $^ -fPIC -shared -o $@
 libcjitConv-x86.so: cjitConv-x86.lo $(patsubst %,%-x86.lo,$(CJITCONV_SET)) ve_cvecops-x86.lo
@@ -555,7 +552,7 @@ convolution_gemm-clang.s: convolution_gemm.c
 convolution_gemm-ncc.s: convolution_gemm.c
 	$(CJIT_CC) -std=gnu11 -O3 \
 		-report-all -Wall \
-	-fcse-after-vectorization -msched-block \
+		-fcse-after-vectorization -msched-block \
 		-o $@ -S $<
 	@# -O3 # 135G
 	@# -O4 is eps faster than -O3
@@ -635,12 +632,14 @@ jitconv: jitconv.o $(LOCALIMPLS) $(CONVGEMM).o libcjitConv-ve.so vednn_helper.o 
 	# prefer to use -l command-line option to pre-load JIT libs
 	export megajit="" && [[ -s "libmegajit.soNONO" ]] && megajit="-lmegajit"; \
 	echo "megajit options <$${megajit}>"; \
-	$(CXX) $(filter %.o,$@) $^ ${CXXFLAGS} ${LDFLAGS} -fPIC -Wl,-z,max-page-size=0x200000 \
-		-L.  -Wl,-rpath,. \
-		-lcjitConv-ve $${megajit} \
-		-Lvejit/lib  -Wl,-rpath vejit/lib \
+	$(CXX) $(filter %.o,$^) \
+		${CXXFLAGS} \
+		${LDFLAGS} -l$(LIBVEDNNX) -l$(LIBVEDNN) \
+		-fPIC -Wl,-z,max-page-size=0x200000 \
 		$(filter %.a,%^) $(filter %.so,$^) \
-		-l${LIBJIT} -o $@ \
+		-L. -Wl,-rpath,${mkfile_dir} -lcjitConv-ve $${megajit} \
+		-Lvejit/lib  -Wl,-rpath,${mkfile_dir}/vejit/lib -l${LIBJIT} \
+		-o $@ \
 		${LDLIBS} -ldl
 	ls -l libmegajit* $@
 	nreadelf -d $@ | grep NEEDED
@@ -655,9 +654,9 @@ jitconv-dev: jitconv.o d1s1pSB.o $(CONVGEMM).o libcjitConv-ve.so vednn_helper.o 
 		$(filter %.a,%^) $(filter %.so,$^) \
 		-l${LIBJIT} -o $@ \
 		${LDLIBS} -ldl
-resnext-t8.log: jitconv
-	{ cmd='./jitconv -k -t 8 -S resnext -M params/conv/resnext2.txt'; rm -f ftrace.out \
-	       echo "$$cmd"; time $$cmd; status=$$?; ftrace || true; } >& resnext-t8.log; \
+resnext-t%.log: jitconv
+	{ cmd='./jitconv -k -t $* -S resnext -M params/conv/resnext2.txt'; rm -f ftrace.out \
+	       echo "$$cmd"; time $$cmd; status=$$?; ftrace || true; } >& resnext-t$*.log; \
 	       if [ "$${status}" != "0" ]; then echo "$@ FAILED"; fi; \
 	       [ "$${status}" == "0" ];
 	@echo "$@ OK"
@@ -744,6 +743,14 @@ ve_mnist_read : ve_mnist_read.cpp
 ve_mnist_train : ve_mnist_train.cpp vednn_helper.o maxpooling.o conv_test_param.o
 	$(CXX) $(CXXFLAGS) -o $@ $^
 
+test.log : vednn_conv_test vednn_linear_test vednn_pool_test Makefile
+	{ ./vednn_conv_test -H 0.8e9 -p params/conv/alexnet.txt   -T ConvForward    \
+		|| echo "Error: vednn_conv_test"; ftrace || true; \
+	./vednn_linear_test -H 0.8e9 -p params/linear/alexnet.txt -T LinearForward  \
+		|| echo "Error: vednn_linear_test"; ftrace || true; \
+	./vednn_pool_test   -H 0.8e9 -p params/pool/alexnet.txt   -T MaxPoolForward \
+		|| echo "Error: vednn_pool_test"; ftrace || true; \
+	} >& $@
 #.PHONY: vednnjit-hdrs
 #vednnjit-hdrs : vednnJitDetail.h vednnJitUtil.h vednnjit.h
 #	for f in $^; do \

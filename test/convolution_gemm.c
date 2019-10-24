@@ -5,6 +5,7 @@
 #include <string.h>
 
 #include "vednn.h"
+#include "C/vednn-def.h"  // __vednn_omp_num_threads
 #include "vednn_helper.h"
 #include "convolution_gemm.h"
 
@@ -20,7 +21,7 @@
 #define LFTRACE_IF(...) do{}while(0)
 #endif // LOCAL_FTRACE
 
-#define SGEMM	sgemm_
+#define SGEMM sgemm_
 void sgemm_(char *TRANSA, char *TRANSB, int *M, int *N, int *K,
     float *ALPHA, float *A,  int *LDA, float *B, int *LDB,
     float *BETA, float *C, int *LDC ) ;
@@ -43,6 +44,29 @@ static inline int64_t zero_le_a_lt_b(int64_t a, int64_t b) {
 }
 #endif
 
+#if 0 // fast.  Unfortunately __vednn_omp_num_threads may often be zero (why?)
+#ifdef USE_OPENMP
+static int nThreads = 0;
+#else
+static int const nThreads = 1U;
+#endif
+#else // slightly less fast
+#ifdef USE_OPENMP
+//static int nThreads = 0;
+static inline void chkThreads() {
+  if(__vednn_omp_num_threads<=0) __vednn_omp_num_threads = omp_get_max_threads();
+}
+static inline int getThreads() {
+  //return __vednn_omp_num_threads? __vednn_omp_num_threads: omp_get_max_threads();
+  return __vednn_omp_num_threads;
+}
+#else
+static inline void chkThreads() {}
+static inline int getThreads() { return 1; }
+#endif
+#endif
+
+
 /** data_col size to hold float[ic*kw*kh*ow*oh]. */
   static void
 im2col_cpu(const float * restrict data_im, const int64_t channels,
@@ -50,41 +74,154 @@ im2col_cpu(const float * restrict data_im, const int64_t channels,
     const int64_t pad_h, const int64_t pad_w,
     const int64_t stride_h, const int64_t stride_w,
     const int64_t dilation_h, const int64_t dilation_w,
-    float * restrict data_col)
+    float * restrict data_col, int const threads)
 {
   LFTRACE_BEGIN("im2col_cpu");
   const int64_t output_h = (height + 2 * pad_h - (dilation_h * (kernel_h - 1) + 1)) / stride_h + 1;
   const int64_t output_w = (width + 2 * pad_w -  (dilation_w * (kernel_w - 1) + 1)) / stride_w + 1;
   const int64_t channel_size = height * width;
 
-  int64_t channel;
+  int64_t channel, kernel_row;
+  typedef long unsigned lu;
 
-#pragma _NEC parallel for if(channels>=3)
-  for (channel = 0 ; channel < channels; channel++) {				// inChannel
-    int64_t kernel_row, kernel_col, output_rows, output_cols, output_col;
+  int64_t const workPerChannel = kernel_h*kernel_w * output_h*output_w;
+  //printf(" im2col channels %lu threads %lu vednn-threads %lu omp_threads %lu\n",(lu)channels,
+  //    (lu)threads, (lu)__vednn_omp_num_threads, (lu)omp_get_max_threads());
+  if( channels%threads && channels < 2*threads )
+  { // collapse 2 loops [channels,kernel_h] to get more work per thread.
+    //printf(" collapse(2)\n");
+#if 0 // actually no diff for stride_w==1 "optimization"
+    if( stride_w == 1 )
+#pragma omp parallel
+      //#pragma omp parallel if(channels>1 && workPerChannel > 65536)
+    {
+#pragma omp for private(channel,kernel_row) collapse(2)
+      //#pragma omp parallel for private(channel) if(workPerChannel > 111)
+      //#pragma omp parallel for private(channel,kernel_row)
+      for (channel = 0 ; channel < channels; ++channel) {       // inChannel
+        for (kernel_row = 0; kernel_row < kernel_h; ++kernel_row) {   // kernHeight
+          int64_t kernel_col, output_row, output_col;
 
-    int64_t inOffset = channel * channel_size;
-    int64_t outOffset = channel * output_h * output_w * kernel_h * kernel_w;
+          int64_t const inOffset = channel * channel_size;
+          int64_t outOffset = channel * workPerChannel + kernel_row * kernel_w*output_h*output_w;
+          //if(channel==0) printf("inOffset=%-8lu outOffset=%-8lu\n",(lu)inOffset,(lu)outOffset);
 
-    for (kernel_row = 0; kernel_row < kernel_h; kernel_row++) {		// kernHeight
-      for (kernel_col = 0; kernel_col < kernel_w; kernel_col++) {		// kernWidth
-        int64_t input_row = -pad_h + kernel_row * dilation_h;
-        for (output_rows = output_h; output_rows; output_rows--) {	// outHeight
-          if (!zero_le_a_lt_b(input_row, height)) {
-            for (output_cols = output_w; output_cols; output_cols--) { // outWidth
-              data_col[outOffset++] = 0; //*(data_col++) = 0;
+          for (kernel_col = 0; kernel_col < kernel_w; kernel_col++) {   // kernWidth
+#if 1 // orig code (faster)
+            int64_t input_row = -pad_h + kernel_row * dilation_h;
+            for (output_row = output_h; output_row; output_row--) { // outHeight
+              //int64_t const input_row = -pad_h + kernel_row * dilation_h + output_row*stride_h;
+              if (input_row < 0 || input_row >= height)//(!zero_le_a_lt_b(input_row,height))
+              {
+                for (output_col = 0; output_col<output_w; ++output_col) { // outWidth
+                  data_col[outOffset++] = FZERO; //*(data_col++) = 0;
+                }
+              } else {
+                int64_t const input_col = -pad_w + kernel_col * dilation_w;
+                for (output_col = input_col; output_col<input_col+output_w; ++output_col) { // outWidth
+                  data_col[outOffset++] //*(data_col++)
+                    = ( output_col >= 0 && output_col < width
+                        ? data_im[inOffset + input_row * width + output_col]
+                        : FZERO);
+                }
+              }
+              input_row += stride_h;
             }
-          } else {
-            int64_t input_col = -pad_w + kernel_col * dilation_w;
-            for (output_col = output_w; output_col; output_col--) {	// outWidth
-              data_col[outOffset++] //*(data_col++)
-                = (zero_le_a_lt_b(input_col, width)
-                  ? data_im[inOffset + input_row * width + input_col]
-                  : 0.f);
-              input_col += stride_w;
+#else // slower w/ combined loops
+            int64_t const input_col = -pad_w + kernel_col * dilation_w;
+            for (output_row= 0; output_row<output_h; ++output_row) {  // outHeight
+              int64_t const input_row = -pad_h + kernel_row * dilation_h + output_row*stride_h;
+              for (output_col = input_col; output_col<input_col+output_w; ++output_col) { // outWidth
+                data_col[outOffset++] //*(data_col++)
+                  = ( input_row >= 0 && input_row < height &&
+                      output_col >= 0 && output_col < width
+                      ? data_im[inOffset + input_row * width + output_col]
+                      : FZERO);
+              }
+            }
+#endif
+          }
+        }
+      }
+    }
+    else // stride_w != 1
+#endif
+#pragma omp parallel
+      //#pragma omp parallel if(channels>1 && workPerChannel > 65536)
+    { // any stride_w > 0 ...
+#pragma omp for private(channel,kernel_row) collapse(2)
+      //#pragma omp parallel for private(channel) if(workPerChannel > 111)
+      //#pragma omp parallel for private(channel,kernel_row)
+      for (channel = 0 ; channel < channels; ++channel) {       // inChannel
+        for (kernel_row = 0; kernel_row < kernel_h; ++kernel_row) {   // kernHeight
+          int64_t kernel_col, output_rows, output_col;
+
+          int64_t const inOffset = channel * channel_size;
+          int64_t outOffset = channel * workPerChannel + kernel_row * kernel_w*output_h*output_w;
+          //if(channel==0) printf("inOffset=%-8lu outOffset=%-8lu\n",(lu)inOffset,(lu)outOffset);
+
+          for (kernel_col = 0; kernel_col < kernel_w; kernel_col++) {   // kernWidth
+            int64_t input_row = -pad_h + kernel_row * dilation_h;
+            for (output_rows = output_h; output_rows; output_rows--) {  // outHeight
+              if (input_row < 0 || input_row >= height)//(!zero_le_a_lt_b(input_row,height))
+              {
+                for (output_col = output_w; output_col; output_col--) { // outWidth
+                  data_col[outOffset++] = FZERO; //*(data_col++) = 0;
+                }
+              } else {
+                int64_t input_col = -pad_w + kernel_col * dilation_w;
+                for (output_col = output_w; output_col; output_col--) { // outWidth
+                  data_col[outOffset++] //*(data_col++)
+                    = //(zero_le_a_lt_b(input_col, width)
+                    (0 <= input_col && input_col < width
+                     ? data_im[inOffset + input_row * width + input_col]
+                     : FZERO);
+                  input_col += stride_w;
+                }
+              }
+              input_row += stride_h;
             }
           }
-          input_row += stride_h;
+        }
+      }
+    }
+  }else{ // collapse just one outer [channels] loop
+#pragma omp parallel
+//#pragma omp parallel if(channels>1 && workPerChannel > 65536)
+    {
+#pragma omp for private(channel,kernel_row)
+      //#pragma omp parallel for private(channel) if(workPerChannel > 111)
+      //#pragma omp parallel for private(channel)
+      for (channel = 0 ; channel < channels; ++channel) {       // inChannel
+        int64_t kernel_row, kernel_col, output_rows, output_cols, output_col;
+
+        int64_t inOffset = channel * channel_size;
+        int64_t outOffset = channel * workPerChannel;
+
+        for (kernel_row = 0; kernel_row < kernel_h; kernel_row++) {   // kernHeight
+          //if(channel==0) printf("inOffset=%-8lu outOffset=%-8lu\n",(lu)inOffset,(lu)outOffset);
+          for (kernel_col = 0; kernel_col < kernel_w; kernel_col++) {   // kernWidth
+            int64_t input_row = -pad_h + kernel_row * dilation_h;
+            for (output_rows = output_h; output_rows; output_rows--) {  // outHeight
+              if (input_row < 0 || input_row >= height)//(!zero_le_a_lt_b(input_row,height))
+              {
+                for (output_cols = output_w; output_cols; output_cols--) { // outWidth
+                  data_col[outOffset++] = 0; //*(data_col++) = 0;
+                }
+              } else {
+                int64_t input_col = -pad_w + kernel_col * dilation_w;
+                for (output_col = output_w; output_col; output_col--) { // outWidth
+                  data_col[outOffset++] //*(data_col++)
+                    = //(zero_le_a_lt_b(input_col, width)
+                    (0 <= input_col && input_col < width
+                     ? data_im[inOffset + input_row * width + input_col]
+                     : 0.f);
+                  input_col += stride_w;
+                }
+              }
+              input_row += stride_h;
+            }
+          }
         }
       }
     }
@@ -99,7 +236,7 @@ col2im_cpu(
     const int64_t pad_h, const int64_t pad_w,
     const int64_t stride_h, const int64_t stride_w,
     const int64_t dilation_h, const int64_t dilation_w,
-    float* data_im)
+    float* data_im, int const threads)
 {
   LFTRACE_BEGIN("col2im_cpu");
   memset(data_im, 0, sizeof(float)*height*width*channels) ;
@@ -110,38 +247,42 @@ col2im_cpu(
 
   int64_t channel;
 
-#pragma _NEC parallel for if(channels>=3)
-  for (channel = 0 ; channel < channels; channel++) {				// inChannel
-    int64_t kernel_row, kernel_col, output_rows, output_cols, output_col;
+  int64_t const work = channels * kernel_h*kernel_w * output_h*output_w;
+#pragma omp parallel if(channels>=3 && work>1024)
+  {
+#pragma omp for
+    for (channel = 0 ; channel < channels; channel++) {       // inChannel
+      int64_t kernel_row, kernel_col, output_rows, output_cols, output_col;
 
-    int64_t inOffset = channel * channel_size;
-    int64_t outOffset = channel * output_h * output_w * kernel_h * kernel_w;
+      int64_t inOffset = channel * channel_size;
+      int64_t outOffset = channel * output_h * output_w * kernel_h * kernel_w;
 
-    for (kernel_row = 0; kernel_row < kernel_h; kernel_row++) {		// kernHeight
-      for (kernel_col = 0; kernel_col < kernel_w; kernel_col++) {		// kernWidth
-        int64_t input_row = -pad_h + kernel_row * dilation_h;
-        for (output_rows = output_h; output_rows; output_rows--) {	// outHeight
-          if (!zero_le_a_lt_b(input_row, height)) {
-            for (output_cols = output_w; output_cols; output_cols--) {
-              // *(data_col++) = 0;
-              //data_col[outOffset++] ;
-              ++outOffset;
-            }
-          } else {
-            int64_t input_col = -pad_w + kernel_col * dilation_w;
-            for (output_col = output_w; output_col; output_col--) {	// outWidth
-              if (zero_le_a_lt_b(input_col, width)) {
-                // *(data_col++) = data_im[input_row * width + input_col];
-                data_im[inOffset + input_row * width + input_col] += data_col[outOffset++] ;
-              } else {
+      for (kernel_row = 0; kernel_row < kernel_h; kernel_row++) {   // kernHeight
+        for (kernel_col = 0; kernel_col < kernel_w; kernel_col++) {   // kernWidth
+          int64_t input_row = -pad_h + kernel_row * dilation_h;
+          for (output_rows = output_h; output_rows; output_rows--) {  // outHeight
+            if (!zero_le_a_lt_b(input_row, height)) {
+              for (output_cols = output_w; output_cols; output_cols--) {
                 // *(data_col++) = 0;
                 //data_col[outOffset++] ;
                 ++outOffset;
               }
-              input_col += stride_w;
+            } else {
+              int64_t input_col = -pad_w + kernel_col * dilation_w;
+              for (output_col = output_w; output_col; output_col--) { // outWidth
+                if (zero_le_a_lt_b(input_col, width)) {
+                  // *(data_col++) = data_im[input_row * width + input_col];
+                  data_im[inOffset + input_row * width + input_col] += data_col[outOffset++] ;
+                } else {
+                  // *(data_col++) = 0;
+                  //data_col[outOffset++] ;
+                  ++outOffset;
+                }
+                input_col += stride_w;
+              }
             }
+            input_row += stride_h;
           }
-          input_row += stride_h;
         }
       }
     }
@@ -161,26 +302,26 @@ convolution_forward_gemm(
   LFTRACE_BEGIN("convolution_forward_gemm");
   int n, g;
 
-  int batch		= pParamIn->batch;
-  int inChannel	= pParamIn->channel;
-  int inWidth		= pParamIn->width;
-  int inHeight	= pParamIn->height;
-  int outChannel	= pParamOut->channel;
-  int outWidth	= pParamOut->width;
-  int outHeight	= pParamOut->height;
-  int kernWidth	= pParamKernel->width;
-  int kernHeight	= pParamKernel->height;
+  int batch   = pParamIn->batch;
+  int inChannel = pParamIn->channel;
+  int inWidth   = pParamIn->width;
+  int inHeight  = pParamIn->height;
+  int outChannel  = pParamOut->channel;
+  int outWidth  = pParamOut->width;
+  int outHeight = pParamOut->height;
+  int kernWidth = pParamKernel->width;
+  int kernHeight  = pParamKernel->height;
 
-  int group		= pParamConv->group;
-  int strideWidth	= pParamConv->strideWidth;;
-  int strideHeight	= pParamConv->strideHeight;
-  int padWidth	= pParamConv->padWidth;
-  int padHeight	= pParamConv->padHeight;
-  int dilationWidth	= pParamConv->dilationWidth;
-  int dilationHeight	= pParamConv->dilationHeight;
+  int group   = pParamConv->group;
+  int strideWidth = pParamConv->strideWidth;;
+  int strideHeight  = pParamConv->strideHeight;
+  int padWidth  = pParamConv->padWidth;
+  int padHeight = pParamConv->padHeight;
+  int dilationWidth = pParamConv->dilationWidth;
+  int dilationHeight  = pParamConv->dilationHeight;
 
-  int inChannelGroup	= inChannel  / group;	// pParamKernel->inChannel と同じ
-  int outChannelGroup	= outChannel / group;	// pParamKernel->outChannel と同じ
+  int inChannelGroup  = inChannel  / group; // pParamKernel->inChannel と同じ
+  int outChannelGroup = outChannel / group; // pParamKernel->outChannel と同じ
 
   const float * restrict pIn     = pDataIn;
   const float * restrict pBias   = pDataBias;
@@ -188,6 +329,7 @@ convolution_forward_gemm(
   float * restrict pOut    = pDataOut;
 
   int no_im2col = (kernWidth == 1 && kernHeight == 1 && strideWidth == 1 && strideHeight == 1 && padWidth == 0 && padHeight == 0);
+  chkThreads();
 
   for (n = 0; n < batch; n++) { // this->num_
     int inBatchOffset  = n * inChannel  * inWidth  * inHeight;
@@ -229,7 +371,7 @@ convolution_forward_gemm(
         im2col_cpu(&pIn[inOffset],
             inChannelGroup, inHeight, inWidth, kernHeight, kernWidth,
             padHeight, padWidth, strideHeight, strideWidth, dilationHeight, dilationWidth,
-            pColBuff);
+            pColBuff, getThreads());
 
 
         SGEMM(&NOTRANS, &NOTRANS, &N, &M, &K,
@@ -262,32 +404,33 @@ convolution_backward_data_gemm(
   LFTRACE_BEGIN("convolution_backward_data_gemm");
   int n, g;
 
-  int batch		= pParamGradOut->batch;
-  int gOutChannel	= pParamGradOut->channel;
-  int gOutWidth	= pParamGradOut->width;
-  int gOutHeight	= pParamGradOut->height;
-  int gInChannel	= pParamGradIn->channel;
-  int gInWidth	= pParamGradIn->width;
-  int gInHeight	= pParamGradIn->height;
-  int kernWidth	= pParamKernel->width;
-  int kernHeight	= pParamKernel->height;
+  int batch   = pParamGradOut->batch;
+  int gOutChannel = pParamGradOut->channel;
+  int gOutWidth = pParamGradOut->width;
+  int gOutHeight  = pParamGradOut->height;
+  int gInChannel  = pParamGradIn->channel;
+  int gInWidth  = pParamGradIn->width;
+  int gInHeight = pParamGradIn->height;
+  int kernWidth = pParamKernel->width;
+  int kernHeight  = pParamKernel->height;
 
-  int group		= pParamConv->group;
-  int strideWidth	= pParamConv->strideWidth;;
-  int strideHeight	= pParamConv->strideHeight;
-  int padWidth	= pParamConv->padWidth;
-  int padHeight	= pParamConv->padHeight;
-  int dilationWidth	= pParamConv->dilationWidth;
-  int dilationHeight	= pParamConv->dilationHeight;
+  int group   = pParamConv->group;
+  int strideWidth = pParamConv->strideWidth;;
+  int strideHeight  = pParamConv->strideHeight;
+  int padWidth  = pParamConv->padWidth;
+  int padHeight = pParamConv->padHeight;
+  int dilationWidth = pParamConv->dilationWidth;
+  int dilationHeight  = pParamConv->dilationHeight;
 
   int gOutChannelGroup = gOutChannel  / group;
-  int gInChannelGroup	 = gInChannel / group;
+  int gInChannelGroup  = gInChannel / group;
 
   const float * restrict pGradOut = pDataGradOut;
   const float * restrict pKernel  = pDataKernel;
   float * restrict pGradIn  = pDataGradIn;
 
   int no_im2col = (kernWidth == 1 && kernHeight == 1 && strideWidth == 1 && strideHeight == 1 && padWidth == 0 && padHeight == 0);
+  chkThreads();
 
   for (n = 0; n < batch; n++) { // this->num_
     int gOutBatchOffset  = n * gOutChannel  * gOutWidth  * gOutHeight;
@@ -320,7 +463,7 @@ convolution_backward_data_gemm(
         col2im_cpu(pColBuff,
             gInChannelGroup, gInHeight, gInWidth, kernHeight, kernWidth,
             padHeight, padWidth, strideHeight, strideWidth, dilationHeight, dilationWidth,
-            &pGradIn[gInOffset]);
+            &pGradIn[gInOffset], getThreads());
       }
     } // group
   } // batch
@@ -340,32 +483,34 @@ convolution_backward_filter_gemm(
   LFTRACE_BEGIN("convolution_backward_filter_gemm");
   int n, g;
 
-  int batch		= pParamIn->batch;
-  int inChannel	= pParamIn->channel;
-  int inWidth		= pParamIn->width;
-  int inHeight	= pParamIn->height;
-  int outChannel	= pParamGradOut->channel;
-  int outWidth	= pParamGradOut->width;
-  int outHeight	= pParamGradOut->height;
-  int kernWidth	= pParamGradKernel->width;
-  int kernHeight	= pParamGradKernel->height;
+  int batch   = pParamIn->batch;
+  int inChannel = pParamIn->channel;
+  int inWidth   = pParamIn->width;
+  int inHeight  = pParamIn->height;
+  int outChannel  = pParamGradOut->channel;
+  int outWidth  = pParamGradOut->width;
+  int outHeight = pParamGradOut->height;
+  int kernWidth = pParamGradKernel->width;
+  int kernHeight  = pParamGradKernel->height;
 
-  int group		= pParamConv->group;
-  int strideWidth	= pParamConv->strideWidth;;
-  int strideHeight	= pParamConv->strideHeight;
-  int padWidth	= pParamConv->padWidth;
-  int padHeight	= pParamConv->padHeight;
-  int dilationWidth	= pParamConv->dilationWidth;
-  int dilationHeight	= pParamConv->dilationHeight;
+  int group   = pParamConv->group;
+  int strideWidth = pParamConv->strideWidth;;
+  int strideHeight  = pParamConv->strideHeight;
+  int padWidth  = pParamConv->padWidth;
+  int padHeight = pParamConv->padHeight;
+  int dilationWidth = pParamConv->dilationWidth;
+  int dilationHeight  = pParamConv->dilationHeight;
 
-  int inChannelGroup	= inChannel  / group;	// pParamKernel->inChannel と同じ
-  int outChannelGroup	= outChannel / group;	// pParamKernel->outChannel と同じ
+  int inChannelGroup  = inChannel  / group; // pParamKernel->inChannel と同じ
+  int outChannelGroup = outChannel / group; // pParamKernel->outChannel と同じ
 
   const float * restrict pIn     = pDataIn;
   const float * restrict pOut    = pDataGradOut;
   float * restrict pKernel = pDataGradKernel ;
 
   int no_im2col = (kernWidth == 1 && kernHeight == 1 && strideWidth == 1 && strideHeight == 1 && padWidth == 0 && padHeight == 0);
+  chkThreads();
+
 
   for (n = 0; n < batch; n++) { // this->num_
     int inBatchOffset  = n * inChannel  * inWidth  * inHeight;
@@ -393,7 +538,7 @@ convolution_backward_filter_gemm(
         im2col_cpu(&pIn[inOffset],
             inChannelGroup, inHeight, inWidth, kernHeight, kernWidth,
             padHeight, padWidth, strideHeight, strideWidth, dilationHeight, dilationWidth,
-            pColBuff);
+            pColBuff, getThreads());
 
         int M = outChannelGroup;
         int N = inChannelGroup * kernWidth * kernHeight;

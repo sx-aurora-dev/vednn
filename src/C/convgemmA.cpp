@@ -37,19 +37,6 @@ static inline size_t getTensorDataSize(const vednnTensorParam_t * restrict pPara
 
 #define SGEMM   sgemm_
 
-#ifdef VEDNN_USE_OPENMP
-static inline void chkThreads() {
-  if(__vednn_omp_num_threads<=0) __vednn_omp_num_threads = omp_get_max_threads();
-}
-static inline int getThreads() {
-  //return __vednn_omp_num_threads? __vednn_omp_num_threads: omp_get_max_threads();
-  return __vednn_omp_num_threads;
-}
-#else
-static inline void chkThreads() {}
-static inline int getThreads() { return 1; }
-#endif
-
 extern "C" {
   void sgemm_(char *TRANSA, char *TRANSB, int *M, int *N, int *K,
       float *ALPHA, float *A,  int *LDA, float *B, int *LDB,
@@ -68,123 +55,16 @@ static int   IONE    = 1;
 //  return a>=0  && a<b; // for ncc auto vectorization, this is better
 //}
 
-#if 1
 /** data_col size to hold float[ic*kw*kh*ow*oh]. */
   static void
-vednn_im2col(const float * restrict data_im, const int64_t channels,
+vednn_im2colA(const float * restrict data_im, const int64_t channels,
     const int64_t height, const int64_t width, const int64_t kernel_h, const int64_t kernel_w,
     const int64_t pad_h, const int64_t pad_w,
     const int64_t stride_h, const int64_t stride_w,
     const int64_t dilation_h, const int64_t dilation_w,
-    float * restrict data_col, int const threads)
+    float * restrict data_col)
 {
-  LFTRACE_BEGIN("im2col_cpu");
-  const int64_t output_h = (height + 2 * pad_h - (dilation_h * (kernel_h - 1) + 1)) / stride_h + 1;
-  const int64_t output_w = (width + 2 * pad_w -  (dilation_w * (kernel_w - 1) + 1)) / stride_w + 1;
-  const int64_t channel_size = height * width;
-
-  int64_t channel, kernel_row;
-  typedef long unsigned lu;
-
-  int64_t const workPerChannel = kernel_h*kernel_w * output_h*output_w;
-  //printf(" im2col channels %lu threads %lu vednn-threads %lu omp_threads %lu\n",(lu)channels,
-  //    (lu)threads, (lu)__vednn_omp_num_threads, (lu)omp_get_max_threads());
-  if( channels%threads && channels < 2*threads )
-  { // collapse 2 loops [channels,kernel_h] to get more work per thread.
-    //printf(" collapse(2)\n");
-#pragma omp parallel
-      //#pragma omp parallel if(channels>1 && workPerChannel > 65536)
-    { // any stride_w > 0 ...
-#pragma omp for private(channel,kernel_row) collapse(2)
-      //#pragma omp parallel for private(channel) if(workPerChannel > 111)
-      //#pragma omp parallel for private(channel,kernel_row)
-      for (channel = 0 ; channel < channels; ++channel) {       // inChannel
-        for (kernel_row = 0; kernel_row < kernel_h; ++kernel_row) {   // kernHeight
-          int64_t kernel_col, output_rows, output_col;
-
-          int64_t const inOffset = channel * channel_size;
-          int64_t outOffset = channel * workPerChannel + kernel_row * kernel_w*output_h*output_w;
-          //if(channel==0) printf("inOffset=%-8lu outOffset=%-8lu\n",(lu)inOffset,(lu)outOffset);
-
-          for (kernel_col = 0; kernel_col < kernel_w; kernel_col++) {   // kernWidth
-            int64_t input_row = -pad_h + kernel_row * dilation_h;
-            for (output_rows = output_h; output_rows; output_rows--) {  // outHeight
-              if (input_row < 0 || input_row >= height)//(!zero_le_a_lt_b(input_row,height))
-              {
-                for (output_col = output_w; output_col; output_col--) { // outWidth
-                  data_col[outOffset++] = FZERO; //*(data_col++) = 0;
-                }
-              } else {
-                int64_t input_col = -pad_w + kernel_col * dilation_w;
-                for (output_col = output_w; output_col; output_col--) { // outWidth
-                  data_col[outOffset++] //*(data_col++)
-                    = //(zero_le_a_lt_b(input_col, width)
-                    (0 <= input_col && input_col < width
-                     ? data_im[inOffset + input_row * width + input_col]
-                     : FZERO);
-                  input_col += stride_w;
-                }
-              }
-              input_row += stride_h;
-            }
-          }
-        }
-      }
-    }
-  }else{ // collapse just one outer [channels] loop
-#pragma omp parallel
-//#pragma omp parallel if(channels>1 && workPerChannel > 65536)
-    {
-#pragma omp for private(channel,kernel_row)
-      //#pragma omp parallel for private(channel) if(workPerChannel > 111)
-      //#pragma omp parallel for private(channel)
-      for (channel = 0 ; channel < channels; ++channel) {       // inChannel
-        int64_t kernel_row, kernel_col, output_rows, output_cols, output_col;
-
-        int64_t inOffset = channel * channel_size;
-        int64_t outOffset = channel * workPerChannel;
-
-        for (kernel_row = 0; kernel_row < kernel_h; kernel_row++) {   // kernHeight
-          //if(channel==0) printf("inOffset=%-8lu outOffset=%-8lu\n",(lu)inOffset,(lu)outOffset);
-          for (kernel_col = 0; kernel_col < kernel_w; kernel_col++) {   // kernWidth
-            int64_t input_row = -pad_h + kernel_row * dilation_h;
-            for (output_rows = output_h; output_rows; output_rows--) {  // outHeight
-              if (input_row < 0 || input_row >= height)//(!zero_le_a_lt_b(input_row,height))
-              {
-                for (output_cols = output_w; output_cols; output_cols--) { // outWidth
-                  data_col[outOffset++] = 0; //*(data_col++) = 0;
-                }
-              } else {
-                int64_t input_col = -pad_w + kernel_col * dilation_w;
-                for (output_col = output_w; output_col; output_col--) { // outWidth
-                  data_col[outOffset++] //*(data_col++)
-                    = //(zero_le_a_lt_b(input_col, width)
-                    (0 <= input_col && input_col < width
-                     ? data_im[inOffset + input_row * width + input_col]
-                     : 0.f);
-                  input_col += stride_w;
-                }
-              }
-              input_row += stride_h;
-            }
-          }
-        }
-      }
-    }
-  }
-  LFTRACE_END("im2col_cpu");
-}
-#else // old version
-/** data_col size to hold float[ic*kw*kh*ow*oh]. */
-  static void
-vednn_im2col(const float * restrict data_im, const int64_t channels,
-    const int64_t height, const int64_t width, const int64_t kernel_h, const int64_t kernel_w,
-    const int64_t pad_h, const int64_t pad_w,
-    const int64_t stride_h, const int64_t stride_w,
-    const int64_t dilation_h, const int64_t dilation_w,
-    float * restrict data_col, int const threads)
-{
-  LFTRACE_BEGIN("vednn_im2col");
+  LFTRACE_BEGIN("vednn_im2colA");
   const int64_t output_h = (height + 2 * pad_h - (dilation_h * (kernel_h - 1) + 1)) / stride_h + 1;
   const int64_t output_w = (width + 2 * pad_w -  (dilation_w * (kernel_w - 1) + 1)) / stride_w + 1;
   const int64_t channel_size = height * width;
@@ -207,7 +87,7 @@ vednn_im2col(const float * restrict data_im, const int64_t channels,
           for (output_rows = output_h; output_rows; output_rows--) {  // outHeight
             if (input_row < 0 || input_row >= height ) {
               for (output_col = output_w; output_col; --output_col) { // outWidth
-                data_col[outOffset++] = FZERO; //*(data_col++) = 0;
+                data_col[outOffset++] = 0.f; //*(data_col++) = 0;
               }
             } else {
               int64_t input_col = -pad_w + kernel_col * dilation_w;
@@ -216,7 +96,7 @@ vednn_im2col(const float * restrict data_im, const int64_t channels,
                   = //(is_a_ge_zero_and_a_lt_b(input_col, width)
                   ( input_col >= 0 && input_col < width
                     ? data_im[inOffset + input_row * width + input_col]
-                    : FZERO);
+                    : 0.f);
                 input_col += stride_w;
               }
             }
@@ -239,15 +119,15 @@ vednn_im2col(const float * restrict data_im, const int64_t channels,
           for (output_rows = output_h; output_rows; output_rows--) {  // outHeight
             if (input_row < 0 || input_row >= height ) {
               for (output_col = 0; output_col<output_w; ++output_col) {	// outWidth
-                data_col[outOffset++] = FZERO; //*(data_col++) = 0;
+                data_col[outOffset++] = 0.f; //*(data_col++) = 0;
               }
             } else {
               int64_t const input_col = -pad_w + kernel_col * dilation_w;
-              for (output_col = input_col; output_col<input_col+output_w; ++output_col) {	// outWidth
+              for (output_col = 0; output_col<output_w; ++output_col) {	// outWidth
                 data_col[outOffset++] //*(data_col++)
-                  = ( output_col >= 0 && output_col < width
-                      ? data_im[inOffset + input_row * width + output_col]
-                      : FZERO);
+                  = ( input_col+output_col >= 0 && input_col+output_col < width
+                      ? data_im[inOffset + input_row * width + input_col + output_col]
+                      : 0.f);
               }
             }
             input_row += stride_h;
@@ -256,20 +136,19 @@ vednn_im2col(const float * restrict data_im, const int64_t channels,
       }
     }
   }// end stride_w cases
-  LFTRACE_END("vednn_im2col");
+  LFTRACE_END("vednn_im2colA");
 }
-#endif
 
   static void
-vednn_col2im(
+vednn_col2imA(
     const float* data_col, const int channels,
     const int height, const int width, const int kernel_h, const int kernel_w,
     const int pad_h, const int pad_w,
     const int stride_h, const int stride_w,
     const int dilation_h, const int dilation_w,
-    float* data_im, int const threads)
+    float* data_im)
 {
-  LFTRACE_BEGIN("vednn_col2im");
+  LFTRACE_BEGIN("vednn_col2imA");
   memset(data_im, 0, sizeof(float)*height*width*channels) ;
 
   const int output_h = (height + 2 * pad_h - (dilation_h * (kernel_h - 1) + 1)) / stride_h + 1;
@@ -314,12 +193,12 @@ vednn_col2im(
       }
     }
   }
-  LFTRACE_END("vednn_col2im");
+  LFTRACE_END("vednn_col2imA");
 }
 
 extern "C" { //}
   static vednnError_t
-vednnConvFwd_gemm(
+vednnConvFwd_gemmA(
     const vednnTensorParam_t * restrict pParamIn, const void * restrict pDataIn,
     const vednnFilterParam_t * restrict pParamKernel, const void * restrict pDataKernel,
     const vednnBiasParam_t * restrict pParamBias, const void * restrict pDataBias,
@@ -327,7 +206,7 @@ vednnConvFwd_gemm(
     const float * restrict pOne,  float * restrict pColBuff,
     const vednnConvolutionParam_t * restrict pParamConv )
 {
-  LFTRACE_BEGIN("vednnConvFwd_gemm");
+  LFTRACE_BEGIN("vednnConvFwd_gemmA");
   int n, g;
 
   int batch       = pParamIn->batch;
@@ -357,7 +236,6 @@ vednnConvFwd_gemm(
   float * restrict pOut    = (float *)pDataOut;
 
   int no_im2col = (kernWidth == 1 && kernHeight == 1 && strideWidth == 1 && strideHeight == 1 && padWidth == 0 && padHeight == 0);
-  //chkThreads();
 
   for (n = 0; n < batch; n++) { // this->num_
     int inBatchOffset  = n * inChannel  * inWidth  * inHeight;
@@ -396,10 +274,10 @@ vednnConvFwd_gemm(
         int N = outWidth * outHeight;
         int K = inChannelGroup * kernWidth * kernHeight;
 
-        vednn_im2col(&pIn[inOffset],
+        vednn_im2colA(&pIn[inOffset],
             inChannelGroup, inHeight, inWidth, kernHeight, kernWidth,
             padHeight, padWidth, strideHeight, strideWidth, dilationHeight, dilationWidth,
-            pColBuff, getThreads());
+            pColBuff);
 
 
         SGEMM(&NOTRANS, &NOTRANS, &N, &M, &K,
@@ -417,19 +295,19 @@ vednnConvFwd_gemm(
     } // group
   } // batch
 
-  LFTRACE_END("vednnConvFwd_gemm");
+  LFTRACE_END("vednnConvFwd_gemmA");
   return VEDNN_SUCCESS;
 }
 
   static vednnError_t
-vednnConvBkD_Gemm(
+vednnConvBkD_gemmA(
     const vednnTensorParam_t * restrict pParamGradOut, const void * restrict pDataGradOut,
     const vednnFilterParam_t * restrict pParamKernel, const void * restrict pDataKernel,
     const vednnTensorParam_t * restrict pParamGradIn, void * restrict pDataGradIn,
     float * restrict pColBuff,
     const vednnConvolutionParam_t * restrict pParamConv )
 {
-  LFTRACE_BEGIN("vednnConvBkD_Gemm");
+  LFTRACE_BEGIN("vednnConvBkD_gemmA");
   int n, g;
 
   int batch       = pParamGradOut->batch;
@@ -458,7 +336,6 @@ vednnConvBkD_Gemm(
   float * restrict pGradIn  = (float*)pDataGradIn;
 
   int no_im2col = (kernWidth == 1 && kernHeight == 1 && strideWidth == 1 && strideHeight == 1 && padWidth == 0 && padHeight == 0);
-  //chkThreads();
 
   for (n = 0; n < batch; n++) { // this->num_
     int gOutBatchOffset  = n * gOutChannel  * gOutWidth  * gOutHeight;
@@ -488,27 +365,27 @@ vednnConvBkD_Gemm(
             (float *) &pKernel[kernGroupOffset], &M,
             &FZERO, pColBuff, &N);
 
-        vednn_col2im(pColBuff,
+        vednn_col2imA(pColBuff,
             gInChannelGroup, gInHeight, gInWidth, kernHeight, kernWidth,
             padHeight, padWidth, strideHeight, strideWidth, dilationHeight, dilationWidth,
-            &pGradIn[gInOffset], getThreads());
+            &pGradIn[gInOffset]);
       }
     } // group
   } // batch
 
-  LFTRACE_END("vednnConvBkD_Gemm");
+  LFTRACE_END("vednnConvBkD_gemmA");
   return VEDNN_SUCCESS;
 }
 
   vednnError_t
-vednnConvBkF_gemm(
+vednnConvBkF_gemmA(
     const vednnTensorParam_t * restrict pParamIn, const void * restrict pDataIn,
     const vednnTensorParam_t * restrict pParamGradOut, const void * restrict pDataGradOut,
     const vednnFilterParam_t * restrict pParamGradKernel, void * restrict pDataGradKernel,
     float * restrict pColBuff,
     const vednnConvolutionParam_t * restrict pParamConv )
 {
-  LFTRACE_BEGIN("vednnConvBkF_gemm");
+  LFTRACE_BEGIN("vednnConvBkF_gemmA");
   int n, g;
 
   int batch       = pParamIn->batch;
@@ -537,7 +414,6 @@ vednnConvBkF_gemm(
   float * restrict pKernel       = (float*)pDataGradKernel ;
 
   int no_im2col = (kernWidth == 1 && kernHeight == 1 && strideWidth == 1 && strideHeight == 1 && padWidth == 0 && padHeight == 0);
-  //chkThreads();
 
   for (n = 0; n < batch; n++) { // this->num_
     int inBatchOffset  = n * inChannel  * inWidth  * inHeight;
@@ -562,10 +438,10 @@ vednnConvBkF_gemm(
             &FONE, &pKernel[kernGroupOffset], &N);
       }
       else {
-        vednn_im2col(&pIn[inOffset],
+        vednn_im2colA(&pIn[inOffset],
             inChannelGroup, inHeight, inWidth, kernHeight, kernWidth,
             padHeight, padWidth, strideHeight, strideWidth, dilationHeight, dilationWidth,
-            pColBuff, getThreads());
+            pColBuff);
 
         int M = outChannelGroup;
         int N = inChannelGroup * kernWidth * kernHeight;
@@ -579,12 +455,12 @@ vednnConvBkF_gemm(
     } // group
   } // batch
 
-  LFTRACE_END("vednnConvBkF_gemm");
+  LFTRACE_END("vednnConvBkF_gemmA");
   return VEDNN_SUCCESS;
 }
 
 vednnError_t
-vednnConvolutionForward_direct_gemm(
+vednnConvolutionForward_direct_gemmA(
     const vednnTensorParam_t * restrict         pParamIn,
     const void * restrict                       pDataIn,
     const vednnFilterParam_t * restrict         pParamKernel,
@@ -610,9 +486,8 @@ vednnConvolutionForward_direct_gemm(
   float * restrict pColBuff = (float*)(void*)
     vednn_scratchpad_shared(nBytes);
 #endif
-  chkThreads();
 
-  vednnError_t ret = vednnConvFwd_gemm(
+  vednnError_t ret = vednnConvFwd_gemmA(
       pParamIn, pDataIn,
       pParamKernel, pDataKernel,
       nullptr, nullptr/*avoids bias gemm call*/ ,
@@ -624,7 +499,7 @@ vednnConvolutionForward_direct_gemm(
   return ret;
 } 
   vednnError_t
-vednnConvolutionForwardAddBias_direct_gemm(
+vednnConvolutionForwardAddBias_direct_gemmA(
     const vednnTensorParam_t * restrict         pParamIn,
     const void * restrict                       pDataIn,
     const vednnFilterParam_t * restrict         pParamKernel,
@@ -660,8 +535,7 @@ vednnConvolutionForwardAddBias_direct_gemm(
   float * restrict pColBuff = (float*)(void*)
     vednn_scratchpad_shared(nBytes);
 #endif
-  chkThreads();
-  vednnError_t ret = vednnConvFwd_gemm(
+  vednnError_t ret = vednnConvFwd_gemmA(
       pParamIn, pDataIn,
       pParamKernel, pDataKernel,
       pParamBias, pDataBias,
@@ -674,7 +548,7 @@ vednnConvolutionForwardAddBias_direct_gemm(
   return ret;
 }
 vednnError_t
-vednnConvolutionBackwardFilter_direct_gemm(
+vednnConvolutionBackwardFilter_direct_gemmA(
     const vednnTensorParam_t * restrict         pParamIn,
     const void * restrict                       pDataIn,
     const vednnTensorParam_t * restrict         pParamGradOut,
@@ -682,7 +556,7 @@ vednnConvolutionBackwardFilter_direct_gemm(
     const vednnConvolutionParam_t * restrict    pParamConv,
     const vednnFilterParam_t * restrict         pParamGradKernel,
     void * restrict                             pDataGradKernel
-    // *** NOTE: direct_gemm does not go via standard openmp wrappers!
+    // *** NOTE: direct_gemmA does not go via standard openmp wrappers!
     //#ifdef VEDNN_USE_OPENMP
     //    ,
     //    const int64_t                               beginOChannel,
@@ -699,7 +573,7 @@ vednnConvolutionBackwardFilter_direct_gemm(
   float * restrict pColBuff = (float*)(void*)
     vednn_scratchpad_shared(nBytes);
 #endif
-  vednnError_t ret = vednnConvBkF_gemm(
+  vednnError_t ret = vednnConvBkF_gemmA(
       pParamIn, pDataIn,
       pParamGradOut, pDataGradOut,
       pParamGradKernel, pDataGradKernel/*output*/,
@@ -711,7 +585,7 @@ vednnConvolutionBackwardFilter_direct_gemm(
 }
 
   vednnError_t
-vednnConvolutionBackwardData_direct_gemm(
+vednnConvolutionBackwardData_direct_gemmA(
     const vednnTensorParam_t * restrict         pParamGradOut,
     const void * restrict                       pDataGradOut,
     const vednnFilterParam_t * restrict         pParamKernel,
@@ -731,7 +605,7 @@ vednnConvolutionBackwardData_direct_gemm(
   float * restrict pColBuff = (float*)(void*)
     vednn_scratchpad_shared(nBytes);
 #endif
-  vednnError_t ret =  vednnConvBkD_Gemm(
+  vednnError_t ret =  vednnConvBkD_gemmA(
       pParamGradOut, pDataGradOut,
       pParamKernel, pDataKernel,
       pParamGradIn, pDataGradIn/*output*/,

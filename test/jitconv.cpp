@@ -5,6 +5,7 @@
 // OK in'c++ : static struct testconvForward tcfFoo;
 #include "conv_test_param.hpp"
 #include "vednnx.h"
+#include "C/vednn-def.h"    // __vednn_omp_num_threads
 #include "cjitConv.h"
 #include "vechash.hpp"
 
@@ -74,6 +75,7 @@ struct CacheKiller {
             }
         }
     }
+    operator bool() volatile { return enable; }
     std::vector<uint64_t> data;
     static volatile bool enable;
 };
@@ -181,8 +183,14 @@ void testForward(struct param *pNetwork, int nEntry, double HZ, int flagBias, in
             double sum_time = 0.0;
             double max_diff = 0.0;
             unsigned long long c[2];
+            if(!cacheKiller){
+                wrk.doRef();
+            }
             for(int r=0; r < reps; ++r){
-                cacheKiller();
+                if(cacheKiller){
+                    cacheKiller();
+                }
+                testconvForward_oclobber(pConv); // set a few outputs "wrong"
                 c[0] = __cycle();
                 wrk.doRef();
                 c[1] = __cycle();
@@ -232,9 +240,14 @@ void testForward(struct param *pNetwork, int nEntry, double HZ, int flagBias, in
 
             double sum_time = 0.0;
             double max_diff = 0.0;
+            if(!cacheKiller){ // warmup
+                testconvForward_vednncalcs( pConv, 1 ); // set up pConv for calc
+            }
             for(int r=0; r < reps; ++r){
+                if(cacheKiller){
+                    cacheKiller();
+                }
                 testconvForward_oclobber(pConv); // set a few outputs "wrong"
-                cacheKiller();
                 testconvForward_vednncalcs( pConv, 1 ); // set up pConv for calc
 
                 if (flagCSV) dumpParamCSV_title();
@@ -294,10 +307,7 @@ void testForward(struct param *pNetwork, int nEntry, double HZ, int flagBias, in
                             iter = vednnConvForwardAddBias_Next(iter, FWDB_PARMS))
                     {
                         snprintf(name,80,"%s:%d:%s",pConv->region,iter_cnt,iter->shortname);
-                        printf(" %s...",name); fflush(stdout);
-                        testconvForward_oclobber(pConv); // set a few outputs "wrong"
-                        cacheKiller();
-
+                        printf(" iter name %s...",name); fflush(stdout);
                         // TODO realNext (check for _rtok to run the impl, as below)
                         FTRACE_BEGIN("realNext");
                         //printf(" B"); fflush(stdout);
@@ -307,12 +317,24 @@ void testForward(struct param *pNetwork, int nEntry, double HZ, int flagBias, in
 
                         int idx = 0;
                         if ( actual != NULL ) {
-                            if( actual == iter ){ // almost always...
-                                snprintf(name,80,"%s:%d:%s",pConv->region,iter_cnt,iter->shortname);
+                            int const long_ftrace_names = 0;
+                            if(long_ftrace_names){
+                                if( actual == iter ){ // almost always...
+                                    snprintf(name,80,"%s:%d:%s",pConv->region,iter_cnt,iter->shortname);
+                                }else{
+                                    snprintf(name,80,"%s:%d:%s-->%s",pConv->region,iter_cnt,iter->shortname,actual->shortname);
+                                }
                             }else{
-                                snprintf(name,80,"%s:%d:%s-->%s",pConv->region,iter_cnt,iter->shortname,actual->shortname);
+                                snprintf(name,80,"vednn:%s",actual->shortname);
                             }
                             //printf(" C%s",name); fflush(stdout);
+                            if(cacheKiller){
+                                cacheKiller();
+                            }else{
+                                vednnConvForwardAddBias_Run( actual, FWDB_PARMS, FWDB_DATA );
+                            }
+                            testconvForward_oclobber(pConv); // set a few outputs "wrong"
+
                             c[0] = __cycle();
                             FTRACE_BEGIN(name);
                             // NB:             CONVX_.....order for low-level call
@@ -392,9 +414,6 @@ void testForward(struct param *pNetwork, int nEntry, double HZ, int flagBias, in
                         // so grep -k11 of ftrace will sort from "best" to "worst" [approx]
                         snprintf(name,80,"%s:%d:%s",pConv->region,iter_cnt,iter->shortname);
                         printf(" iter name %s...\n",name); fflush(stdout);
-                        testconvForward_oclobber(pConv); // set a few outputs "wrong"
-                        cacheKiller();
-                        //printf(" A"); fflush(stdout);
 
 #if 0 // original way:
                         // BADNESS:  no thread support, no rtok check at runtime for data tr alignment
@@ -411,11 +430,23 @@ void testForward(struct param *pNetwork, int nEntry, double HZ, int flagBias, in
                         FTRACE_END("realNext");
 
                         if ( actual != NULL ) {
-                            if( actual == iter ){ // almost always...
-                                snprintf(name,80,"%s:%d:%s",pConv->region,iter_cnt,iter->shortname);
+                            int const long_ftrace_names = 0;
+                            if(long_ftrace_names){
+                                if( actual == iter ){ // almost always...
+                                    snprintf(name,80,"%s:%d:%s",pConv->region,iter_cnt,iter->shortname);
+                                }else{
+                                    snprintf(name,80,"%s:%d:%s-->%s",pConv->region,iter_cnt,iter->shortname,actual->shortname);
+                                }
                             }else{
-                                snprintf(name,80,"%s:%d:%s-->%s",pConv->region,iter_cnt,iter->shortname,actual->shortname);
+                                snprintf(name,80,"vednn:%s",actual->shortname);
                             }
+                            //printf(" A"); fflush(stdout);
+                            if(cacheKiller){
+                                cacheKiller();
+                            }else{
+                                vednnConvForward_Run( actual, FWD_PARMS, FWD_DATA );
+                            }
+                            testconvForward_oclobber(pConv); // set a few outputs "wrong"
                             //printf(" C%s",name); fflush(stdout);
                             c[0] = __cycle();
                             FTRACE_BEGIN(name);
@@ -577,13 +608,13 @@ void testForward(struct param *pNetwork, int nEntry, double HZ, int flagBias, in
                         continue;
                     }
 
-                    testconvForward_oclobber(pConv); // set a few outputs "wrong"
-                    cacheKiller();
-                    // CjitConvFwd1 is a "default" impl, so no need to check an _ok functiion
-                    // eventually will need to return the syms for a vednnConvolutionLists.h entry
-                    // so that we can check ok? and rtok? functions, before invoking the
-                    // actual function XXX
                     vednnConvForward_t impl = (vednnConvForward_t)ptr;
+                    if(cacheKiller){
+                        cacheKiller();
+                    }else{
+                        rv = (*impl)(CONVX_FWD_ORDER(FWD_PARMS, FWD_DATA));
+                    }
+                    testconvForward_oclobber(pConv); // set a few outputs "wrong"
                     // Q: Did we already call _ok and _rtok functions?
                     c[0] = __cycle();
                     FTRACE_BEGIN(name);
@@ -1334,6 +1365,8 @@ int main(int argc, char **argv)
     for(int thr=thrlo; thr<=thrhi; ++thr){
         printf(" omp_set_num_threads(%d)...\n", thr);
         omp_set_num_threads(thr);
+        // New: vednnInit also sets __vednn_omp_num_threads...
+        __vednn_omp_num_threads = thr;
         fflush(stdout);
 #endif
         switch(testtype) {
@@ -1361,4 +1394,4 @@ int main(int argc, char **argv)
     return 0;
 }
 
-// vim: et ts=4 sw=4 cindent cino=l1,\:0,=s,N-s,g-2,h2 syntax=cpp.doxygen
+// vim: et ts=4 sw=4 cindent cino=^=0,l1,\:0,=s,N-s,g-2,h2 syntax=cpp.doxygen
