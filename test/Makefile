@@ -7,6 +7,7 @@ OPENMP=YES
 
 # NEW: set Makefile default to use C++ linker (for default rule)
 LINK.o = $(LINK.cc)
+COMPILE_TYPE:=$(word 1,$(shell $(CC) --version 2>&1))
 
 LIBSUFFIX:=
 VEDNN_SUFFIX:=
@@ -38,7 +39,7 @@ mkfile_dir:=$(dir $(mkfile_path))
 #VEDNN_SRC?=$(abspath $(current_dir)/../src)
 #VEDNN_DIR?= ../build/
 
-ifeq ($(CC:ncc%=ncc),ncc)
+ifeq ($(COMPILE_TYPE),ncc)
 # Default to "left-over" build directories (historical default)
 # If you REMOVE the tarballs, we'll try an existing build as follows:
 #VEDNN_DIR=$(realpath $(mkfile_dir)../build/)
@@ -96,13 +97,13 @@ endif
 .PHONY: Makefile all Hello Goodbye vejit-unpack vednn-unpack unpack force
 TARGETS:=vejit-unpack vednn-unpack cjitConv00-x86 cjitConv01-x86
 
-ifeq ($(CC:ncc%=ncc),ncc)
+ifeq ($(COMPILE_TYPE),ncc)
 TARGETS+=vednn_conv_test vednn_linear_test vednn_pool_test ve_simpleconv
 TARGETS+=jitconv
 TARGETS+=cjitConv01
 endif
 
-all: Hello mnist vejit vednn-unpack $(TARGETS) Goodbye
+all: Hello mnist vejit vednn-unpack $(TARGETS) jitconv Goodbye
 redo: unpack all	
 help:
 	@echo 'Other targets:'
@@ -122,7 +123,7 @@ help:
 	@echo 'gen-dnn.log    run 204 gen-dnn.txt real-world convolution'
 	@echo '               tests [lengthy]'
 	
-ifeq ($(CC:ncc%=ncc),ncc)
+ifeq ($(COMPILE_TYPE),ncc)
 ./vednn: ../vednnx.tar.gz
 	rm -rf tmp-v; mkdir tmp-v
 	cd tmp-v && tar xzmf ../$^
@@ -158,7 +159,7 @@ SRCS	= vednn_conv_test.c vednn_linear_test.c vednn_pool_test.c vednn_helper.c \
 OBJS	= $(SRCS:%.c=%.o)
 
 #CC	= $(VE_BIN_DIR)/ncc
-COPTS	= -O3 -finline-functions -Wall -assembly-list -g2
+COPTS	= -O3 -finline-functions -Wall -g2
 COPTS  += -DVEL_BUG=0 -DNDEBUG
 CFLAGS	+= $(COPTS)
 LDLIBS	+= $(COPTS) -lm
@@ -289,9 +290,9 @@ endif
 
 # next only produce dumps a demo 'C+instrinsics' string to cout...
 CJITDEF=-DVEDNNX_DIR="$(abspath $(VEDNNX_DIR))" -DVEJIT_DIR="$(mkfile_dir)vejit"
-CJIT_OPTS:=-I$(VEDNNX_DIR)/include -I$(VJINC) $(CJITDEF)
-CJIT_CXX:=$(CXX) ${CXXFLAGS} -g2     ${CJIT_OPTS} -Wl,-rpath-link,/opt/nec/ve/lib
-CJIT_CC:= $(CC)  ${CFLAGS}   -g2     ${CJIT_OPTS} -Wl,-rpath-link,/opt/nec/ve/lib
+CJIT_OPTS:=-I$(VEDNNX_DIR)/include -I$(VJINC) $(CJITDEF) -I"$(abspath $(VEDNNX_DIR))" -I"$(mkfile_dir)vejit" -I.
+CJIT_CXX:=$(CXX) ${CXXFLAGS} -g2 -assembly-list    ${CJIT_OPTS} -Wl,-rpath-link,/opt/nec/ve/lib
+CJIT_CC:= $(CC)  ${CFLAGS}   -g2 -assembly-list    ${CJIT_OPTS} -Wl,-rpath-link,/opt/nec/ve/lib
 CJITX86:=g++ -g -O2 -std=c++11 -Wall $(CJIT_OPTS)
 CJITX86_CC:=gcc -g -O2 -std=c11 -Wall $(CJIT_OPTS)
 .PHONY: cjit_vars
@@ -632,7 +633,7 @@ jitconv: jitconv.o $(LOCALIMPLS) $(CONVGEMM).o libcjitConv-ve.so vednn_helper.o 
 	# prefer to use -l command-line option to pre-load JIT libs
 	export megajit="" && [[ -s "libmegajit.soNONO" ]] && megajit="-lmegajit"; \
 	echo "megajit options <$${megajit}>"; \
-	$(CXX) $(filter %.o,$^) \
+	$(CXX) $(filter %.o,$^)  -lmcheck \
 		${CXXFLAGS} \
 		${LDFLAGS} -l$(LIBVEDNNX) -l$(LIBVEDNN) \
 		-fPIC -Wl,-z,max-page-size=0x200000 \
@@ -751,6 +752,9 @@ test.log : vednn_conv_test vednn_linear_test vednn_pool_test Makefile
 	./vednn_pool_test   -H 0.8e9 -p params/pool/alexnet.txt   -T MaxPoolForward \
 		|| echo "Error: vednn_pool_test"; ftrace || true; \
 	} >& $@
+testscratch-x86: testscratch.cpp
+	${CJITX86} $< -lmcheck -o $@
+	MALLOC_CHECK=3 ./$@ >& x.log && echo 'GOOD: $@ --> x.log' || echo 'Error: $@ --> see x.log'
 #.PHONY: vednnjit-hdrs
 #vednnjit-hdrs : vednnJitDetail.h vednnJitUtil.h vednnjit.h
 #	for f in $^; do \

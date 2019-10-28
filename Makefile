@@ -51,9 +51,9 @@ quicktest: # remove tarball build, use build/ and install/ only
 test: build
 	@# default build dir might be an assumed install location for tests/Makefile
 	-ls -l build/src
-	-cd test && make -f Makefile.tiny realclean
+	-cd test && make realclean
 	@#{ cd test && make VERBOSE=1 all ve_cmpconv && BIN_MK_VERBOSE=0 ./ve_cmpconv -r 10; } 2>&1 | tee mk-test.log
-	{ cd test && make VERBOSE=1 -f Makefile all && { \
+	{ cd test && make VERBOSE=1 -f Makefile redo && { \
 		./vednn_conv_test -H 8e8 -p params/conv/alexnet.txt -T ConvForward; ftrace; \
 		./vednn_linear_test -H 0.8e9 -p params/linear/alexnet.txt -T LinearForward; ftrace; \
 		./vednn_pool_test   -H 0.8e9 -p params/pool/alexnet.txt   -T MaxPoolForward; ftrace; \
@@ -72,7 +72,7 @@ force-build: empty-build build
 build: # if no tarballs, test/original tests/Makefile always links against this build directory
 	if [ ! -d build ]; then mkdir build; echo "Fresh build/"; else echo "Remake in build/"; fi
 	cd build && cmake --trace -DCMAKE_VERBOSE_MAKEFILE:BOOL=ON .. -DCMAKE_INSTALL_PREFIX=../install \
-		-DCMAKE_BUILD_TYPE=Release \
+		-DCMAKE_BUILD_TYPE=RelWithDebInfo \
 	       	2>&1 | tee ../mk-build.log
 	{ { cd build && make VERBOSE=1 ${MKJOB} install; }; status=$$?; \
 		if [ "$$status" == "0" ]; then echo BUILD OK; else echo BUILD FAILED; fi; \

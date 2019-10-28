@@ -9,7 +9,11 @@
 #include <stdint.h>
 
 /** 0=malloc+free, 1=vednn_scratchpad_shared */
-#define SCRATCHPAD 0
+#ifndef SCRATCHPAD
+#define SCRATCHPAD 1
+#endif
+
+typedef long unsigned lu;
 
 /** return sizeof(float) if pParam is DTYPE_FLOAT */
 static inline size_t getTensorDataSize(const vednnTensorParam_t * restrict pParam)
@@ -68,113 +72,6 @@ static int   IONE    = 1;
 //  return a>=0  && a<b; // for ncc auto vectorization, this is better
 //}
 
-#if 1
-/** data_col size to hold float[ic*kw*kh*ow*oh]. */
-  static void
-vednn_im2col(const float * restrict data_im, const int64_t channels,
-    const int64_t height, const int64_t width, const int64_t kernel_h, const int64_t kernel_w,
-    const int64_t pad_h, const int64_t pad_w,
-    const int64_t stride_h, const int64_t stride_w,
-    const int64_t dilation_h, const int64_t dilation_w,
-    float * restrict data_col, int const threads)
-{
-  LFTRACE_BEGIN("im2col_cpu");
-  const int64_t output_h = (height + 2 * pad_h - (dilation_h * (kernel_h - 1) + 1)) / stride_h + 1;
-  const int64_t output_w = (width + 2 * pad_w -  (dilation_w * (kernel_w - 1) + 1)) / stride_w + 1;
-  const int64_t channel_size = height * width;
-
-  int64_t channel, kernel_row;
-  typedef long unsigned lu;
-
-  int64_t const workPerChannel = kernel_h*kernel_w * output_h*output_w;
-  //printf(" im2col channels %lu threads %lu vednn-threads %lu omp_threads %lu\n",(lu)channels,
-  //    (lu)threads, (lu)__vednn_omp_num_threads, (lu)omp_get_max_threads());
-  if( channels%threads && channels < 2*threads )
-  { // collapse 2 loops [channels,kernel_h] to get more work per thread.
-    //printf(" collapse(2)\n");
-#pragma omp parallel
-      //#pragma omp parallel if(channels>1 && workPerChannel > 65536)
-    { // any stride_w > 0 ...
-#pragma omp for private(channel,kernel_row) collapse(2)
-      //#pragma omp parallel for private(channel) if(workPerChannel > 111)
-      //#pragma omp parallel for private(channel,kernel_row)
-      for (channel = 0 ; channel < channels; ++channel) {       // inChannel
-        for (kernel_row = 0; kernel_row < kernel_h; ++kernel_row) {   // kernHeight
-          int64_t kernel_col, output_rows, output_col;
-
-          int64_t const inOffset = channel * channel_size;
-          int64_t outOffset = channel * workPerChannel + kernel_row * kernel_w*output_h*output_w;
-          //if(channel==0) printf("inOffset=%-8lu outOffset=%-8lu\n",(lu)inOffset,(lu)outOffset);
-
-          for (kernel_col = 0; kernel_col < kernel_w; kernel_col++) {   // kernWidth
-            int64_t input_row = -pad_h + kernel_row * dilation_h;
-            for (output_rows = output_h; output_rows; output_rows--) {  // outHeight
-              if (input_row < 0 || input_row >= height)//(!zero_le_a_lt_b(input_row,height))
-              {
-                for (output_col = output_w; output_col; output_col--) { // outWidth
-                  data_col[outOffset++] = FZERO; //*(data_col++) = 0;
-                }
-              } else {
-                int64_t input_col = -pad_w + kernel_col * dilation_w;
-                for (output_col = output_w; output_col; output_col--) { // outWidth
-                  data_col[outOffset++] //*(data_col++)
-                    = //(zero_le_a_lt_b(input_col, width)
-                    (0 <= input_col && input_col < width
-                     ? data_im[inOffset + input_row * width + input_col]
-                     : FZERO);
-                  input_col += stride_w;
-                }
-              }
-              input_row += stride_h;
-            }
-          }
-        }
-      }
-    }
-  }else{ // collapse just one outer [channels] loop
-#pragma omp parallel
-//#pragma omp parallel if(channels>1 && workPerChannel > 65536)
-    {
-#pragma omp for private(channel,kernel_row)
-      //#pragma omp parallel for private(channel) if(workPerChannel > 111)
-      //#pragma omp parallel for private(channel)
-      for (channel = 0 ; channel < channels; ++channel) {       // inChannel
-        int64_t kernel_row, kernel_col, output_rows, output_cols, output_col;
-
-        int64_t inOffset = channel * channel_size;
-        int64_t outOffset = channel * workPerChannel;
-
-        for (kernel_row = 0; kernel_row < kernel_h; kernel_row++) {   // kernHeight
-          //if(channel==0) printf("inOffset=%-8lu outOffset=%-8lu\n",(lu)inOffset,(lu)outOffset);
-          for (kernel_col = 0; kernel_col < kernel_w; kernel_col++) {   // kernWidth
-            int64_t input_row = -pad_h + kernel_row * dilation_h;
-            for (output_rows = output_h; output_rows; output_rows--) {  // outHeight
-              if (input_row < 0 || input_row >= height)//(!zero_le_a_lt_b(input_row,height))
-              {
-                for (output_cols = output_w; output_cols; output_cols--) { // outWidth
-                  data_col[outOffset++] = 0; //*(data_col++) = 0;
-                }
-              } else {
-                int64_t input_col = -pad_w + kernel_col * dilation_w;
-                for (output_col = output_w; output_col; output_col--) { // outWidth
-                  data_col[outOffset++] //*(data_col++)
-                    = //(zero_le_a_lt_b(input_col, width)
-                    (0 <= input_col && input_col < width
-                     ? data_im[inOffset + input_row * width + input_col]
-                     : 0.f);
-                  input_col += stride_w;
-                }
-              }
-              input_row += stride_h;
-            }
-          }
-        }
-      }
-    }
-  }
-  LFTRACE_END("im2col_cpu");
-}
-#else // old version
 /** data_col size to hold float[ic*kw*kh*ow*oh]. */
   static void
 vednn_im2col(const float * restrict data_im, const int64_t channels,
@@ -189,76 +86,119 @@ vednn_im2col(const float * restrict data_im, const int64_t channels,
   const int64_t output_w = (width + 2 * pad_w -  (dilation_w * (kernel_w - 1) + 1)) / stride_w + 1;
   const int64_t channel_size = height * width;
 
-  int64_t channel;
+  int64_t const workPerChannel = kernel_h*kernel_w * output_h*output_w;
+  //int const collapse_2_loops = kernel_h > 1 && channels%threads && channels < 2*threads;
+  //if( collapse_2_loops ) // [channels,kernel_h]
+  if( channels < 2*threads && channels%threads && channels*kernel_h > 1 ){
+    if(stride_w!=1){
+      int64_t channel, kernel_row;
+      printf(" omp2str1 ");
+#pragma omp parallel
+      { // any stride_w > 0 ...
+#pragma omp for private(channel,kernel_row) collapse(2)
+        for (channel = 0 ; channel < channels; ++channel) {       // inChannel
+          for (kernel_row = 0; kernel_row < kernel_h; ++kernel_row) {   // kernHeight
+            int64_t const inOffset = channel * channel_size;
+            int64_t outOffset = channel * workPerChannel + kernel_row * kernel_w*output_h*output_w;
 
-  if(stride_w != 1 ){
-    // nc++ may now support if clause?
-    // dnnl tests and special-cases: stride==1 (and some other thing)
-    OMP(parallel for if(channels>=3))//;
-    for (channel = 0 ; channel < channels; channel++) {             // inChannel
-      int64_t kernel_row, kernel_col, output_rows, output_cols, output_col;
+            int64_t kernel_col, output_rows, input_col;
+            for (kernel_col = 0; kernel_col < kernel_w; kernel_col++) {   // kernWidth
+              int64_t input_row = -pad_h + kernel_row * dilation_h;
+              for (int64_t const input_row_max = input_row + output_h*stride_h;
+                  input_row < input_row_max; input_row += stride_h){ // outHeight-->inRow
+                input_col = -pad_w + kernel_col * dilation_w;
+                for( int64_t const input_col_max = input_col + output_w * stride_w;
+                    input_col<input_col_max; input_col+=stride_w) { // outWidth
+                  data_col[outOffset++]
+                    = ( (0 <= input_row && input_row < height) // (ncc reduces 4 conds to 2 vfmk, good)
+                        && (0 <= input_col && input_col < width)
+                        ? data_im[inOffset + input_row * width + input_col]
+                        : FZERO);
+                } } } } } }
+    }else{ //stride_w==1
+      int64_t channel, kernel_row;
+      printf(" omp2str>1 ");
+#pragma omp parallel
+      { // any stride_w > 0 ...
+#pragma omp for private(channel,kernel_row) collapse(2)
+        for (channel = 0 ; channel < channels; ++channel) {       // inChannel
+          for (kernel_row = 0; kernel_row < kernel_h; ++kernel_row) {   // kernHeight
+            int64_t const inOffset = channel * channel_size;
+            int64_t outOffset = channel * workPerChannel + kernel_row * kernel_w*output_h*output_w;
 
-      int64_t inOffset = channel * channel_size;
-      int64_t outOffset = channel * output_h * output_w * kernel_h * kernel_w;
+            int64_t kernel_col, output_rows, input_col;
+            for (kernel_col = 0; kernel_col < kernel_w; kernel_col++) {   // kernWidth
+              int64_t input_row = -pad_h + kernel_row * dilation_h;
+              for (int64_t const input_row_max = input_row + output_h*stride_h;
+                  input_row < input_row_max; input_row += stride_h){ // outHeight-->inRow
+                input_col = -pad_w + kernel_col * dilation_w;
+                for( int64_t const input_col_max = input_col + output_w;
+                    input_col<input_col_max; ++input_col) { // outWidth
+                  data_col[outOffset++]
+                    = ( (0 <= input_row && input_row < height) // (ncc reduces 4 conds to 2 vfmk, good)
+                        && (0 <= input_col && input_col < width)
+                        ? data_im[inOffset + input_row * width + input_col]
+                        : FZERO);
+                } } } } } } }
+  }else{ // collapse just one outer [channels] loop
+    if(stride_w!=1){
+      int64_t channel;
+      printf(" omp1str>1 ");
+#pragma omp parallel if(channels > 1)
+      {
+#pragma omp for private(channel)
+        for (channel = 0 ; channel < channels; ++channel) {       // inChannel
+          int64_t kernel_row, kernel_col, output_rows, output_cols, output_col;
 
-      for (kernel_row = 0; kernel_row < kernel_h; kernel_row++) {     // kernHeight
-        for (kernel_col = 0; kernel_col < kernel_w; kernel_col++) {     // kernWidth
-          int64_t input_row = -pad_h + kernel_row * dilation_h;
-          for (output_rows = output_h; output_rows; output_rows--) {  // outHeight
-            if (input_row < 0 || input_row >= height ) {
-              for (output_col = output_w; output_col; --output_col) { // outWidth
-                data_col[outOffset++] = FZERO; //*(data_col++) = 0;
-              }
-            } else {
-              int64_t input_col = -pad_w + kernel_col * dilation_w;
-              for (output_col = 0; output_col<output_w; ++output_col) {	// outWidth
-                data_col[outOffset++] //*(data_col++)
-                  = //(is_a_ge_zero_and_a_lt_b(input_col, width)
-                  ( input_col >= 0 && input_col < width
-                    ? data_im[inOffset + input_row * width + input_col]
-                    : FZERO);
-                input_col += stride_w;
-              }
-            }
-            input_row += stride_h;
-          }
-        }
-      }
-    }
-  }else{ //stride_w == 1
-    OMP(parallel for if(channels>=3))//;
-    for (channel = 0 ; channel < channels; channel++) {             // inChannel
-      int64_t kernel_row, kernel_col, output_rows, output_cols, output_col;
+          int64_t inOffset = channel * channel_size;
+          int64_t outOffset = channel * workPerChannel;
 
-      int64_t inOffset = channel * channel_size;
-      int64_t outOffset = channel * output_h * output_w * kernel_h * kernel_w;
+          for (kernel_row = 0; kernel_row < kernel_h; kernel_row++) {   // kernHeight
+            //if(channel==0) printf("inOffset=%-8lu outOffset=%-8lu\n",(lu)inOffset,(lu)outOffset);
+            for (kernel_col = 0; kernel_col < kernel_w; kernel_col++) {   // kernWidth
+              int64_t input_row = -pad_h + kernel_row * dilation_h;
+              for (int64_t const input_row_max = input_row + output_h*stride_h;
+                  input_row < input_row_max; input_row += stride_h){ // outHeight-->inRow
+                int64_t       input_col     = -pad_w + kernel_col * dilation_w;
+                for( int64_t const input_col_max = input_col + output_w * stride_w;
+                    input_col < input_col_max; input_col+=stride_w) { // outWidth
+                  data_col[outOffset++]
+                    = ( (0 <= input_row && input_row < height) // (ncc reduces 4 conds to 2 vfmk, good)
+                        && (0 <= input_col && input_col < width)
+                        ? data_im[inOffset + input_row * width + input_col]
+                        : FZERO);
+                } } } } } }
+    }else{ // stride_w==1
+      int64_t channel;
+      printf(" omp1str>1 ");
+#pragma omp parallel if(channels > 1)
+      {
+#pragma omp for private(channel)
+        for (channel = 0 ; channel < channels; ++channel) {       // inChannel
+          int64_t kernel_row, kernel_col, output_rows, output_cols, output_col;
 
-      for (kernel_row = 0; kernel_row < kernel_h; kernel_row++) {     // kernHeight
-        for (kernel_col = 0; kernel_col < kernel_w; kernel_col++) {     // kernWidth
-          int64_t input_row = -pad_h + kernel_row * dilation_h;
-          for (output_rows = output_h; output_rows; output_rows--) {  // outHeight
-            if (input_row < 0 || input_row >= height ) {
-              for (output_col = 0; output_col<output_w; ++output_col) {	// outWidth
-                data_col[outOffset++] = FZERO; //*(data_col++) = 0;
-              }
-            } else {
-              int64_t const input_col = -pad_w + kernel_col * dilation_w;
-              for (output_col = input_col; output_col<input_col+output_w; ++output_col) {	// outWidth
-                data_col[outOffset++] //*(data_col++)
-                  = ( output_col >= 0 && output_col < width
-                      ? data_im[inOffset + input_row * width + output_col]
-                      : FZERO);
-              }
-            }
-            input_row += stride_h;
-          }
-        }
-      }
-    }
-  }// end stride_w cases
+          int64_t inOffset = channel * channel_size;
+          int64_t outOffset = channel * workPerChannel;
+
+          for (kernel_row = 0; kernel_row < kernel_h; kernel_row++) {   // kernHeight
+            //if(channel==0) printf("inOffset=%-8lu outOffset=%-8lu\n",(lu)inOffset,(lu)outOffset);
+            for (kernel_col = 0; kernel_col < kernel_w; kernel_col++) {   // kernWidth
+              int64_t input_row = -pad_h + kernel_row * dilation_h;
+              for (int64_t const input_row_max = input_row + output_h*stride_h;
+                  input_row < input_row_max; input_row += stride_h){ // outHeight-->inRow
+                int64_t       input_col     = -pad_w + kernel_col * dilation_w;
+                for( int64_t const input_col_max = input_col + output_w;
+                    input_col < input_col_max; ++input_col) { // outWidth
+                  data_col[outOffset++]
+                    = ( (0 <= input_row && input_row < height) // (ncc reduces 4 conds to 2 vfmk, good)
+                        && (0 <= input_col && input_col < width)
+                        ? data_im[inOffset + input_row * width + input_col]
+                        : FZERO);
+                } } } } } }
+    }// end stride_w
+  }// end collapse one
   LFTRACE_END("vednn_im2col");
 }
-#endif
 
   static void
 vednn_col2im(

@@ -7,9 +7,14 @@
 #include <assert.h>
 #include <string.h> // memset
 #include <stdint.h>
+//#include <mcheck.h> // mprobe(malloc-ptr)
 
 /** 0=malloc+free, 1=vednn_scratchpad_shared */
-#define SCRATCHPAD 0
+#ifndef SCRATCHPAD
+#define SCRATCHPAD 1
+#endif
+
+typedef long unsigned lu;
 
 /** return sizeof(float) if pParam is DTYPE_FLOAT */
 static inline size_t getTensorDataSize(const vednnTensorParam_t * restrict pParam)
@@ -37,6 +42,12 @@ static inline size_t getTensorDataSize(const vednnTensorParam_t * restrict pPara
 
 #define SGEMM   sgemm_
 
+#ifndef OPENMP
+// put omp workarounds in header XXX
+static inline int omp_get_thread_num() {return 0;}
+static inline int omp_get_num_threads() {return 1;}
+#endif
+
 extern "C" {
   void sgemm_(char *TRANSA, char *TRANSB, int *M, int *N, int *K,
       float *ALPHA, float *A,  int *LDA, float *B, int *LDB,
@@ -62,41 +73,47 @@ vednn_im2colA(const float * restrict data_im, const int64_t channels,
     const int64_t pad_h, const int64_t pad_w,
     const int64_t stride_h, const int64_t stride_w,
     const int64_t dilation_h, const int64_t dilation_w,
-    float * restrict data_col)
+    float * restrict const data_col)
 {
   LFTRACE_BEGIN("vednn_im2colA");
   const int64_t output_h = (height + 2 * pad_h - (dilation_h * (kernel_h - 1) + 1)) / stride_h + 1;
   const int64_t output_w = (width + 2 * pad_w -  (dilation_w * (kernel_w - 1) + 1)) / stride_w + 1;
   const int64_t channel_size = height * width;
+  //printf(" vednn_im2colA"); fflush(stdout); mcheck_check_all(); printf( "Begins..."); fflush(stdout);
 
-  int64_t channel;
-
-  if(stride_w != 1 ){
+  if( stride_w != 1 ){
     // nc++ may now support if clause?
     // dnnl tests and special-cases: stride==1 (and some other thing)
-    OMP(parallel for if(channels>=3))//;
-    for (channel = 0 ; channel < channels; channel++) {             // inChannel
+    //OMP(parallel for if(channels>=3))//;
+    OMP(parallel for if(channels>1))//;
+    for (int64_t channel = 0 ; channel < channels; channel++) {         // inChannel
       int64_t kernel_row, kernel_col, output_rows, output_cols, output_col;
 
       int64_t inOffset = channel * channel_size;
       int64_t outOffset = channel * output_h * output_w * kernel_h * kernel_w;
+      //mcheck_check_all();
+      //if(channel==0) { printf(" im2col stride_w=%lu channel 0: outOffset=%lu"
+      //      "omp thr %d of %d . data_col @ %p\n",
+      //      (lu)stride_w, (lu)outOffset, omp_get_thread_num(), omp_get_num_threads(),
+      //      (void*)data_col); fflush(stdout);
+      //  mcheck_check_all(); printf(" (mcheck OK)\n"); fflush(stdout);
+      //}
 
       for (kernel_row = 0; kernel_row < kernel_h; kernel_row++) {     // kernHeight
-        for (kernel_col = 0; kernel_col < kernel_w; kernel_col++) {     // kernWidth
+        for (kernel_col = 0; kernel_col < kernel_w; kernel_col++) {   // kernWidth
           int64_t input_row = -pad_h + kernel_row * dilation_h;
           for (output_rows = output_h; output_rows; output_rows--) {  // outHeight
             if (input_row < 0 || input_row >= height ) {
               for (output_col = output_w; output_col; --output_col) { // outWidth
-                data_col[outOffset++] = 0.f; //*(data_col++) = 0;
+                data_col[outOffset++] = FZERO; //*(data_col++) = 0;
               }
             } else {
               int64_t input_col = -pad_w + kernel_col * dilation_w;
               for (output_col = 0; output_col<output_w; ++output_col) {	// outWidth
                 data_col[outOffset++] //*(data_col++)
-                  = //(is_a_ge_zero_and_a_lt_b(input_col, width)
-                  ( input_col >= 0 && input_col < width
+                  = ( input_col >= 0 && input_col < width
                     ? data_im[inOffset + input_row * width + input_col]
-                    : 0.f);
+                    : FZERO);
                 input_col += stride_w;
               }
             }
@@ -104,14 +121,21 @@ vednn_im2colA(const float * restrict data_im, const int64_t channels,
           }
         }
       }
-    }
+      //if(channel+1 >= channels){ printf(" thr%d exit outOffset=%lu\n",
+      //    omp_get_thread_num(), (lu)outOffset); fflush(stdout); }
+    } // inChannel
   }else{ //stride_w == 1
     OMP(parallel for if(channels>=3))//;
-    for (channel = 0 ; channel < channels; channel++) {             // inChannel
+    for (int64_t channel = 0 ; channel < channels; channel++) {             // inChannel
       int64_t kernel_row, kernel_col, output_rows, output_cols, output_col;
 
       int64_t inOffset = channel * channel_size;
       int64_t outOffset = channel * output_h * output_w * kernel_h * kernel_w;
+      //mcheck_check_all();
+      //if(channel==0) {printf(" im2col stride_w=%lu channel 0: outOffset=%lu"
+      //    "omp thr %d of %d . pColBuff[%lu] @ %p\n",
+      //    (lu)stride_w, (lu)outOffset, omp_get_thread_num(), omp_get_num_threads(),
+      //    (void*)data_col); fflush(stdout); }
 
       for (kernel_row = 0; kernel_row < kernel_h; kernel_row++) {     // kernHeight
         for (kernel_col = 0; kernel_col < kernel_w; kernel_col++) {     // kernWidth
@@ -119,15 +143,15 @@ vednn_im2colA(const float * restrict data_im, const int64_t channels,
           for (output_rows = output_h; output_rows; output_rows--) {  // outHeight
             if (input_row < 0 || input_row >= height ) {
               for (output_col = 0; output_col<output_w; ++output_col) {	// outWidth
-                data_col[outOffset++] = 0.f; //*(data_col++) = 0;
+                data_col[outOffset++] = FZERO;
               }
             } else {
               int64_t const input_col = -pad_w + kernel_col * dilation_w;
               for (output_col = 0; output_col<output_w; ++output_col) {	// outWidth
-                data_col[outOffset++] //*(data_col++)
+                data_col[outOffset++]
                   = ( input_col+output_col >= 0 && input_col+output_col < width
                       ? data_im[inOffset + input_row * width + input_col + output_col]
-                      : 0.f);
+                      : FZERO);
               }
             }
             input_row += stride_h;
@@ -136,7 +160,9 @@ vednn_im2colA(const float * restrict data_im, const int64_t channels,
       }
     }
   }// end stride_w cases
+  //printf(" vednn_im2colA exit..."); fflush(stdout); mcheck_check_all(); printf(" OK\n"); fflush(stdout);
   LFTRACE_END("vednn_im2colA");
+  //printf(" vednn_im2colA exitB..."); fflush(stdout); mcheck_check_all(); printf(" OK\n"); fflush(stdout);
 }
 
   static void
@@ -479,13 +505,21 @@ vednnConvolutionForward_direct_gemmA(
   // This buffer is used for a monolithic im2col
   // (could use a smaller buffer if im2col were done "as-needed")
   size_t const nBytes = pColrows * pColcols * getTensorDataSize(pParamIn);
+  //printf(" nBytes %lu = ic*kw*kh %lu * ow*oh %lu *%lu\n",
+  //    (lu)nBytes,(lu)pColrows,(lu)pColcols,(lu)getTensorDataSize(pParamIn));
+  fflush(stdout);
 #if SCRATCHPAD==0
   float * restrict pColBuff = (float*) malloc(nBytes);
 #else
+  //printf(" dirGemmA: scratchpad_shared!"); fflush(stdout);
   using vednn::scratchpad::vednn_scratchpad_shared;
   float * restrict pColBuff = (float*)(void*)
     vednn_scratchpad_shared(nBytes);
 #endif
+  //printf(" omp thr %d of %d . pColBuff[%lu] @ %p\n",omp_get_thread_num(),
+  //    omp_get_num_threads(), (lu)nBytes,(void*)pColBuff); fflush(stdout);
+  //mprobe(pColBuff);
+  //mcheck_check_all();
 
   vednnError_t ret = vednnConvFwd_gemmA(
       pParamIn, pDataIn,
@@ -528,6 +562,10 @@ vednnConvolutionForwardAddBias_direct_gemmA(
   // This buffer is used for a monolithic im2col
   // (could use a smaller buffer if im2col were done "as-needed")
   size_t const nBytes = pColrows * pColcols * getTensorDataSize(pParamIn);
+  printf(" nBytes %lu = ic*kw*kh %lu * ow*oh %lu *%lu\n",
+      (lu)nBytes,(lu)pColrows,(lu)pColcols,(lu)getTensorDataSize(pParamIn));
+  fflush(stdout);
+
 #if SCRATCHPAD==0
   float * restrict pColBuff = (float *) malloc(nBytes);
 #else

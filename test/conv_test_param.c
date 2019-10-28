@@ -7,6 +7,7 @@
 #include <string.h>     // memset
 #include <math.h>       // sqrt
 #include <stdint.h>
+#include <mcheck.h>
 
 #ifdef __cplusplus
 extern "C" { //}
@@ -16,10 +17,13 @@ extern "C" { //}
 static void oclobber_float(float * const out, size_t const nFloat){
     static const int oclobber_quick = 1;
     static uint64_t oclobber_rand = 13ULL;
+    mcheck_check_all();
     if(out==NULL || nFloat <= 0){
-        printf(" clobber out==%p, nFloat=%lu ?? IGNORED\n", (void*)out, (long unsigned)nFloat);
+        printf(" clobber out==%p, nFloat=%lu ?? IGNORED", (void*)out, (long unsigned)nFloat);
+        fflush(stdout);
     }else{
-        printf(" clobber out=%p nFloat=%lu\n", (void*)out, (long unsigned)nFloat);
+        printf(" clobber out=%p nFloat=%lu", (void*)out, (long unsigned)nFloat);
+        fflush(stdout);
         if(oclobber_quick){ // just change a few entries to wrong result
             out[0] = 999.99f;
             out[oclobber_rand % nFloat] = 13.13e5f;
@@ -30,6 +34,7 @@ static void oclobber_float(float * const out, size_t const nFloat){
             for(size_t i=0U; i<nFloat; ++i) out[i] = 13.13f;
         }
     }
+    mcheck_check_all(); printf(" (clobber DONE)\n"); fflush(stdout);
 }
 
 // testconvForward_FOO

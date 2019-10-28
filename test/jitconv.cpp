@@ -22,6 +22,8 @@
 #include <vector>
 
 #include <csignal>
+#include <malloc.h>
+#include <mcheck.h>
 
 using namespace std;
 
@@ -38,7 +40,7 @@ static inline int check_control_c() {
 
 struct CacheKiller {
     CacheKiller()
-        : data(1000000) // go through 8M data
+        : data(2000000)
     {
         using namespace scramble64;
         size_t const n = data.size();
@@ -50,17 +52,28 @@ struct CacheKiller {
         if(enable){
             //cout<<" !CacheKiller"; cout.flush();
             using namespace scramble64;
-            // old: FOR(i,data.size()) data[i] *= r1+13U;
             // NOTE : vector::operator[] is NOT INLINED by nc++ !!! XXX
             // NOTE : vector::size() is NOT INLINED by nc++ !!! XXX
             size_t const n = data.size();
             uint64_t *v = data.data();
             // write:
-            //for(uint64_t i=0; i<n; ++i) v[i] = v[i]*r1+13U;
-            // read (and updata 1 rand element):
-            uint64_t h; for(uint64_t i=0; i<n; ++i) h += v[i]*r1;
-            size_t somewhere = (h*r1+13) % n;
-            v[somewhere] = h;
+            if(slow){ // read and write all
+#if 0 // 26% of time for a simple test (ouch)
+#pragma omp parallel for
+                for(uint64_t i=0; i<n; ++i) v[i] = v[i]*r1+13U;
+#else
+                uint64_t const start = v[0]%11U;
+                uint64_t const step = (v[0]&1? 10U: 11U);
+#pragma omp parallel for
+                for(uint64_t i=start; i<n; i+=step) v[i] = v[i]*r1+13U;
+#endif
+            }else{ // read all (and updata 1 rand element):
+                uint64_t h;
+#pragma omp parallel for reduction(+:h)
+                for(uint64_t i=0; i<n; ++i) h += v[i]*r1;
+                size_t somewhere = (h*r1+13) % n;
+                v[somewhere] = h;
+            }
         }
     }
     /** destructor needs an unpredictable element,
@@ -78,8 +91,10 @@ struct CacheKiller {
     operator bool() volatile { return enable; }
     std::vector<uint64_t> data;
     static volatile bool enable;
+    static bool slow;
 };
 volatile bool CacheKiller::enable = false;
+bool CacheKiller::slow = true;
 
 #if 0
 static std::string getPath() {
@@ -184,10 +199,13 @@ void testForward(struct param *pNetwork, int nEntry, double HZ, int flagBias, in
             double max_diff = 0.0;
             unsigned long long c[2];
             if(!cacheKiller){
+                printf(" wrk.doRef() warmup iterations!\n");
+                wrk.doRef();
                 wrk.doRef();
             }
             for(int r=0; r < reps; ++r){
                 if(cacheKiller){
+                    printf(" cacheKiller!");
                     cacheKiller();
                 }
                 testconvForward_oclobber(pConv); // set a few outputs "wrong"
@@ -1367,6 +1385,9 @@ int main(int argc, char **argv)
         omp_set_num_threads(thr);
         // New: vednnInit also sets __vednn_omp_num_threads...
         __vednn_omp_num_threads = thr;
+        mcheck(nullptr);
+        mtrace();
+        mcheck_check_all();
         fflush(stdout);
 #endif
         switch(testtype) {
@@ -1385,6 +1406,7 @@ int main(int argc, char **argv)
         default :
             break ;
         }
+        mcheck_check_all();
 #ifdef USE_OPENMP
     }
 #endif
