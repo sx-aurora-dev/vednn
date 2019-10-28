@@ -94,6 +94,7 @@ FWD_FN_OK(vednnConvolutionForward_direct_default);
 FWD_FN_OK(vednnConvolutionForward_direct_defaultA);
 FWD_FN_OK(vednnConvolutionForward_direct_alt);
 FWD_FN_OK(vednnConvolutionForward_direct_gemm);
+FWD_FN_OK(vednnConvolutionForward_direct_gemmA);
 #undef FWD_FN_OK
 #undef FWD_RT_OK
 #undef FWD_FN_OK_
@@ -134,6 +135,8 @@ BKWD_FN_OK(vednnConvolutionBackwardData_direct_dil1_str1);
 BKWD_FN_OK(vednnConvolutionBackwardData_direct_iwU128);
 BKWD_FN_OK(vednnConvolutionBackwardData_direct_default);
 BKWD_FN_OK(vednnConvolutionBackwardData_direct_default2);
+BKWD_FN_OK(vednnConvolutionBackwardData_direct_gemm);
+BKWD_FN_OK(vednnConvolutionBackwardData_direct_gemmA);
 #undef BKWD_RT_OK
 #undef BKWD_FN_OK
 #undef BKWD_RT_OK_
@@ -164,6 +167,8 @@ BKWF_FN_OK(vednnConvolutionBackwardFilter_direct_dil1_pad0);
 BKWF_FN_OK(vednnConvolutionBackwardFilter_direct_owU128);
 BKWF_FN_OK(vednnConvolutionBackwardFilter_direct_default);
 BKWF_FN_OK(vednnConvolutionBackwardFilter_direct_default2);
+BKWF_FN_OK(vednnConvolutionBackwardFilter_direct_gemm);
+BKWF_FN_OK(vednnConvolutionBackwardFilter_direct_gemmA);
 #undef BKWF_RT_OK
 #undef BKWF_FN_OK
 #undef BKWF_RT_OK_

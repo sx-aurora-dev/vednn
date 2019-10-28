@@ -58,6 +58,7 @@ static vednnConvForwardImpls vednnConvForwardList_[] = {
     IMPL_FNS(vednnConvolutionForward_direct_vecC,"cnvFwd-vecC"),
     IMPL_FNS(vednnConvolutionForward_direct_default,"cnvFwd-def"),
     IMPL_WRAPNONE_FNS(vednnConvolutionForward_direct_gemm,"cnvFwd-gemm"),
+    IMPL_WRAPNONE_FNS(vednnConvolutionForward_direct_gemmA,"cnvFwd-gemmA"),
     // customizations (stable, working, but win in isolated circumstances)
     //IMPL_FNS(vednnConvolutionForward_direct_default2,"cnvFwd-def2"),
     //IMPL_FNS(vednnConvolutionForward_direct_default3,"cnvFwd-def3"),
@@ -87,6 +88,8 @@ static vednnConvBackwardDataImpls vednnConvBackwardDataList_[] = {
     IMPL_FNS(vednnConvolutionBackwardData_direct_dil1_str1,"cnvBkD-d1s1"),
     IMPL_FNS(vednnConvolutionBackwardData_direct_iwU128,"cnvBkD-iwU128"),
     IMPL_FNS(vednnConvolutionBackwardData_direct_default,"cnvBkD-def"),
+    IMPL_FNS(vednnConvolutionBackwardData_direct_gemm,"cnvBkD-gemm"),
+    IMPL_FNS(vednnConvolutionBackwardData_direct_gemmA,"cnvBkD-gemmA"),
     {NULL}
 };
 
@@ -111,6 +114,8 @@ static vednnConvBackwardFilterImpls vednnConvBackwardFilterList_[] = {
     IMPL_FNS(vednnConvolutionBackwardFilter_direct_dil1_pad0,"cnvBkF-d1p0"),
     IMPL_FNS(vednnConvolutionBackwardFilter_direct_owU128,"cnvBkF-owU128"),
     IMPL_FNS(vednnConvolutionBackwardFilter_direct_default,"cnvBkF-def"),
+    IMPL_FNS(vednnConvolutionBackwardFilter_direct_gemm,"cnvBkF-gemm"),
+    IMPL_FNS(vednnConvolutionBackwardFilter_direct_gemmA,"cnvBkF-gemmA"),
     {NULL}
 };
 

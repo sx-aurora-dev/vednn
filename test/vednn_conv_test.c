@@ -1,31 +1,30 @@
 
-#include <vednn.h>
 #include "vednn_helper.h"
 
 vednnError_t
 convolution_forward_gemm(
-    const vednnTensorParam_t * restrict pParamIn, const void * restrict pDataIn,
-    const vednnFilterParam_t * restrict pParamKernel, const void * restrict pDataKernel,
-    const vednnBiasParam_t * restrict pParamBias, const void * restrict pDataBias,
-    const vednnTensorParam_t * restrict pParamOut, void * restrict pDataOut,
-    const float * restrict pOne,  float * restrict pColBuff,
-    const vednnConvolutionParam_t * restrict pParamConv ) ;
+        const vednnTensorParam_t * restrict pParamIn, const void * restrict pDataIn,
+        const vednnFilterParam_t * restrict pParamKernel, const void * restrict pDataKernel,
+        const vednnBiasParam_t * restrict pParamBias, const void * restrict pDataBias,
+        const vednnTensorParam_t * restrict pParamOut, void * restrict pDataOut,
+        const float * restrict pOne,  float * restrict pColBuff,
+        const vednnConvolutionParam_t * restrict pParamConv ) ;
 
 vednnError_t
 convolution_backward_data_gemm(
-    const vednnTensorParam_t * restrict pParamGradOut, const void * restrict pDataGradOut,
-    const vednnFilterParam_t * restrict pParamKernel, const void * restrict pDataKernel,
-    const vednnTensorParam_t * restrict pParamGradIn, void * restrict pDataGradIn,
-    float * restrict pColBuff,
-    const vednnConvolutionParam_t * restrict pParamConv ) ;
+        const vednnTensorParam_t * restrict pParamGradOut, const void * restrict pDataGradOut,
+        const vednnFilterParam_t * restrict pParamKernel, const void * restrict pDataKernel,
+        const vednnTensorParam_t * restrict pParamGradIn, void * restrict pDataGradIn,
+        float * restrict pColBuff,
+        const vednnConvolutionParam_t * restrict pParamConv ) ;
 
 vednnError_t
 convolution_backward_filter_gemm(
-    const vednnTensorParam_t * restrict pParamIn, const void * restrict pDataIn,
-    const vednnTensorParam_t * restrict pParamGradOut, const void * restrict pDataGradOut,
-    const vednnFilterParam_t * restrict pParamGradKernel, void * restrict pDataGradKernel,
-    float * restrict pColBuff,
-    const vednnConvolutionParam_t * restrict pParamConv ) ;
+        const vednnTensorParam_t * restrict pParamIn, const void * restrict pDataIn,
+        const vednnTensorParam_t * restrict pParamGradOut, const void * restrict pDataGradOut,
+        const vednnFilterParam_t * restrict pParamGradKernel, void * restrict pDataGradKernel,
+        float * restrict pColBuff,
+        const vednnConvolutionParam_t * restrict pParamConv ) ;
 
 #include <assert.h>
 #include <stdio.h>
@@ -40,6 +39,7 @@ convolution_backward_filter_gemm(
 
 #include "timer.h"
 
+// Old code: dilation NOT supported -- assume 1 (no dilation, equiv mkl-dnn dilation 0)
 struct param {
     const char	pName[256];
     int		batchNum;
@@ -57,6 +57,37 @@ struct param {
     int		padHeight;
     int		padWidth;
 };
+
+/** fwd ops brute-force count, as in bench-dnn, w/o dilation support. */
+static inline unsigned long long count_ops(struct param const* p){
+    unsigned long long sp_ops = 0;
+    unsigned long long const dh = 1; // p->dilationHeight
+    unsigned long long const dw = 1; // p->dilationWidth
+    //for (int od = 0; od < this->od; ++od) {
+    for (int oh = 0; oh < p->outHeight; ++oh) {
+        for (int ow = 0; ow < p->outWidth; ++ow) {
+            //for (int kd = 0; kd < this->kd; ++kd) {
+            //    const int id = od * this->sd - this->pd + kd * (this->dd + 1);
+            //    if (id < 0 || id >= this->id) continue;
+            for (int kh = 0; kh < p->kernHeight; ++kh) {
+                //const int ih = oh * this->sh - this->ph + kh * (this->dh + 1);
+                const int ih = oh * p->strideHeight - p->padHeight + kh * dh;
+                if (ih < 0 || ih >= p->inHeight) continue;
+                for (int kw = 0; kw < p->kernWidth; ++kw) {
+                    //const int iw = ow * this->sw - this->pw + kw * (this->dw + 1);
+                    const int iw = ow * p->strideWidth - p->padWidth + kw * dw;
+                    if (iw < 0 || iw >= p->inWidth) continue;
+                    ++sp_ops;
+                }
+            }
+            //}
+        }
+    }
+    //}
+
+    //ops = 2 * this->mb * this->oc * this->ic / this->g * sp_ops;
+    return 2 * sp_ops * p->batchNum * p->outChannel * p->inChannel / p->group;
+}
 
 // exact output height/width for convolution. d==0 for "no dilation".
 int compute_out( int i, int k, int s, int p, int d ){
@@ -119,31 +150,31 @@ int mkConsistent( struct param* p ){
         printf(" changed in %s\n", p->pName);
         fflush(stdout);
     }
-    return changed;
+return changed;
 }
 
 
-void
+    void
 generateRandomData(dataType_t type, size_t size, void *pData)
 {
     int i;
 
     switch(type) {
     case DTYPE_FLOAT:
-        {
-            float *p = (float *)pData;
-            for (i=0; i<size; i++) {
-                p[i] = drand48();
-            }
+    {
+        float *p = (float *)pData;
+        for (i=0; i<size; i++) {
+            p[i] = drand48();
         }
-        break;
+    }
+    break;
     default:
-        assert(0);              /* BUG */
-        break;
+    assert(0);              /* BUG */
+    break;
     }
 }
 
-double
+    double
 diffData(const vednnTensorParam_t *pParam, const void *pData, const void *pExpectedResult)
 {
     int i;
@@ -153,30 +184,59 @@ diffData(const vednnTensorParam_t *pParam, const void *pData, const void *pExpec
 
     switch(getTensorDataType(pParam)) {
     case DTYPE_FLOAT:
-        {
-            const float *pData1 = (float *)pExpectedResult;
-            const float *pData2 = (float *)pData;
-            for (i=0; i<size; i++) {
-                double diff = pData1[i] - pData2[i] ;
-                sum += (diff/(fabs(pData1[i])+1e-7)) * (diff/(fabs(pData2[i])+1e-7)) ;
-            }
+    {
+        const float *pData1 = (float *)pExpectedResult;
+        const float *pData2 = (float *)pData;
+        for (i=0; i<size; i++) {
+            //printf("%lf %lf\n", pData1[i], pData2[i]) ; 
+            double diff = pData1[i] - pData2[i] ;
+            sum += (diff/(fabs(pData1[i])+1e-7)) * (diff/(fabs(pData2[i])+1e-7)) ;
         }
-        break;
+    }
+    break;
     default:
-        assert(0);              /* BUG */
-        break;
+    assert(0);              /* BUG */
+    break;
+    }
+
+    return sqrt(sum);
+}
+
+    double
+diffFilter(const vednnFilterParam_t *pParam, const void *pData, const void *pExpectedResult)
+{
+    int i;
+
+    size_t size = pParam->inChannel * pParam->outChannel * pParam->width * pParam->height ;
+    double sum = 0.0;
+
+    switch(pParam->dtype) {
+    case DTYPE_FLOAT:
+    {
+        const float *pData1 = (float *)pExpectedResult;
+        const float *pData2 = (float *)pData;
+        for (i=0; i<size; i++) {
+            double diff = pData1[i] - pData2[i] ;
+            sum += (diff/(fabs(pData1[i])+1e-7)) * (diff/(fabs(pData2[i])+1e-7)) ;
+        }
+    }
+    break;
+    default:
+    assert(0);              /* BUG */
+    break;
     }
 
     return sqrt(sum);
 }
 
 
-void testForward(struct param *pNetwork, int nEntry, double HZ, int flagBias, int flagCSV)
+void testForward(struct param *pNetwork, int nEntry, double HZ, int flagBias, int flagCSV
+        /*, filterLayout_t filter_layout*/)
 {
     struct conv {
         vednnTensorParam_t *pParamIn;
         vednnTensorParam_t *pParamOut;
-        vednnBiasParam_t *pParamBias;
+        vednnBiasParam_t   *pParamBias;
         vednnFilterParam_t *pParamKernel;
         vednnConvolutionParam_t *pParamConv;
         void *pDataIn;
@@ -189,6 +249,7 @@ void testForward(struct param *pNetwork, int nEntry, double HZ, int flagBias, in
         float *pBufCol;
 
         unsigned long long cycle;
+        unsigned long long ops;
         char region[128];
     };
 
@@ -215,12 +276,14 @@ void testForward(struct param *pNetwork, int nEntry, double HZ, int flagBias, in
         pConv->pDataOut		= NULL;
         pConv->pDataBias	= NULL;
         pConv->pDataKernel	= NULL;
+        pConv->pDataKernel	= NULL;
 
         pConv->pBufRef		= NULL;
         pConv->pBufOne		= NULL;
         pConv->pBufCol		= NULL;
 
         pConv->cycle		= 0;
+        pConv->ops          = 0;
 
         strcpy(pConv->region, pNw->pName);
     }
@@ -248,9 +311,9 @@ void testForward(struct param *pNetwork, int nEntry, double HZ, int flagBias, in
         rv[0] = createTensorParam(&pConv->pParamIn, DTYPE_FLOAT, pNw->batchNum, pNw->inChannel,  pNw->inWidth,  pNw->inHeight);
         rv[1] = createTensorParam(&pConv->pParamOut, DTYPE_FLOAT, pNw->batchNum, pNw->outChannel, pNw->outWidth, pNw->outHeight);
         if( flagBias ) {
-          rv[2] = createBiasParam(&pConv->pParamBias, DTYPE_FLOAT, pNw->outChannel);
+            rv[2] = createBiasParam(&pConv->pParamBias, DTYPE_FLOAT, pNw->outChannel);
         }
-        rv[3] = createKernelParam(&pConv->pParamKernel, DTYPE_FLOAT, inChannelGroup, outChannelGroup, pNw->kernWidth, pNw->kernHeight);
+        rv[3] = createKernelParam(&pConv->pParamKernel, DTYPE_FLOAT/*, filter_layout*/, inChannelGroup, outChannelGroup, pNw->kernWidth, pNw->kernHeight);
         rv[4] = createConvolutionParam(&pConv->pParamConv, pNw->group, pNw->strideWidth, pNw->strideHeight, pNw->padWidth, pNw->padHeight, 1, 1);
         if (rv[0] != VEDNN_SUCCESS || rv[1] != VEDNN_SUCCESS || ( flagBias && rv[2] != VEDNN_SUCCESS ) || rv[3] != VEDNN_SUCCESS || rv[4] != VEDNN_SUCCESS ) {
             fprintf(stderr, "Failed to create/initialize structure.\n");
@@ -258,16 +321,16 @@ void testForward(struct param *pNetwork, int nEntry, double HZ, int flagBias, in
         }
 
 
-	pConv->pDataIn     = malloc(getTensorSizeInByte(pConv->pParamIn  ));
-	pConv->pDataOut    = malloc(getTensorSizeInByte(pConv->pParamOut ));
+        pConv->pDataIn     = malloc(getTensorSizeInByte(pConv->pParamIn  ));
+        pConv->pDataOut    = malloc(getTensorSizeInByte(pConv->pParamOut ));
         if( flagBias ) {
-          pConv->pDataBias   = malloc(getBiasSizeInByte(pConv->pParamBias));
+            pConv->pDataBias   = malloc(getBiasSizeInByte(pConv->pParamBias));
         }
-	pConv->pDataKernel = malloc(getKernelSizeInByte(pConv->pParamKernel) * pNw->group);
-	if (pConv->pDataIn == NULL || pConv->pDataOut == NULL || ( flagBias && pConv->pDataBias == NULL ) || pConv->pDataKernel == NULL) {
-	    fprintf(stderr, "Memory exhaust.\n");
-	    exit(1);
-	}
+        pConv->pDataKernel = malloc(getKernelSizeInByte(pConv->pParamKernel) * pNw->group);
+        if (pConv->pDataIn == NULL || pConv->pDataOut == NULL || ( flagBias && pConv->pDataBias == NULL ) || pConv->pDataKernel == NULL) {
+            fprintf(stderr, "Memory exhaust.\n");
+            exit(1);
+        }
 
         pConv->pBufRef  = malloc(getTensorSizeInByte(pConv->pParamOut )) ;
         size_t pOnesize = pConv->pParamOut->width * pConv->pParamOut->height;
@@ -280,21 +343,24 @@ void testForward(struct param *pNetwork, int nEntry, double HZ, int flagBias, in
         memset(pConv->pDataIn,     0, getTensorSizeInByte(pConv->pParamIn));
         memset(pConv->pDataOut,    0, getTensorSizeInByte(pConv->pParamOut));
         if (flagBias ) {
-          memset(pConv->pDataBias,   0, getBiasSizeInByte(pConv->pParamBias));
+            memset(pConv->pDataBias,   0, getBiasSizeInByte(pConv->pParamBias));
         }
         memset(pConv->pDataKernel, 0, getKernelSizeInByte(pConv->pParamKernel) * pNw->group);
 
         memset(pConv->pBufRef,    0, getTensorSizeInByte(pConv->pParamOut));
         for (int i=0; i<pOnesize; i++) {
-          pConv->pBufOne[i] = 1.0f;
+            pConv->pBufOne[i] = 1.0f;
         }
 
         // Generate Data
         generateRandomData(getTensorDataType(pConv->pParamIn), getTensorSize(pConv->pParamIn), pConv->pDataIn);
         if( flagBias ) {
-          generateRandomData(getBiasDataType(pConv->pParamBias), getBiasSize(pConv->pParamBias), pConv->pDataBias);
+            generateRandomData(getBiasDataType(pConv->pParamBias), getBiasSize(pConv->pParamBias), pConv->pDataBias);
         }
         generateRandomData(getKernelDataType(pConv->pParamKernel), getKernelSize(pConv->pParamKernel) * pNw->group, pConv->pDataKernel);
+
+        // Count ops (a la mkl-dnn)
+        pConv->ops = count_ops(pNw);
     }
 
     // run test Convolution
@@ -307,34 +373,34 @@ void testForward(struct param *pNetwork, int nEntry, double HZ, int flagBias, in
 #endif
 
 
-	for (i=0; i<nEntry; i++) {
-	    struct conv *pConv = &pConvBuff[i];
+        for (i=0; i<nEntry; i++) {
+            struct conv *pConv = &pConvBuff[i];
 
-	    unsigned long long c[2];
-	    c[0] = __cycle();
-
-#ifdef FTRACE
-	    ftrace_region_begin(pConv->region);
-#endif
-	      // Convolution
-	    if ( flagBias ) {
-	      rv = vednnConvolutionForwardAddBias(pConv->pParamIn, pConv->pDataIn, pConv->pParamKernel, pConv->pDataKernel, pConv->pParamBias, pConv->pDataBias,  pConv->pParamOut, pConv->pDataOut, pConv->pParamConv, VEDNN_CONV_ALGORITHM_DIRECT );
-	    }
-	    else {
-	      rv = vednnConvolutionForward(pConv->pParamIn, pConv->pDataIn, pConv->pParamKernel, pConv->pDataKernel, pConv->pParamOut, pConv->pDataOut, pConv->pParamConv, VEDNN_CONV_ALGORITHM_DIRECT );
-	    }
-	    if (rv != VEDNN_SUCCESS) {
-		fprintf(stderr, "convolution() failed.\n");
-		exit(1);
-	    }
-
+            unsigned long long c[2];
+            c[0] = __cycle();
 
 #ifdef FTRACE
-	    ftrace_region_end(pConv->region);
+            ftrace_region_begin(pConv->region);
 #endif
-	    c[1] = __cycle();
-	    pConv->cycle += c[1] - c[0];
-	}
+            // Convolution
+            if ( flagBias ) {
+                rv = vednnConvolutionForwardAddBias(pConv->pParamIn, pConv->pDataIn, pConv->pParamKernel, pConv->pDataKernel, pConv->pParamBias, pConv->pDataBias,  pConv->pParamOut, pConv->pDataOut, pConv->pParamConv, VEDNN_CONV_ALGORITHM_DIRECT );
+            }
+            else {
+                rv = vednnConvolutionForward(pConv->pParamIn, pConv->pDataIn, pConv->pParamKernel, pConv->pDataKernel, pConv->pParamOut, pConv->pDataOut, pConv->pParamConv, VEDNN_CONV_ALGORITHM_DIRECT );
+            }
+            if (rv != VEDNN_SUCCESS) {
+                fprintf(stderr, "convolution() failed.\n");
+                exit(1);
+            }
+
+
+#ifdef FTRACE
+            ftrace_region_end(pConv->region);
+#endif
+            c[1] = __cycle();
+            pConv->cycle += c[1] - c[0];
+        }
 
 
 #ifdef FTRACE
@@ -346,60 +412,75 @@ void testForward(struct param *pNetwork, int nEntry, double HZ, int flagBias, in
     // run Reference Convolution
     {
         vednnError_t rv;
-	for (i=0; i<nEntry; i++) {
-	    struct conv *pConv = &pConvBuff[i];
-	    // Convolution
-	    rv = convolution_forward_gemm(pConv->pParamIn, pConv->pDataIn, pConv->pParamKernel, pConv->pDataKernel, pConv->pParamBias, pConv->pDataBias,  pConv->pParamOut, pConv->pBufRef, pConv->pBufOne, pConv->pBufCol, pConv->pParamConv );
-	    if (rv != VEDNN_SUCCESS) {
-		fprintf(stderr, "convolution() failed.\n");
-		exit(1);
-	    }
-	}
+        for (i=0; i<nEntry; i++) {
+            struct conv *pConv = &pConvBuff[i];
+            unsigned long long c[2];
+            c[0] = __cycle();
+            // Convolution
+            rv = convolution_forward_gemm(pConv->pParamIn, pConv->pDataIn, pConv->pParamKernel, pConv->pDataKernel, pConv->pParamBias, pConv->pDataBias,  pConv->pParamOut, pConv->pBufRef, pConv->pBufOne, pConv->pBufCol, pConv->pParamConv );
+            if (rv != VEDNN_SUCCESS) {
+                fprintf(stderr, "convolution() failed.\n");
+                exit(1);
+            }
+            c[1] = __cycle();
+            double time = (c[1] - c[0]) * 1.0e3 / HZ;
+            double const gops = (pConv->ops>0? pConv->ops*1.0e-6 / time: -1.0);
+            printf("gemm %-30s : %9.3f G %9.3f ms\n", pConv->region, time, gops);
+        }
     }
 
     if (flagCSV) {
-	printf ("# convolution name, batch, group, bottom channel, bottom height, bottom width, top channel, top width, top height, kernel height, kernel width, stride height, stride width, pad height, pad width, time(msec), DIFF\n");
+        printf ("# convolution name, batch, group, bottom channel, bottom height, bottom width, top channel, top width, top height, kernel height, kernel width, stride height, stride width, pad height, pad width, time(msec), DIFF\n");
     }
 
     for (i=0; i<nEntry; i++) {
         struct conv *pConv = &pConvBuff[i];
         struct param *pNw = &pNetwork[i];
 
-	if (flagCSV) {
-	    printf("%s, %d, %d, %d, %d, %d, %d, %d, %d, %d, %d, %d, %d, %d, %d",
-		   pNw->pName, pNw->batchNum, pNw->group,
-		   pNw->inChannel, pNw->inHeight, pNw->inWidth,
-		   pNw->outChannel, pNw->outHeight, pNw->outWidth,
-		   pNw->kernHeight, pNw->kernWidth,
-		   pNw->strideHeight, pNw->strideWidth,
-		   pNw->padHeight, pNw->padWidth );
-	} else {
-	    printf("%-30s : batch %d group %d \tbottom %4d %3d %4d \ttop %4d %3d %4d \tkernel %2d %2d stride %d %d pad %d %d \t",
-		   pNw->pName,
-		   pNw->batchNum,
-		   pNw->group,
-		   pNw->inChannel, pNw->inHeight, pNw->inWidth,
-		   pNw->outChannel, pNw->outHeight, pNw->outWidth,
-		   pNw->kernHeight, pNw->kernWidth,
-		   pNw->strideHeight, pNw->strideWidth,
-		   pNw->padHeight, pNw->padWidth );
-	}
+        if (flagCSV) {
+            printf("%s, %d, %d, %d, %d, %d, %d, %d, %d, %d, %d, %d, %d, %d, %d",
+                    pNw->pName, pNw->batchNum, pNw->group,
+                    pNw->inChannel, pNw->inHeight, pNw->inWidth,
+                    pNw->outChannel, pNw->outHeight, pNw->outWidth,
+                    pNw->kernHeight, pNw->kernWidth,
+                    pNw->strideHeight, pNw->strideWidth,
+                    pNw->padHeight, pNw->padWidth );
+        } else {
+            printf("%-30s : batch %d group %d \tbottom %4d %3d %4d \ttop %4d %3d %4d \tkernel %2d %2d stride %d %d pad %d %d \t",
+                    pNw->pName,
+                    pNw->batchNum,
+                    pNw->group,
+                    pNw->inChannel, pNw->inHeight, pNw->inWidth,
+                    pNw->outChannel, pNw->outHeight, pNw->outWidth,
+                    pNw->kernHeight, pNw->kernWidth,
+                    pNw->strideHeight, pNw->strideWidth,
+                    pNw->padHeight, pNw->padWidth );
+        }
 
-	double diff = diffData(pConv->pParamOut, pConv->pDataOut, pConv->pBufRef);
+        double diff = diffData(pConv->pParamOut, pConv->pDataOut, pConv->pBufRef);
 
-	double time = pConv->cycle * 1.0e3 / HZ;
-	if (flagCSV) {
-	    printf(", %f", time);
-	} else {
-	    printf(" \tTIME = %8.3f msec", time);
-	}
+        double time = pConv->cycle * 1.0e3 / HZ;
+        if (flagCSV) {
+            printf(", %f", time);
+        } else {
+            printf(" \tTIME = %8.3f msec", time);
+        }
 
-	if (flagCSV) {
-	    printf(", %f", diff);
-	} else {
-	    printf(" DIFF = %f", diff);
-	}
-	printf("\n");
+        if (flagCSV) {
+            printf(", %f", diff);
+        } else {
+            printf(" DIFF = %f", diff);
+        }
+
+        // Gop/s = Mop/ms
+        double const gops = (pConv->ops>0? pConv->ops*1.0e-6 / time: -1.0);
+        if (flagCSV) {
+            printf(", %f", gops);
+        } else {
+            printf(" %9.3f GFLOPS", gops);
+        }
+
+        printf("\n");
     }
 
     // release
@@ -409,13 +490,13 @@ void testForward(struct param *pNetwork, int nEntry, double HZ, int flagBias, in
         destroyTensorParam(pConv->pParamIn);
         destroyTensorParam(pConv->pParamOut);
         if( flagBias ) {
-          destroyBiasParam(pConv->pParamBias);
+            destroyBiasParam(pConv->pParamBias);
         }
         destroyKernelParam(pConv->pParamKernel);
         free(pConv->pDataIn);
         free(pConv->pDataOut);
         if( flagBias ) {
-          free(pConv->pDataBias);
+            free(pConv->pDataBias);
         }
         free(pConv->pDataKernel);
 
@@ -427,7 +508,8 @@ void testForward(struct param *pNetwork, int nEntry, double HZ, int flagBias, in
     free(pConvBuff);
 }
 
-void testBackwardData(struct param *pNetwork, int nEntry, double HZ, int flagCSV)
+void testBackwardData(struct param *pNetwork, int nEntry, double HZ, int flagCSV
+        /*, filterLayout_t filter_layout*/)
 {
     struct conv {
         vednnTensorParam_t *pParamGradOut;
@@ -497,7 +579,7 @@ void testBackwardData(struct param *pNetwork, int nEntry, double HZ, int flagCSV
 
         rv[0] = createTensorParam(&pConv->pParamGradOut, DTYPE_FLOAT, pNw->batchNum, pNw->outChannel, pNw->outWidth, pNw->outHeight);
         rv[1] = createTensorParam(&pConv->pParamGradIn, DTYPE_FLOAT, pNw->batchNum, pNw->inChannel, pNw->inWidth, pNw->inHeight);
-        rv[2] = createKernelParam(&pConv->pParamKernel, DTYPE_FLOAT, inChannelGroup, outChannelGroup, pNw->kernWidth, pNw->kernHeight);
+        rv[2] = createKernelParam(&pConv->pParamKernel, DTYPE_FLOAT/*, filter_layout*/, inChannelGroup, outChannelGroup, pNw->kernWidth, pNw->kernHeight);
         rv[3] = createConvolutionParam(&pConv->pParamConv, pNw->group, pNw->strideWidth, pNw->strideHeight, pNw->padWidth, pNw->padHeight, 1, 1);
         if (rv[0] != VEDNN_SUCCESS || rv[1] != VEDNN_SUCCESS || rv[2] != VEDNN_SUCCESS || rv[3] != VEDNN_SUCCESS ) {
             fprintf(stderr, "Failed to create/initialize structure.\n");
@@ -505,9 +587,9 @@ void testBackwardData(struct param *pNetwork, int nEntry, double HZ, int flagCSV
         }
 
 
-	pConv->pDataGradOut = malloc(getTensorSizeInByte(pConv->pParamGradOut  ));
-	pConv->pDataGradIn= malloc(getTensorSizeInByte(pConv->pParamGradIn ));
-	pConv->pDataKernel = malloc(getKernelSizeInByte(pConv->pParamKernel) * pNw->group);
+        pConv->pDataGradOut = malloc(getTensorSizeInByte(pConv->pParamGradOut  ));
+        pConv->pDataGradIn= malloc(getTensorSizeInByte(pConv->pParamGradIn ));
+        pConv->pDataKernel = malloc(getKernelSizeInByte(pConv->pParamKernel) * pNw->group);
 
         pConv->pBufRef  = malloc(getTensorSizeInByte(pConv->pParamGradIn )) ;
         size_t pColrows = pConv->pParamKernel->inChannel * pConv->pParamKernel->width * pConv->pParamKernel->height;
@@ -537,29 +619,29 @@ void testBackwardData(struct param *pNetwork, int nEntry, double HZ, int flagCSV
 #endif
 
 
-	for (i=0; i<nEntry; i++) {
-	    struct conv *pConv = &pConvBuff[i];
+        for (i=0; i<nEntry; i++) {
+            struct conv *pConv = &pConvBuff[i];
 
-	    unsigned long long c[2];
-	    c[0] = __cycle();
-
-#ifdef FTRACE
-	    ftrace_region_begin(pConv->region);
-#endif
-	    // Convolution
-	    rv = vednnConvolutionBackwardData(pConv->pParamGradOut, pConv->pDataGradOut, pConv->pParamKernel, pConv->pDataKernel, pConv->pParamGradIn, pConv->pDataGradIn, pConv->pParamConv, VEDNN_CONV_ALGORITHM_DIRECT );
-	    if (rv != VEDNN_SUCCESS) {
-		fprintf(stderr, "convolution() failed.\n");
-		exit(1);
-	    }
-
+            unsigned long long c[2];
+            c[0] = __cycle();
 
 #ifdef FTRACE
-	    ftrace_region_end(pConv->region);
+            ftrace_region_begin(pConv->region);
 #endif
-	    c[1] = __cycle();
-	    pConv->cycle += c[1] - c[0];
-	}
+            // Convolution
+            rv = vednnConvolutionBackwardData(pConv->pParamGradOut, pConv->pDataGradOut, pConv->pParamKernel, pConv->pDataKernel, pConv->pParamGradIn, pConv->pDataGradIn, pConv->pParamConv, VEDNN_CONV_ALGORITHM_DIRECT );
+            if (rv != VEDNN_SUCCESS) {
+                fprintf(stderr, "convolution() failed.\n");
+                exit(1);
+            }
+
+
+#ifdef FTRACE
+            ftrace_region_end(pConv->region);
+#endif
+            c[1] = __cycle();
+            pConv->cycle += c[1] - c[0];
+        }
 
 
 #ifdef FTRACE
@@ -571,60 +653,60 @@ void testBackwardData(struct param *pNetwork, int nEntry, double HZ, int flagCSV
     // run Reference Convolution
     {
         vednnError_t rv;
-	for (i=0; i<nEntry; i++) {
-	    struct conv *pConv = &pConvBuff[i];
-	    // Convolution
-	    rv = convolution_backward_data_gemm(pConv->pParamGradOut, pConv->pDataGradOut, pConv->pParamKernel, pConv->pDataKernel, pConv->pParamGradIn, pConv->pBufRef, pConv->pBufCol, pConv->pParamConv );
-	    if (rv != VEDNN_SUCCESS) {
-		fprintf(stderr, "convolution() failed.\n");
-		exit(1);
-	    }
-	}
+        for (i=0; i<nEntry; i++) {
+            struct conv *pConv = &pConvBuff[i];
+            // Convolution
+            rv = convolution_backward_data_gemm(pConv->pParamGradOut, pConv->pDataGradOut, pConv->pParamKernel, pConv->pDataKernel, pConv->pParamGradIn, pConv->pBufRef, pConv->pBufCol, pConv->pParamConv );
+            if (rv != VEDNN_SUCCESS) {
+                fprintf(stderr, "convolution() failed.\n");
+                exit(1);
+            }
+        }
     }
 
     if (flagCSV) {
-	printf ("# convolution name, batch, group, bottom channel, bottom height, bottom width, top channel, top width, top height, kernel height, kernel width, stride height, stride width, pad height, pad width, time(msec), DIFF\n");
+        printf ("# convolution name, batch, group, bottom channel, bottom height, bottom width, top channel, top width, top height, kernel height, kernel width, stride height, stride width, pad height, pad width, time(msec), DIFF\n");
     }
 
     for (i=0; i<nEntry; i++) {
         struct conv *pConv = &pConvBuff[i];
         struct param *pNw = &pNetwork[i];
 
-	if (flagCSV) {
-	    printf("%s, %d, %d, %d, %d, %d, %d, %d, %d, %d, %d, %d, %d, %d, %d",
-		   pNw->pName, pNw->batchNum, pNw->group,
-		   pNw->inChannel, pNw->inHeight, pNw->inWidth,
-		   pNw->outChannel, pNw->outHeight, pNw->outWidth,
-		   pNw->kernHeight, pNw->kernWidth,
-		   pNw->strideHeight, pNw->strideWidth,
-		   pNw->padHeight, pNw->padWidth );
-	} else {
-	    printf("%-30s : batch %d group %d \tbottom %4d %3d %4d \ttop %4d %3d %4d \tkernel %2d %2d stride %d %d pad %d %d \t",
-		   pNw->pName,
-		   pNw->batchNum,
-		   pNw->group,
-		   pNw->inChannel, pNw->inHeight, pNw->inWidth,
-		   pNw->outChannel, pNw->outHeight, pNw->outWidth,
-		   pNw->kernHeight, pNw->kernWidth,
-		   pNw->strideHeight, pNw->strideWidth,
-		   pNw->padHeight, pNw->padWidth );
-	}
+        if (flagCSV) {
+            printf("%s, %d, %d, %d, %d, %d, %d, %d, %d, %d, %d, %d, %d, %d, %d",
+                    pNw->pName, pNw->batchNum, pNw->group,
+                    pNw->inChannel, pNw->inHeight, pNw->inWidth,
+                    pNw->outChannel, pNw->outHeight, pNw->outWidth,
+                    pNw->kernHeight, pNw->kernWidth,
+                    pNw->strideHeight, pNw->strideWidth,
+                    pNw->padHeight, pNw->padWidth );
+        } else {
+            printf("%-30s : batch %d group %d \tbottom %4d %3d %4d \ttop %4d %3d %4d \tkernel %2d %2d stride %d %d pad %d %d \t",
+                    pNw->pName,
+                    pNw->batchNum,
+                    pNw->group,
+                    pNw->inChannel, pNw->inHeight, pNw->inWidth,
+                    pNw->outChannel, pNw->outHeight, pNw->outWidth,
+                    pNw->kernHeight, pNw->kernWidth,
+                    pNw->strideHeight, pNw->strideWidth,
+                    pNw->padHeight, pNw->padWidth );
+        }
 
-	double diff = diffData(pConv->pParamGradIn, pConv->pDataGradIn, pConv->pBufRef);
+        double diff = diffData(pConv->pParamGradIn, pConv->pDataGradIn, pConv->pBufRef);
 
-	double time = pConv->cycle * 1.0e3 / HZ;
-	if (flagCSV) {
-	    printf(", %f", time);
-	} else {
-	    printf(" \tTIME = %8.3f msec", time);
-	}
+        double time = pConv->cycle * 1.0e3 / HZ;
+        if (flagCSV) {
+            printf(", %f", time);
+        } else {
+            printf(" \tTIME = %8.3f msec", time);
+        }
 
-	if (flagCSV) {
-	    printf(", %f", diff);
-	} else {
-	    printf(" DIFF = %f", diff);
-	}
-	printf("\n");
+        if (flagCSV) {
+            printf(", %f", diff);
+        } else {
+            printf(" DIFF = %f", diff);
+        }
+        printf("\n");
     }
 
     // release
@@ -645,7 +727,8 @@ void testBackwardData(struct param *pNetwork, int nEntry, double HZ, int flagCSV
     free(pConvBuff);
 }
 
-void testBackwardFilter(struct param *pNetwork, int nEntry, double HZ, int flagCSV)
+void testBackwardFilter(struct param *pNetwork, int nEntry, double HZ, int flagCSV
+        /*, filterLayout_t filter_layout*/)
 {
     struct conv {
         vednnTensorParam_t *pParamIn;
@@ -715,7 +798,7 @@ void testBackwardFilter(struct param *pNetwork, int nEntry, double HZ, int flagC
 
         rv[0] = createTensorParam(&pConv->pParamIn, DTYPE_FLOAT, pNw->batchNum, pNw->inChannel, pNw->inWidth, pNw->inHeight);
         rv[1] = createTensorParam(&pConv->pParamGradOut, DTYPE_FLOAT, pNw->batchNum, pNw->outChannel, pNw->outWidth, pNw->outHeight);
-        rv[2] = createKernelParam(&pConv->pParamGradKernel, DTYPE_FLOAT, inChannelGroup, outChannelGroup, pNw->kernWidth, pNw->kernHeight);
+        rv[2] = createKernelParam(&pConv->pParamGradKernel, DTYPE_FLOAT/*, filter_layout*/, inChannelGroup, outChannelGroup, pNw->kernWidth, pNw->kernHeight);
         rv[3] = createConvolutionParam(&pConv->pParamConv, pNw->group, pNw->strideWidth, pNw->strideHeight, pNw->padWidth, pNw->padHeight, 1, 1);
         if (rv[0] != VEDNN_SUCCESS || rv[1] != VEDNN_SUCCESS || rv[2] != VEDNN_SUCCESS || rv[3] != VEDNN_SUCCESS ) {
             fprintf(stderr, "Failed to create/initialize structure.\n");
@@ -723,9 +806,9 @@ void testBackwardFilter(struct param *pNetwork, int nEntry, double HZ, int flagC
         }
 
 
-	pConv->pDataIn= malloc(getTensorSizeInByte(pConv->pParamIn ));
-	pConv->pDataGradOut = malloc(getTensorSizeInByte(pConv->pParamGradOut  ));
-	pConv->pDataGradKernel = malloc(getKernelSizeInByte(pConv->pParamGradKernel) * pNw->group);
+        pConv->pDataIn= malloc(getTensorSizeInByte(pConv->pParamIn ));
+        pConv->pDataGradOut = malloc(getTensorSizeInByte(pConv->pParamGradOut  ));
+        pConv->pDataGradKernel = malloc(getKernelSizeInByte(pConv->pParamGradKernel) * pNw->group);
 
         pConv->pBufRef  = malloc(getKernelSizeInByte(pConv->pParamGradKernel) * pNw->group);
         size_t pColrows = pConv->pParamGradKernel->inChannel * pConv->pParamGradKernel->width * pConv->pParamGradKernel->height;
@@ -752,29 +835,29 @@ void testBackwardFilter(struct param *pNetwork, int nEntry, double HZ, int flagC
 #endif
 
 
-	for (i=0; i<nEntry; i++) {
-	    struct conv *pConv = &pConvBuff[i];
+        for (i=0; i<nEntry; i++) {
+            struct conv *pConv = &pConvBuff[i];
 
-	    unsigned long long c[2];
-	    c[0] = __cycle();
-
-#ifdef FTRACE
-	    ftrace_region_begin(pConv->region);
-#endif
-	    // Convolution
-	    rv = vednnConvolutionBackwardFilter(pConv->pParamIn, pConv->pDataIn, pConv->pParamGradOut, pConv->pDataGradOut, pConv->pParamGradKernel, pConv->pDataGradKernel, pConv->pParamConv, VEDNN_CONV_ALGORITHM_DIRECT );
-	    if (rv != VEDNN_SUCCESS) {
-		fprintf(stderr, "convolution() failed.\n");
-		exit(1);
-	    }
-
+            unsigned long long c[2];
+            c[0] = __cycle();
 
 #ifdef FTRACE
-	    ftrace_region_end(pConv->region);
+            ftrace_region_begin(pConv->region);
 #endif
-	    c[1] = __cycle();
-	    pConv->cycle += c[1] - c[0];
-	}
+            // Convolution
+            rv = vednnConvolutionBackwardFilter(pConv->pParamIn, pConv->pDataIn, pConv->pParamGradOut, pConv->pDataGradOut, pConv->pParamGradKernel, pConv->pDataGradKernel, pConv->pParamConv, VEDNN_CONV_ALGORITHM_DIRECT );
+            if (rv != VEDNN_SUCCESS) {
+                fprintf(stderr, "convolution() failed.\n");
+                exit(1);
+            }
+
+
+#ifdef FTRACE
+            ftrace_region_end(pConv->region);
+#endif
+            c[1] = __cycle();
+            pConv->cycle += c[1] - c[0];
+        }
 
 
 #ifdef FTRACE
@@ -786,61 +869,61 @@ void testBackwardFilter(struct param *pNetwork, int nEntry, double HZ, int flagC
     // run Reference Convolution
     {
         vednnError_t rv;
-	for (i=0; i<nEntry; i++) {
-	    struct conv *pConv = &pConvBuff[i];
-	    // Convolution
-	    rv = convolution_backward_filter_gemm(pConv->pParamIn, pConv->pDataIn, pConv->pParamGradOut, pConv->pDataGradOut, pConv->pParamGradKernel, pConv->pBufRef, pConv->pBufCol, pConv->pParamConv );
-	    if (rv != VEDNN_SUCCESS) {
-		fprintf(stderr, "convolution() failed.\n");
-		exit(1);
-	    }
-	}
+        for (i=0; i<nEntry; i++) {
+            struct conv *pConv = &pConvBuff[i];
+            // Convolution
+            rv = convolution_backward_filter_gemm(pConv->pParamIn, pConv->pDataIn, pConv->pParamGradOut, pConv->pDataGradOut, pConv->pParamGradKernel, pConv->pBufRef, pConv->pBufCol, pConv->pParamConv );
+            if (rv != VEDNN_SUCCESS) {
+                fprintf(stderr, "convolution() failed.\n");
+                exit(1);
+            }
+        }
     }
 
 
     if (flagCSV) {
-	printf ("# convolution name, batch, group, bottom channel, bottom height, bottom width, top channel, top width, top height, kernel height, kernel width, stride height, stride width, pad height, pad width, time(msec), DIFF\n");
+        printf ("# convolution name, batch, group, bottom channel, bottom height, bottom width, top channel, top width, top height, kernel height, kernel width, stride height, stride width, pad height, pad width, time(msec), DIFF\n");
     }
 
     for (i=0; i<nEntry; i++) {
         struct conv *pConv = &pConvBuff[i];
         struct param *pNw = &pNetwork[i];
 
-	if (flagCSV) {
-	    printf("%s, %d, %d, %d, %d, %d, %d, %d, %d, %d, %d, %d, %d, %d, %d",
-		   pNw->pName, pNw->batchNum, pNw->group,
-		   pNw->inChannel, pNw->inHeight, pNw->inWidth,
-		   pNw->outChannel, pNw->outHeight, pNw->outWidth,
-		   pNw->kernHeight, pNw->kernWidth,
-		   pNw->strideHeight, pNw->strideWidth,
-		   pNw->padHeight, pNw->padWidth );
-	} else {
-	    printf("%-30s : batch %d group %d \tbottom %4d %3d %4d \ttop %4d %3d %4d \tkernel %2d %2d stride %d %d pad %d %d \t",
-		   pNw->pName,
-		   pNw->batchNum,
-		   pNw->group,
-		   pNw->inChannel, pNw->inHeight, pNw->inWidth,
-		   pNw->outChannel, pNw->outHeight, pNw->outWidth,
-		   pNw->kernHeight, pNw->kernWidth,
-		   pNw->strideHeight, pNw->strideWidth,
-		   pNw->padHeight, pNw->padWidth );
-	}
+        if (flagCSV) {
+            printf("%s, %d, %d, %d, %d, %d, %d, %d, %d, %d, %d, %d, %d, %d, %d",
+                    pNw->pName, pNw->batchNum, pNw->group,
+                    pNw->inChannel, pNw->inHeight, pNw->inWidth,
+                    pNw->outChannel, pNw->outHeight, pNw->outWidth,
+                    pNw->kernHeight, pNw->kernWidth,
+                    pNw->strideHeight, pNw->strideWidth,
+                    pNw->padHeight, pNw->padWidth );
+        } else {
+            printf("%-30s : batch %d group %d \tbottom %4d %3d %4d \ttop %4d %3d %4d \tkernel %2d %2d stride %d %d pad %d %d \t",
+                    pNw->pName,
+                    pNw->batchNum,
+                    pNw->group,
+                    pNw->inChannel, pNw->inHeight, pNw->inWidth,
+                    pNw->outChannel, pNw->outHeight, pNw->outWidth,
+                    pNw->kernHeight, pNw->kernWidth,
+                    pNw->strideHeight, pNw->strideWidth,
+                    pNw->padHeight, pNw->padWidth );
+        }
 
-	double diff = diffData((vednnTensorParam_t*)(pConv->pParamGradKernel), pConv->pDataGradKernel, pConv->pBufRef);
+        double diff = diffFilter(pConv->pParamGradKernel, pConv->pDataGradKernel, pConv->pBufRef);
 
-	double time = pConv->cycle * 1.0e3 / HZ;
-	if (flagCSV) {
-	    printf(", %f", time);
-	} else {
-	    printf(" \tTIME = %8.3f msec", time);
-	}
+        double time = pConv->cycle * 1.0e3 / HZ;
+        if (flagCSV) {
+            printf(", %f", time);
+        } else {
+            printf(" \tTIME = %8.3f msec", time);
+        }
 
-	if (flagCSV) {
-	    printf(", %f", diff);
-	} else {
-	    printf(" DIFF = %f", diff);
-	}
-	printf("\n");
+        if (flagCSV) {
+            printf(", %f", diff);
+        } else {
+            printf(" DIFF = %f", diff);
+        }
+        printf("\n");
 
     }
 
@@ -865,54 +948,54 @@ void testBackwardFilter(struct param *pNetwork, int nEntry, double HZ, int flagC
 
 int readParamFile(struct param **ppParams, const char *pParamPath )
 {
-  struct param *pParams  = NULL ;
-  int nParams            = 0 ;
+    struct param *pParams  = NULL ;
+    int nParams            = 0 ;
 
-  FILE *fp = fopen(pParamPath, "r") ;
-  if( fp == NULL ) {
-    fprintf(stderr, "Cannot open parameter file : %s .\n", pParamPath );
-    exit(1);
-  }
+    FILE *fp = fopen(pParamPath, "r") ;
+    if( fp == NULL ) {
+        fprintf(stderr, "Cannot open parameter file : %s .\n", pParamPath );
+        exit(1);
+    }
 
-  fscanf(fp, "%d\n", &nParams) ;
-  if( nParams <= 0 ) {
-    fprintf(stderr, "Parameter file read error.\n");
+    fscanf(fp, "%d\n", &nParams) ;
+    if( nParams <= 0 ) {
+        fprintf(stderr, "Parameter file read error.\n");
+        fclose(fp) ;
+        exit(1);
+    }
+    pParams = (struct param *) malloc(sizeof(struct param) * nParams) ;
+
+    for(int i=0; i<nParams; i++) {
+
+        fscanf(fp, "%[^,],%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d\n",
+                pParams[i].pName,
+                &(pParams[i].batchNum),
+                &(pParams[i].group),
+                &(pParams[i].inChannel),
+                &(pParams[i].inHeight),
+                &(pParams[i].inWidth),
+                &(pParams[i].outChannel),
+                &(pParams[i].outHeight),
+                &(pParams[i].outWidth),
+                &(pParams[i].kernHeight),
+                &(pParams[i].kernWidth),
+                &(pParams[i].strideHeight),
+                &(pParams[i].strideWidth),
+                &(pParams[i].padHeight),
+                &(pParams[i].padWidth) ) ;
+    }
     fclose(fp) ;
-    exit(1);
-  }
-  pParams = (struct param *) malloc(sizeof(struct param) * nParams) ;
 
-  for(int i=0; i<nParams; i++) {
-
-    fscanf(fp, "%[^,],%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d\n",
-	pParams[i].pName,
-	&(pParams[i].batchNum),
-	&(pParams[i].group),
-	&(pParams[i].inChannel),
-	&(pParams[i].inHeight),
-	&(pParams[i].inWidth),
-	&(pParams[i].outChannel),
-	&(pParams[i].outHeight),
-	&(pParams[i].outWidth),
-	&(pParams[i].kernHeight),
-	&(pParams[i].kernWidth),
-	&(pParams[i].strideHeight),
-	&(pParams[i].strideWidth),
-	&(pParams[i].padHeight),
-	&(pParams[i].padWidth) ) ;
-  }
-  fclose(fp) ;
-
-  *ppParams = pParams ;
-  return nParams ;
+    *ppParams = pParams ;
+    return nParams ;
 }
 
 enum {
-  CONV_TEST_FORWARD = 0,
-  CONV_TEST_FORWARD_ADDBIAS,
-  CONV_TEST_BACKWARD_DATA,
-  CONV_TEST_BACKWARD_FILTER,
-  CONV_TEST_BACKWARD_BIAS
+    CONV_TEST_FORWARD = 0,
+    CONV_TEST_FORWARD_ADDBIAS,
+    CONV_TEST_BACKWARD_DATA,
+    CONV_TEST_BACKWARD_FILTER,
+    CONV_TEST_BACKWARD_BIAS
 } ;
 
 
@@ -924,8 +1007,18 @@ static struct {
     { "ConvForwardAddBias",	CONV_TEST_FORWARD_ADDBIAS } ,
     { "ConvBackwardData",	CONV_TEST_BACKWARD_DATA } ,
     { "ConvBackwardFilter", CONV_TEST_BACKWARD_FILTER } ,
-//    { "ConvBackwardBias", CONV_TEST_BACKWARD_BIAS } ,   // not implemented
+    //    { "ConvBackwardBias", CONV_TEST_BACKWARD_BIAS } ,   // not implemented
 };
+
+#if 0
+static struct {
+    char const* pName;
+    filterLayout_t   layouttype;
+} filterLayout[] = {
+    { "filter_nchw",	VEDNN_FILTER_LAYOUT_NCHW } ,
+    { "filter_hwcn",	VEDNN_FILTER_LAYOUT_HWCN }
+};
+#endif
 
 int main(int argc, char **argv)
 {
@@ -936,37 +1029,56 @@ int main(int argc, char **argv)
     char *pParamPath = NULL ;
     double HZ        = 0.0 ;
     int testtype     = 0 ;
+    //filterLayout_t filter_layout= VEDNN_FILTER_LAYOUT_NCHW/*0*/ ;
     int flagCSV	     = 0 ;
 
-    int flagNoMkConsistent = 0 ; 
+    int flagNoMkConsistent = 0 ;
 
     while ((opt = getopt(argc, argv, "p:CH:T:n")) != -1) {
         switch (opt) {
         case 'p':
-          pParamPath = optarg;
-          break;
+        pParamPath = optarg;
+        break;
         case 'C':	flagCSV = 1;		break;
         case 'H':	HZ = atof(optarg);	break;
         case 'T':
-	  {
-	    int found = 0;
-	    for (int i=0; i<sizeof(tests)/sizeof(tests[0]); i++) {
-	      if (strcasecmp(optarg, tests[i].pName) == 0) {
-		testtype = tests[i].testtype ;
-		found = 1;
-		break;
-	      }
-	    }
-	    if (! found )  {
-	      fprintf(stderr, "Invalid test type.\n");
-	      exit(1);
-	    }
-	  }
-        break;
+                    {
+                        int found = 0;
+                        for (int i=0; i<sizeof(tests)/sizeof(tests[0]); i++) {
+                            if (strcasecmp(optarg, tests[i].pName) == 0) {
+                                testtype = tests[i].testtype ;
+                                found = 1;
+                                break;
+                            }
+                        }
+                        if (! found )  {
+                            fprintf(stderr, "Invalid test type.\n");
+                            exit(1);
+                        }
+                    }
+                    break;
         case 'n':	flagNoMkConsistent = 1;		break;
+#if 0
+        case 'f' :
+                    {
+                        int found = 0;
+                        for (int i=0; i<sizeof(filterLayout)/sizeof(filterLayout[0]); i++) {
+                            if (strcasecmp(optarg, filterLayout[i].pName) == 0) {
+                                filter_layout= filterLayout[i].layouttype ;
+                                found = 1;
+                                break;
+                            }
+                        }
+                        if (! found )  {
+                            fprintf(stderr, "Invalid filter layout.\n");
+                            exit(1);
+                        }
+                    }
+                    break ;
+#endif
         default: /* '?' */
-            fprintf(stderr, "Unknown option.\n");
-            exit(1);
+                    fprintf(stderr, "Unknown option.\n");
+                    exit(1);
         }
     }
     if (optind < argc) {
@@ -974,14 +1086,15 @@ int main(int argc, char **argv)
         exit(1);
     }
     if ( pParamPath == NULL ) {
-      fprintf(stderr, "Parameter file must be specified by '-p' option.\n");
-      exit(1);
+        fprintf(stderr, "Parameter file must be specified by '-p' option.\n");
+        exit(1);
     }
     if (HZ <= 0.0) {
         fprintf(stderr, "Processor core frequency must be set by '-H' option.\n");
         exit(1);
     }
-    printf("TEST TYPE        = %s\n",	 tests[testtype].pName) ;
+    printf("TEST TYPE        = %s\n",	   tests[testtype].pName) ;
+    //printf("FILTER LAYOUT    = %s\n",	   filterLayout[filter_layout].pName) ;
     printf("STM FREQUENCY    = %.3e HZ\n", HZ);
     printf("PARAMETER FILE   = %s\n",      pParamPath);
 
@@ -989,7 +1102,7 @@ int main(int argc, char **argv)
     struct param *pParams ;
     int nParams = readParamFile( &pParams, pParamPath ) ;
     if( nParams <= 0 ) {
-      exit(1);
+        exit(1);
     }
 
     for(int i=0; i<nParams; ++i){
@@ -1007,19 +1120,19 @@ int main(int argc, char **argv)
 
     switch(testtype) {
     case CONV_TEST_FORWARD :
-      testForward(pParams, nParams, HZ, 0, flagCSV);
-      break ;
+    testForward(pParams, nParams, HZ, 0, flagCSV/*, filter_layout*/);
+    break ;
     case CONV_TEST_FORWARD_ADDBIAS :
-      testForward(pParams, nParams, HZ, 1, flagCSV);
-      break ;
+    testForward(pParams, nParams, HZ, 1, flagCSV/*, filter_layout*/);
+    break ;
     case CONV_TEST_BACKWARD_DATA :
-      testBackwardData(pParams, nParams, HZ, flagCSV);
-      break ;
+    testBackwardData(pParams, nParams, HZ, flagCSV/*, filter_layout*/);
+    break ;
     case CONV_TEST_BACKWARD_FILTER :
-      testBackwardFilter(pParams, nParams, HZ, flagCSV);
-      break ;
+    testBackwardFilter(pParams, nParams, HZ, flagCSV/*, filter_layout*/);
+    break ;
     default :
-      break ;
+    break ;
     }
 
 

@@ -43,11 +43,9 @@ if(( (NOT IS_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/include/)
         )
 endif()
 
-include_directories("../.." "../../wrap" "./include/gen-dnn/vconv" "./include/gen-dnn/vgemm" "/opt/nec/ve/nlc/2.0.0/include")
-
 file(GLOB_RECURSE VCONV_HEADERS
-    ${CMAKE_BINARY_DIR}/include/*.h
-    ${CMAKE_BINARY_DIR}/include/*.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/*.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/*.hpp
     )
 file(GLOB_RECURSE VCONV_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/src/*.c
@@ -55,6 +53,14 @@ file(GLOB_RECURSE VCONV_SOURCES
     )
 message(STATUS "vconv headers ${VCONV_HEADERS}")
 message(STATUS "vconv sources ${VCONV_SOURCES}")
+
+# collect gen-dnn headers into one subdir, to simplify include path and install tree
+file(COPY ${VCONV_HEADERS} DESTINATION ${CMAKE_BINARY_DIR}/include/gen-dnn)
+# vconv headers installed at CMAKE_INSTALL_PREFIX/include/C/gen-dnn
+
+#include_directories("../.." "../../wrap" "./include/gen-dnn/vconv" "./include/gen-dnn/vgemm" "/opt/nec/ve/nlc/2.0.0/include")
+include_directories("../.." "../../wrap" ${CMAKE_BINARY_DIR}/include "/opt/nec/ve/nlc/2.0.0/include")
+
 # The Makefile has the best set of compilation flags
 add_library(vconv_code OBJECT
     direct_gendnn.cpp
@@ -74,6 +80,6 @@ install(FILES
     vednn2gendnn.h
     md_util.h
     ${VCONV_HEADERS}
-    DESTINATION include/C/vconv
+    DESTINATION include/C/gen-dnn
     )
 # vim: et ts=4 sw=4 ai

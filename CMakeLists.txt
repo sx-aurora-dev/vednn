@@ -37,9 +37,13 @@ message(STATUS "LLVM_TOOLS_BINARY_DIR : ${LLVM_TOOLS_BINARY_DIR}")
 if(NOT USE_FTRACE) # enforce 0 or 1 or 2
     set(USE_FTRACE "0")
 else() # specify USE_FTRACE 2 to instrument EVERY function, else just selected regions are ftraced
-    if(USE_FTRACE STREQUAL "1")
+    if(USE_FTRACE STREQUAL "0")
     else()
-        set(USE_FTRACE "2")
+        add_definitions(-DFTRACE) # lib hand-selects key ftrace_begin/end regions
+        if(USE_FTRACE STREQUAL "1") # only selected ftrace regions
+        else()
+            set(USE_FTRACE "2") # add -ftrace for ncc/nc++ compilations (all funcs)
+        endif()
     endif()
 endif()
 message(STATUS "USE_FTRACE --------> ${USE_FTRACE}")

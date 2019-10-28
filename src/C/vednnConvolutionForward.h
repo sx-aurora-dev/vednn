@@ -44,6 +44,17 @@ vednnConvolutionForward_direct_gemm(
 ) ;
 
 vednnError_t
+vednnConvolutionForward_direct_gemmA(
+    const vednnTensorParam_t * restrict         pParamIn,
+    const void * restrict                       pDataIn,
+    const vednnFilterParam_t * restrict         pParamKernel,
+    const void * restrict                       pDataKernel,
+    const vednnConvolutionParam_t * restrict    pParamConv,
+    const vednnTensorParam_t * restrict         pParamOut,
+    void * restrict                             pDataOut
+) ;
+
+vednnError_t
 vednnConvolutionForward_direct_vecC(
     const vednnTensorParam_t * restrict         pParamIn,
     const void * restrict                       pDataIn,

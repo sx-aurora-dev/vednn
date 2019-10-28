@@ -3,8 +3,8 @@
 #include "vednn-def.h"
 
 // from gen-dnn sources:
-//#include "mkldnn_thread.hpp"
-#include "utils.hpp"            // THREAD_LOCAL mkldnn::impl::malloc/free (with alignment)
+//#include "gen-dnn/mkldnn_thread.hpp"
+#include "gen-dnn/utils.hpp" // THREAD_LOCAL mkldnn::impl::malloc/free (with alignment)
 
 #include <cassert>
 #include <cstddef>  // size_t
@@ -14,7 +14,7 @@
 #define VERBOSE 0
 #endif
 #ifndef VEDNN_SCRATCH_DBG
-#if 1 || VERBOSE
+#if VERBOSE
 #define VEDNN_SCRATCH_DBG(...) do{ printf(__VA_ARGS__); fflush(stdout); }while(0)
 #else
 #define VEDNN_SCRATCH_DBG(...) do{}while(0)
@@ -51,6 +51,8 @@ struct ScratchpadShared;
 struct ScratchpadTLS;
 struct ScratchpadFloatOnes;
 // library provides some re-usable scratchpads (use locally, within single layer funcs)
+// These provide a ref count to keep regions allocated
+// for duration that library is loaded into executing process.
 extern ScratchpadShared     *scratchpadShared;
 extern ScratchpadTLS        *scratchpadTLS;
 extern ScratchpadFloatOnes  *scratchpadFloatOnes;
@@ -88,7 +90,7 @@ struct ScratchpadShared : public ScratchpadBase {
             /* Allocating on a page boundary to reduce TLB/page misses */
             const size_t page_size = 4096U; //2097152;
             scratchpad_ = (char *) malloc(bytes, page_size);
-            VEDNN_SCRATCH_DBG(" vednn ScratchpadShared[ %lu bytes ] @ %p\n",
+            VEDNN_SCRATCH_DBG(" vednn resize ScratchpadShared[ %lu bytes ] @ %p\n",
                     (long unsigned)bytes, (void*)scratchpad_);
             ScratchpadBase::checkNonNULL(scratchpad_,__FILE__,__LINE__);
         }
@@ -201,13 +203,13 @@ private:
 };
 
 inline char* vednn_scratchpad_shared(size_t bytes){
-    return scratchpadShared->get();
+    return  ScratchpadShared{bytes}.get();
 }
 inline char* vednn_scratchpadTLS(size_t bytes){
-    return scratchpadTLS->get();
+    return ScratchpadTLS{bytes}.get();
 }
 inline float* vednn_scratchpad_float_ones(size_t const floats){
-    return reinterpret_cast<float*>(scratchpadFloatOnes->get());
+    return reinterpret_cast<float*>(ScratchpadFloatOnes{floats}.get());
 }
 
 

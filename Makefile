@@ -1,6 +1,6 @@
 PRJ:=vednnx
-CMAKE_ARGS:='-DCMAKE_BUILD_TYPE=Release'
 CMAKE_SHARED:='-DBUILD_SHARED_LIB=ON'
+CMAKE_ARGS:='-DCMAKE_BUILD_TYPE=Release ${CMAKE_SHARED}'
 all: force-build lib${PRJ}.tar.gz lib${PRJ}-ftrace1.tar.gz test
 # unpack one of the distro tarballs only in external projects.
 # -ft1 tarball will need to be linked with veperf library
@@ -11,7 +11,7 @@ lib${PRJ}.tar.gz:
 	# now for sequential
 	rm -rf build-${PRJ} ${PRJ}
 	mkdir build-${PRJ} ${PRJ}
-	cd build-${PRJ} && cmake -DCMAKE_INSTALL_PREFIX=../${PRJ} -DUSE_OPENMP=OFF ${CMAKE_ARGS} ${CMAKE_SHARED} .. 2>&1 | tee ../mk-${PRJ}.log
+	cd build-${PRJ} && cmake -DCMAKE_INSTALL_PREFIX=../${PRJ} -DUSE_OPENMP=OFF ${CMAKE_ARGS} .. 2>&1 | tee ../mk-${PRJ}.log
 	cd build-${PRJ} && make ${MKJOB} VERBOSE=1 >> ../mk-${PRJ}.log 2>&1
 	cd build-${PRJ} && make VERBOSE=1 install 2>&1 | tee -a ../mk-${PRJ}.log
 	ls -l ${PRJ}
@@ -19,7 +19,7 @@ lib${PRJ}.tar.gz:
 	echo "--- see mk-${PRJ}_omp.log for the omp build log ---" >> mk-${PRJ}.log
 	rm -rf build-${PRJ}_omp
 	mkdir build-${PRJ}_omp
-	cd build-${PRJ}_omp && cmake -DCMAKE_INSTALL_PREFIX=../${PRJ} -DUSE_OPENMP=ON ${CMAKE_ARGS} ${CMAKE_SHARED} .. 2>&1 | tee ../mk-${PRJ}_omp.log
+	cd build-${PRJ}_omp && cmake -DCMAKE_INSTALL_PREFIX=../${PRJ} -DUSE_OPENMP=ON ${CMAKE_ARGS} .. 2>&1 | tee ../mk-${PRJ}_omp.log
 	cd build-${PRJ}_omp && make ${MKJOB} VERBOSE=1 >> ../mk-${PRJ}_omp.log 2>&1
 	cd build-${PRJ}_omp && make VERBOSE=1 install 2>&1 | tee -a ../mk-${PRJ}_omp.log
 	# tarball
@@ -30,14 +30,14 @@ lib${PRJ}-ftrace1.tar.gz: # NOTE check USE_FTRACE value (sometimes I switch it t
 	# now for sequential + ftrace 1
 	rm -rf build-ft1-${PRJ} ${PRJ}
 	mkdir build-ft1-${PRJ}
-	cd build-ft1-${PRJ} && cmake -DCMAKE_INSTALL_PREFIX=../${PRJ} -DUSE_OPENMP=OFF -DUSE_FTRACE=2 ${CMAKE_ARGS} ${CMAKE_SHARED} .. 2>&1 | tee ../mk-ft1-${PRJ}.log
+	cd build-ft1-${PRJ} && cmake -DCMAKE_INSTALL_PREFIX=../${PRJ} -DUSE_OPENMP=OFF -DUSE_FTRACE=2 ${CMAKE_ARGS} .. 2>&1 | tee ../mk-ft1-${PRJ}.log
 	cd build-ft1-${PRJ} && make ${MKJOB} VERBOSE=1 >> ../mk-ft1-${PRJ}.log 2>&1
 	cd build-ft1-${PRJ} && make VERBOSE=1 install >> ../mk-ft1-${PRJ}.log 2>&1
 	# now for omp + ftrace 1
 	echo "--- see mk-ft1-${PRJ}_omp.log for the USE_FTRACE=1 omp build log ---" >> mk-${PRJ}.log
 	rm -rf build-ft1-${PRJ}_omp
 	mkdir build-ft1-${PRJ}_omp
-	cd build-ft1-${PRJ}_omp && cmake -DCMAKE_INSTALL_PREFIX=../${PRJ} -DUSE_OPENMP=ON -DUSE_FTRACE=2 ${CMAKE_ARGS} ${CMAKE_SHARED} .. >& ../mk-ft1-${PRJ}_omp.log
+	cd build-ft1-${PRJ}_omp && cmake -DCMAKE_INSTALL_PREFIX=../${PRJ} -DUSE_OPENMP=ON -DUSE_FTRACE=2 ${CMAKE_ARGS} .. >& ../mk-ft1-${PRJ}_omp.log
 	cd build-ft1-${PRJ}_omp && make ${MKJOB} VERBOSE=1 >> ../mk-ft1-${PRJ}_omp.log 2>&1
 	cd build-ft1-${PRJ}_omp && make VERBOSE=1 install >> ../mk-ft1-${PRJ}_omp.log 2>&1
 	# tarball
@@ -51,13 +51,14 @@ quicktest: # remove tarball build, use build/ and install/ only
 test: build
 	@# default build dir might be an assumed install location for tests/Makefile
 	-ls -l build/src
-	-cd test && make -f Makefile.tiny realclean
+	-cd test && make realclean
 	@#{ cd test && make VERBOSE=1 all ve_cmpconv && BIN_MK_VERBOSE=0 ./ve_cmpconv -r 10; } 2>&1 | tee mk-test.log
-	{ cd test && make VERBOSE=1 -f Makefile all && { \
+	{ cd test && make VERBOSE=1 -f Makefile redo && { \
 		./vednn_conv_test -H 8e8 -p params/conv/alexnet.txt -T ConvForward; ftrace; \
 		./vednn_linear_test -H 0.8e9 -p params/linear/alexnet.txt -T LinearForward; ftrace; \
 		./vednn_pool_test   -H 0.8e9 -p params/pool/alexnet.txt   -T MaxPoolForward; ftrace; \
 		} && { echo "resnext via Makefile.big..."; \
+		rm -f gemm_convolution*{.o,.lo,.s} jitconv.o; \
 		make VERBOSE=1 jitconv resnext-t8.log || { echo "OHOH: test/resnext.log!"; false; } \
 		} && echo "vednn make test passed"; \
 	} 2>&1 | tee mk-test.log; ps=($${PIPESTATUS[@]}); \
@@ -71,7 +72,7 @@ force-build: empty-build build
 build: # if no tarballs, test/original tests/Makefile always links against this build directory
 	if [ ! -d build ]; then mkdir build; echo "Fresh build/"; else echo "Remake in build/"; fi
 	cd build && cmake --trace -DCMAKE_VERBOSE_MAKEFILE:BOOL=ON .. -DCMAKE_INSTALL_PREFIX=../install \
-		-DCMAKE_BUILD_TYPE=Release \
+		-DCMAKE_BUILD_TYPE=RelWithDebInfo \
 	       	2>&1 | tee ../mk-build.log
 	{ { cd build && make VERBOSE=1 ${MKJOB} install; }; status=$$?; \
 		if [ "$$status" == "0" ]; then echo BUILD OK; else echo BUILD FAILED; fi; \

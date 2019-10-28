@@ -71,6 +71,17 @@ vednnConvolutionBackwardFilter_direct_gemm(
 ) ;
 
 vednnError_t
+vednnConvolutionBackwardFilter_direct_gemmA(
+    const vednnTensorParam_t * restrict         pParamIn,
+    const void * restrict                       pDataIn,
+    const vednnTensorParam_t * restrict         pParamGradOut,
+    const void * restrict                       pDataGradOut,
+    const vednnConvolutionParam_t * restrict    pParamConv,
+    const vednnFilterParam_t * restrict         pParamGradKernel,
+    void * restrict                             pDataGradKernel
+) ;
+
+vednnError_t
 vednnConvolutionBackwardFilter_direct_vecC(
     const vednnTensorParam_t * restrict         pParamIn,
     const void * restrict                       pDataIn,

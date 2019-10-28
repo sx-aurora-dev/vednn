@@ -60,6 +60,7 @@ add_library(vednn_c_code OBJECT
 add_library(vednn_gemm_convolution OBJECT
     vednnInitScratchpad.cpp
     convolution_gemm.cpp
+    convgemmA.cpp
     )
 set(SRC_C_OPT4 -O4) # original default setting
 set(SRC_C_OPT3 -O3 -finline -finline-functions -fcse-after-vectorization -msched-block)
@@ -71,12 +72,14 @@ target_compile_options(vednn_c_code PRIVATE
 # having some trouble with SCRATCHPAD=1 (reduce malloc calls)
 # -fcse-after-vectorization -msched-block important for convolution_gemm speed:
 target_compile_options(vednn_gemm_convolution PRIVATE
-    $<$<CONFIG:Release>:${SRC_C_OPT3} -DVERBOSE=0 -DSCRATCHPAD=0 -DTMP03>
-    $<$<CONFIG:RelWithDebInfo>:${SRC_C_OPT3} -DVERBOSE=0 -DSCRATCHPAD=0 -DTMP04>
-    $<$<CONFIG:Debug>:-O0 -DVERBOSE=1 -DSCRATCHPAD=1 -DTMP05>
+    $<$<CONFIG:Release>:${SRC_C_OPT3} -DVERBOSE=0 -DTMP03>
+    $<$<CONFIG:RelWithDebInfo>:${SRC_C_OPT3} -DVERBOSE=0 -DTMP04>
+    $<$<CONFIG:Debug>:-O0 -DVERBOSE=1 -DTMP05>
     )
 
 add_subdirectory(vconv)
+# vconv will populate CMAKE_BINARY_DIR/include/gen-dnn with collected vconv header files
+include_directories(${CMAKE_BINARY_DIR}/include)
 
 # libvednnx iterator exposes low-level calls (with different parameter ordering)
 # Some external projects may want to directly access the low-level libvednn
@@ -89,5 +92,6 @@ install(FILES vednnConvolutionForward.h
     vednnConvolutionBackwardFilter.h
     ve_fastdiv.h
     vednn-def.h
+    vednn-def.hpp
     DESTINATION include/C)
 # vim: et ts=4 sw=4 ai
