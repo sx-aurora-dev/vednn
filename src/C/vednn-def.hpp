@@ -6,12 +6,21 @@
 //#include "gen-dnn/mkldnn_thread.hpp"
 #include "gen-dnn/utils.hpp" // THREAD_LOCAL mkldnn::impl::malloc/free (with alignment)
 
+
 #include <cassert>
 #include <cstddef>  // size_t
 #include <cstdio>
 
+// I find no easy way to get an integer thread id (without operator <<)
+//#include <thread>   // C++ get_id() [vs threads.h thrd_current()]
+//#include <threads.h>  // thrd_current() -- ncc will not compile this (issue with _Thread_local static member)
+//
+//#include <sys/types.h>
+///#include <sys/syscall.h> // nc++ : "syscall" is undefined
+//static inline pid_t gettid() { return syscall(__NR_gettid); }
+
 #ifndef VERBOSE
-#define VERBOSE 0
+#define VERBOSE 1
 #endif
 #ifndef VEDNN_SCRATCH_DBG
 #if VERBOSE
@@ -116,7 +125,10 @@ private:
 };
 
 /** Implementation of the ScratchpadBase interface that uses a
- *  thread-local scratchpad. */
+ *  thread-local scratchpad <B>ncc has issues here</B>.
+ *
+ * - `thread_local static` supported?
+ */
 struct ScratchpadTLS : public ScratchpadBase {
     ScratchpadTLS(size_t bytes) {
         using mkldnn::impl::malloc;
@@ -128,7 +140,10 @@ struct ScratchpadTLS : public ScratchpadBase {
             /* Allocating on a page boundary to reduce TLB/page misses */
             const size_t page_size = 4096; //2097152;
             scratchpad_ = (char *) malloc(bytes, page_size);
-            VEDNN_SCRATCH_DBG(" vednn ScratchpadTLS[ %lu bytes ] @ %p\n",
+            VEDNN_SCRATCH_DBG(" vednn-thr XXX ScratchpadTLS[ %lu bytes ] @ %p\n",
+                    //(long unsigned)std::this_thread::get_id(), // not convertible
+                    //(long unsigned)thrd_current(),
+                    //(long unsigned)gettid(),
                     (long unsigned)bytes, (void*)scratchpad_);
             ScratchpadBase::checkNonNULL(scratchpad_,__FILE__,__LINE__);
         }
@@ -138,7 +153,9 @@ struct ScratchpadTLS : public ScratchpadBase {
         using mkldnn::impl::free;
         reference_count_--;
         if (reference_count_ == 0) {
-            VEDNN_SCRATCH_DBG(" ~ScratchpadTLS[ %lu bytes ] @ %p\n",
+            VEDNN_SCRATCH_DBG(" vednn-thr XXX ~ScratchpadTLS[ %lu bytes ] @ %p\n",
+                    //(long unsigned)std::this_thread::get_id(),
+                    //(long unsigned)thrd_current(),
                     (long unsigned)size_, (void*)scratchpad_);
             free(scratchpad_);
             scratchpad_ = nullptr;

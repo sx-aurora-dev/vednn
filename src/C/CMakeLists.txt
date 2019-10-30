@@ -8,8 +8,10 @@ endif()
 if(DEFINED ENV{NCXX})
     set(CMAKE_C_COMPILER ENV{NCXX})
 endif()
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -O4 -DNDEBUG -pthread")
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O4 -finline -finline-functions -DNDEBUG -pthread")
+
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DXX_BEG")
+#set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -O4 -DNDEBUG -pthread")
+#set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O4 -finline -finline-functions -DNDEBUG -pthread")
 
 if(USE_FTRACE AND NOT USE_FTRACE STREQUAL 1)
     message(STATUS " ??? adding ftrace compilation flag ??? ")
@@ -28,6 +30,7 @@ if(BUILD_SHARED_LIB)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fPIC")
 endif()
 
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DXX_END")
 message(STATUS "src/C/ CMAKE_C_FLAGS=${CMAKE_C_FLAGS}")
 message(STATUS "src/C/ CMAKE_CXX_FLAGS=${CMAKE_CXX_FLAGS}")
 

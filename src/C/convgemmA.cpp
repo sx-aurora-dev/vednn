@@ -9,25 +9,14 @@
 #include <stdint.h>
 //#include <mcheck.h> // mprobe(malloc-ptr)
 
-/** 0=malloc+free, 1=vednn_scratchpad_shared */
+/** 0=malloc+free, 1=vednn_scratchpad_shared, 2=vednn_scratchpadTLS.
+ * - malloc+free is safe, but maybe slow.
+ * - shared scratch is fine but will be shared between all threads (take care)
+ * - TLS is thread-local scratchpad, may work in more situations.
+ */
 #ifndef SCRATCHPAD
-#define SCRATCHPAD 1
+#define SCRATCHPAD 2
 #endif
-
-typedef long unsigned lu;
-
-/** return sizeof(float) if pParam is DTYPE_FLOAT */
-static inline size_t getTensorDataSize(const vednnTensorParam_t * restrict pParam)
-{
-  size_t dataSize = 0;
-  switch (pParam->dtype) {
-  case DTYPE_FLOAT: dataSize = sizeof(float);
-                    break;
-  }
-  assert(dataSize>0); /* BUG */
-  return dataSize;
-}
-
 
 #define LOCAL_FTRACE 1
 #if LOCAL_FTRACE
@@ -41,6 +30,37 @@ static inline size_t getTensorDataSize(const vednnTensorParam_t * restrict pPara
 #endif // LOCAL_FTRACE
 
 #define SGEMM   sgemm_
+
+/** local scratchpad alloc via \c SCRATCHPAD method */
+static inline float* restrict getScratch( size_t nBytes ){
+#if SCRATCHPAD==0
+  float * restrict ret = (float*) malloc(nBytes);
+#elif SCRATCHPAD==1
+  //printf(" dirGemmA: scratchpad_shared!"); fflush(stdout);
+  using vednn::scratchpad::vednn_scratchpad_shared;
+  float * restrict ret = (float*)(void*)
+    vednn_scratchpad_shared(nBytes);
+#else // 2... TLS
+  using vednn::scratchpad::vednn_scratchpadTLS;
+  float * restrict ret = (float*)(void*)
+    vednn_scratchpadTLS(nBytes);
+#endif
+  return ret;
+}
+
+/** return sizeof(float) if pParam is DTYPE_FLOAT */
+static inline size_t getTensorDataSize(const vednnTensorParam_t * restrict pParam)
+{
+  size_t dataSize = 0;
+  switch (pParam->dtype) {
+  case DTYPE_FLOAT: dataSize = sizeof(float);
+                    break;
+  }
+  assert(dataSize>0); /* BUG */
+  return dataSize;
+}
+
+typedef long unsigned lu;
 
 #ifndef OPENMP
 // put omp workarounds in header XXX
@@ -87,29 +107,19 @@ vednn_im2colA(const float * restrict data_im, const int64_t channels,
     //OMP(parallel for if(channels>=3))//;
     OMP(parallel for if(channels>1))//;
     for (int64_t channel = 0 ; channel < channels; channel++) {         // inChannel
-      int64_t kernel_row, kernel_col, output_rows, output_cols, output_col;
-
-      int64_t inOffset = channel * channel_size;
+      int64_t const inOffset = channel * channel_size;
       int64_t outOffset = channel * output_h * output_w * kernel_h * kernel_w;
-      //mcheck_check_all();
-      //if(channel==0) { printf(" im2col stride_w=%lu channel 0: outOffset=%lu"
-      //      "omp thr %d of %d . data_col @ %p\n",
-      //      (lu)stride_w, (lu)outOffset, omp_get_thread_num(), omp_get_num_threads(),
-      //      (void*)data_col); fflush(stdout);
-      //  mcheck_check_all(); printf(" (mcheck OK)\n"); fflush(stdout);
-      //}
-
-      for (kernel_row = 0; kernel_row < kernel_h; kernel_row++) {     // kernHeight
-        for (kernel_col = 0; kernel_col < kernel_w; kernel_col++) {   // kernWidth
+      for (int64_t kernel_row = 0; kernel_row < kernel_h; kernel_row++) {     // kernHeight
+        for (int64_t kernel_col = 0; kernel_col < kernel_w; kernel_col++) {   // kernWidth
           int64_t input_row = -pad_h + kernel_row * dilation_h;
-          for (output_rows = output_h; output_rows; output_rows--) {  // outHeight
+          for (int64_t output_rows = output_h; output_rows; output_rows--) {  // outHeight
             if (input_row < 0 || input_row >= height ) {
-              for (output_col = output_w; output_col; --output_col) { // outWidth
+              for (int64_t output_col = output_w; output_col; --output_col) { // outWidth
                 data_col[outOffset++] = FZERO; //*(data_col++) = 0;
               }
             } else {
               int64_t input_col = -pad_w + kernel_col * dilation_w;
-              for (output_col = 0; output_col<output_w; ++output_col) {	// outWidth
+              for (int64_t output_col = 0; output_col<output_w; ++output_col) {	// outWidth
                 data_col[outOffset++] //*(data_col++)
                   = ( input_col >= 0 && input_col < width
                     ? data_im[inOffset + input_row * width + input_col]
@@ -163,6 +173,48 @@ vednn_im2colA(const float * restrict data_im, const int64_t channels,
   //printf(" vednn_im2colA exit..."); fflush(stdout); mcheck_check_all(); printf(" OK\n"); fflush(stdout);
   LFTRACE_END("vednn_im2colA");
   //printf(" vednn_im2colA exitB..."); fflush(stdout); mcheck_check_all(); printf(" OK\n"); fflush(stdout);
+}
+
+/** maskless specialization: kh1, a stride != 1.
+ * kh1sh1 is a "no in2col" situation. Hmmm. very little speedup? */
+  static inline void
+vednn_im2col_k1p0_strA(const float * restrict data_im, const int64_t channels,
+    const int64_t height, const int64_t width,
+    /* kernel 1x1  : const int64_t kernel_h, const int64_t kernel_w,*/
+    /* pad    == 0 : const int64_t pad_h, const int64_t pad_w,*/
+    const int64_t stride_h, const int64_t stride_w,
+    /* dilation irrelevant for 1x1 kernel : const int64_t dilation_h, const int64_t dilation_w, */
+    float * restrict data_col)
+{
+  LFTRACE_BEGIN("vednn_im2col_k1p0_strA");
+  const int64_t output_h = (height - 1) / stride_h + 1;
+  const int64_t output_w = (width  - 1) / stride_w + 1;
+  const int64_t channel_size = height * width;
+  int64_t const output_hw = output_h*output_w; // workPerChannel
+
+  //if( channels < 2*threads && channels%threads && channels*output_h > 1 )
+  if( channels < 8 && output_h > 1 )
+  {
+#pragma omp for collapse(2) // no effect of collapse(2) ?
+    for (int64_t channel = 0u ; channel < channels; ++channel) {       // inChannel
+      for(int64_t output_row = 0; output_row < output_h; ++output_row){
+        for(int64_t output_col = 0; output_col < output_w; output_col += stride_w){
+          // input_row = output_row * stride_h; input_col = output_col * stride_w;
+          data_col[channel*output_hw  + output_row          * output_w + output_col]
+            = data_im[channel*channel_size + output_row*stride_h * width    + output_col*stride_w];
+        } } }
+  }else{
+#pragma omp parallel for
+  for (int64_t channel = 0u ; channel < channels; ++channel) {       // inChannel
+    int64_t inOffset = channel * channel_size;
+    // __builtin_vprefetch( &data_im[inOffset], output_hw*sizeof(float) );
+    int64_t outOffset = channel * output_hw;
+    for(int64_t input_row = 0; input_row < output_h*stride_h; input_row += stride_h){
+      for(int64_t input_col = 0; input_col < output_w*stride_w; input_col += stride_w){
+        data_col[outOffset++] = data_im[inOffset + input_row * width + input_col];
+      } } }
+  }
+  LFTRACE_END("vednn_im2col_k1p0_strA");
 }
 
   static void
@@ -296,15 +348,33 @@ vednnConvFwd_gemmA(
 
       } else {
 
+        if( kernHeight+kernWidth==2 && padHeight+padWidth==0 && strideHeight+strideWidth>2 ){
+          LFTRACE_BEGIN("vednn_im2col_k1p0_inlA");
+          const int64_t output_h = (inHeight - 1) / strideHeight + 1;
+          const int64_t output_w = (inWidth  - 1) / strideWidth + 1;
+          const int64_t channel_size = inHeight * inWidth;
+          int64_t const workPerChannel = output_h*output_w;
+#pragma omp parallel for
+          for (int64_t channel = 0 ; channel < inChannelGroup; ++channel) {       // inChannel
+            int64_t outOffset = channel * workPerChannel;
+            for(int64_t input_row = 0; input_row < output_h*strideHeight; input_row += strideHeight){
+              for(int64_t input_col = 0; input_col < output_w*strideWidth; input_col += strideWidth){
+                pColBuff[outOffset++] = pIn[inOffset + channel*channel_size + input_row*inWidth + input_col];
+              } } }
+          LFTRACE_END("vednn_im2col_k1p0_inlA");
+
+        }else{
+
+          vednn_im2colA(&pIn[inOffset],
+              inChannelGroup, inHeight, inWidth, kernHeight, kernWidth,
+              padHeight, padWidth, strideHeight, strideWidth, dilationHeight, dilationWidth,
+              pColBuff);
+
+        }
+
         int M = outChannelGroup;
         int N = outWidth * outHeight;
         int K = inChannelGroup * kernWidth * kernHeight;
-
-        vednn_im2colA(&pIn[inOffset],
-            inChannelGroup, inHeight, inWidth, kernHeight, kernWidth,
-            padHeight, padWidth, strideHeight, strideWidth, dilationHeight, dilationWidth,
-            pColBuff);
-
 
         SGEMM(&NOTRANS, &NOTRANS, &N, &M, &K,
             &FONE, pColBuff, &N,
@@ -497,6 +567,7 @@ vednnConvolutionForward_direct_gemmA(
     ){
   size_t pColrows = pParamKernel->inChannel * pParamKernel->width * pParamKernel->height;
   size_t pColcols = pParamOut->width * pParamOut->height;
+
   // This buffer is only used for bias term
   float * restrict pOnes = nullptr;
   //float const* restrict pOnes = (float const*)
@@ -505,17 +576,11 @@ vednnConvolutionForward_direct_gemmA(
   // This buffer is used for a monolithic im2col
   // (could use a smaller buffer if im2col were done "as-needed")
   size_t const nBytes = pColrows * pColcols * getTensorDataSize(pParamIn);
+  float * restrict pColBuf = getScratch(nBytes);
+  if(!pColBuf) return VEDNN_ERROR_MEMORY_EXHAUST;
   //printf(" nBytes %lu = ic*kw*kh %lu * ow*oh %lu *%lu\n",
   //    (lu)nBytes,(lu)pColrows,(lu)pColcols,(lu)getTensorDataSize(pParamIn));
-  fflush(stdout);
-#if SCRATCHPAD==0
-  float * restrict pColBuff = (float*) malloc(nBytes);
-#else
-  //printf(" dirGemmA: scratchpad_shared!"); fflush(stdout);
-  using vednn::scratchpad::vednn_scratchpad_shared;
-  float * restrict pColBuff = (float*)(void*)
-    vednn_scratchpad_shared(nBytes);
-#endif
+  //fflush(stdout);
   //printf(" omp thr %d of %d . pColBuff[%lu] @ %p\n",omp_get_thread_num(),
   //    omp_get_num_threads(), (lu)nBytes,(void*)pColBuff); fflush(stdout);
   //mprobe(pColBuff);
@@ -526,7 +591,7 @@ vednnConvolutionForward_direct_gemmA(
       pParamKernel, pDataKernel,
       nullptr, nullptr/*avoids bias gemm call*/ ,
       pParamOut, pDataOut/*output*/,
-      pOnes, pColBuff, pParamConv );
+      pOnes, pColBuf, pParamConv );
 #if SCRATCHPAD==0
   free(pColBuff);
 #endif
@@ -551,37 +616,34 @@ vednnConvolutionForwardAddBias_direct_gemmA(
   // This buffer is only used for bias term
 #if SCRATCHPAD==0
   float * restrict pOnes = (float *) malloc(pColcols * sizeof(float)/*bytes*/);
+  if(!pOnes) return VEDNN_ERROR_MEMORY_EXHAUST;
   for(int i = 0; i < pColcols; ++i)
     pOnes[i] = 1.0f;
 #else
   using vednn::scratchpad::vednn_scratchpad_float_ones;
   float const* restrict pOnes = (float const*)
     vednn_scratchpad_float_ones(pColcols/*floats*/); // ow * oh float 1.0f
+  if(!pOnes) return VEDNN_ERROR_MEMORY_EXHAUST;
 #endif
 
   // This buffer is used for a monolithic im2col
   // (could use a smaller buffer if im2col were done "as-needed")
   size_t const nBytes = pColrows * pColcols * getTensorDataSize(pParamIn);
-  printf(" nBytes %lu = ic*kw*kh %lu * ow*oh %lu *%lu\n",
-      (lu)nBytes,(lu)pColrows,(lu)pColcols,(lu)getTensorDataSize(pParamIn));
-  fflush(stdout);
+  float * restrict const pColBuf = getScratch(nBytes);
+  if(!pColBuf) return VEDNN_ERROR_MEMORY_EXHAUST;
+  //printf(" nBytes %lu = ic*kw*kh %lu * ow*oh %lu *%lu\n",
+  //    (lu)nBytes,(lu)pColrows,(lu)pColcols,(lu)getTensorDataSize(pParamIn));
+  //fflush(stdout);
 
-#if SCRATCHPAD==0
-  float * restrict pColBuff = (float *) malloc(nBytes);
-#else
-  using vednn::scratchpad::vednn_scratchpad_shared;
-  float * restrict pColBuff = (float*)(void*)
-    vednn_scratchpad_shared(nBytes);
-#endif
   vednnError_t ret = vednnConvFwd_gemmA(
       pParamIn, pDataIn,
       pParamKernel, pDataKernel,
       pParamBias, pDataBias,
       pParamOut, pDataOut/*output*/,
-      pOnes, pColBuff, pParamConv );
+      pOnes, pColBuf, pParamConv );
 #if SCRATCHPAD==0
   free(pOnes);
-  free(pColBuff);
+  free(pColBuf);
 #endif
   return ret;
 }
@@ -601,23 +663,18 @@ vednnConvolutionBackwardFilter_direct_gemmA(
     //    const int64_t                               nOChannel
     //#endif
     ){
-  size_t pColrows = pParamGradKernel->inChannel * pParamGradKernel->width * pParamGradKernel->height;
-  size_t pColcols = pParamGradOut->width * pParamGradOut->height;
+  size_t const pColrows = pParamGradKernel->inChannel * pParamGradKernel->width * pParamGradKernel->height;
+  size_t const pColcols = pParamGradOut->width * pParamGradOut->height;
   size_t const nBytes = pColrows * pColcols * getTensorDataSize(pParamIn);
-#if SCRATCHPAD==0
-  float * restrict pColBuff  = (float*) malloc(nBytes);
-#else
-  using vednn::scratchpad::vednn_scratchpad_shared;
-  float * restrict pColBuff = (float*)(void*)
-    vednn_scratchpad_shared(nBytes);
-#endif
+  float * restrict const pColBuf = getScratch(nBytes);
+  if(!pColBuf) return VEDNN_ERROR_MEMORY_EXHAUST;
   vednnError_t ret = vednnConvBkF_gemmA(
       pParamIn, pDataIn,
       pParamGradOut, pDataGradOut,
       pParamGradKernel, pDataGradKernel/*output*/,
-      pColBuff, pParamConv );
+      pColBuf, pParamConv );
 #if SCRATCHPAD==0
-  free(pColBuff);
+  free(pColBuf);
 #endif
   return ret;
 }
@@ -633,21 +690,16 @@ vednnConvolutionBackwardData_direct_gemmA(
     void * restrict                             pDataGradIn
     )
 {
-  size_t pColrows = pParamKernel->inChannel * pParamKernel->width * pParamKernel->height;
-  size_t pColcols = pParamGradOut->width * pParamGradOut->height;
+  size_t const pColrows = pParamKernel->inChannel * pParamKernel->width * pParamKernel->height;
+  size_t const pColcols = pParamGradOut->width * pParamGradOut->height;
   size_t const nBytes = pColrows * pColcols * getTensorDataSize(pParamGradIn);
-#if SCRATCHPAD==0
-  float * restrict pColBuff = (float*) malloc(nBytes);
-#else
-  using vednn::scratchpad::vednn_scratchpad_shared;
-  float * restrict pColBuff = (float*)(void*)
-    vednn_scratchpad_shared(nBytes);
-#endif
+  float * restrict const pColBuf = getScratch(nBytes);
+  if(!pColBuf) return VEDNN_ERROR_MEMORY_EXHAUST;
   vednnError_t ret =  vednnConvBkD_gemmA(
       pParamGradOut, pDataGradOut,
       pParamKernel, pDataKernel,
       pParamGradIn, pDataGradIn/*output*/,
-      pColBuff, pParamConv );
+      pColBuf, pParamConv );
 #if SCRATCHPAD==0
   free(pColBuff);
 #endif

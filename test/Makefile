@@ -550,8 +550,8 @@ convolution_gemm.o: convolution_gemm-ncc.s
 	$(CC) $(CFLAGS) -o $@ -c $<
 convolution_gemm-clang.s: convolution_gemm.c
 	$(CLANG) $(CLANG_FLAGS) -o $@ -S $<
-convolution_gemm-ncc.s: convolution_gemm.c
-	$(CJIT_CC) -std=gnu11 -O3 \
+convolution_gemm-ncc.s: convolution_gemm.c force
+	$(CJIT_CC) -std=gnu11 -O4 \
 		-report-all -Wall \
 		-fcse-after-vectorization -msched-block \
 		-o $@ -S $<
@@ -656,7 +656,7 @@ jitconv-dev: jitconv.o d1s1pSB.o $(CONVGEMM).o libcjitConv-ve.so vednn_helper.o 
 		-l${LIBJIT} -o $@ \
 		${LDLIBS} -ldl
 resnext-t%.log: jitconv
-	{ cmd='./jitconv -k -t $* -S resnext -M params/conv/resnext2.txt'; rm -f ftrace.out \
+	{ cmd='./jitconv -t $* -r 10 -S resnext -M params/conv/resnext2.txt'; rm -f ftrace.out \
 	       echo "$$cmd"; time $$cmd; status=$$?; ftrace || true; } >& resnext-t$*.log; \
 	       if [ "$${status}" != "0" ]; then echo "$@ FAILED"; fi; \
 	       [ "$${status}" == "0" ];

@@ -72,10 +72,10 @@ void vednn_init_global_scratchpads(){
      * At library init, we bumps the (thread-local) ref count,
      * so we re-use shared scratchpad allocations until
      * end-of-process. */
-    vednn_init_scratchpad_shared((1UL<<18)/*bytes*/);
+    vednn_init_scratchpad_shared((0)/*bytes*/); // 1U<<18 ?
     vednn_init_scratchpadTLS(0/*bytes*/);
     /** re-usable \e const buffer of 1.0f values. */
-    vednn_init_scratchpad_float_ones(4096/*floats*/);
+    vednn_init_scratchpad_float_ones(0/*floats*/); // 4096U ?
 }
 
 /** process scratchpad destroy. */
