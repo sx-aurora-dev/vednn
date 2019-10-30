@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.0)
 
 add_library(vednn_intrinsic_convolution_backward_filter OBJECT
-    direct_default.c
+    direct_default.cc
     direct_dil1_pad0.cc
     direct_dil1_pad0_owU32.cc
     direct_dil1_pad0_ker1.c
@@ -22,7 +22,7 @@ add_library(vednn_intrinsic_convolution_backward_filter OBJECT
     direct_dil1_str1_padsame_ker2_owU128.c
     direct_dil1_str2_pad1_ker3_owU128.cc
 	direct_ker3_owU128.c
-	direct_owU128.c
+	direct_owU128.cc
 	direct_vecC.c
 )
 # vim: sw=4 ts=4 et ai

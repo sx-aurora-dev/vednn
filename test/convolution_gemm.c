@@ -398,11 +398,24 @@ convolution_backward_filter_gemm(
     int inChannelGroup	= inChannel  / group;	// pParamKernel->inChannel と同じ
     int outChannelGroup	= outChannel / group;	// pParamKernel->outChannel と同じ
 
+    int no_im2col = (kernWidth == 1 && kernHeight == 1 && strideWidth == 1 && strideHeight == 1 && padWidth == 0 && padHeight == 0);
+
+    float * transformed_filter = NULL ;
+    if( pParamGradKernel->layout == VEDNN_FILTER_LAYOUT_HWCN ) { // only support group=1
+      const int N = outChannel ;
+      const int C = inChannel ;
+      const int H = kernHeight ;
+      const int W = kernWidth ;
+
+      transformed_filter = (float *) malloc(sizeof(float)*N*C*H*W) ;
+#pragma omp parallel for
+      for(int i=0; i<N*C*H*W; i++) transformed_filter[i] = 0.f ;
+    }
+
     const float * restrict pIn     = pDataIn;
     const float * restrict pOut    = pDataGradOut;
-          float * restrict pKernel = pDataGradKernel ;
+          float * restrict pKernel = transformed_filter == NULL ? pDataGradKernel : transformed_filter ;
 
-    int no_im2col = (kernWidth == 1 && kernHeight == 1 && strideWidth == 1 && strideHeight == 1 && padWidth == 0 && padHeight == 0);
 
     for (n = 0; n < batch; n++) { // this->num_
         int inBatchOffset  = n * inChannel  * inWidth  * inHeight;
@@ -443,6 +456,26 @@ convolution_backward_filter_gemm(
             }
         } // group
     } // batch
+
+    if( transformed_filter != NULL ) {
+      const int N = outChannel ;
+      const int C = inChannel ;
+      const int H = kernHeight ;
+      const int W = kernWidth ;
+
+      float * filter = (float *) pDataGradKernel ;
+#pragma omp parallel for
+      for(int n=0; n<N ; n++) {
+        for(int c=0; c<C ; c++) {
+          for(int hw=0; hw<H*W ; hw++) {
+            filter[((hw)*C+c)*N+n] += transformed_filter[((n*C+c)*H)*W+hw] ;
+          }
+        }
+      }
+
+      free(transformed_filter) ;
+    }
+
     LFTRACE_END("convolution_backward_filter_gemm");
     return VEDNN_SUCCESS;
 }
