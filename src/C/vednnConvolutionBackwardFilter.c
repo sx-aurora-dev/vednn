@@ -64,15 +64,10 @@ vednnError_t vednnConvolutionBackwardFilter(
     case VEDNN_FILTER_LAYOUT_NCHW :
       break ;
     case VEDNN_FILTER_LAYOUT_HWCN :
-#if 0
       if( pParamConv->group > 1 ) {
         fprintf(stderr, "[VEDNN ERROR] VEDNN does not support grouped convolution with filter_hwcn\n") ;
         return VEDNN_ERROR_INVALID_PARAM ;
       }
-#else
-      fprintf(stderr, "[VEDNN ERROR] Sorry. Now implementing ConvBackwardFilter(filter_hwcn)\n") ;
-      return VEDNN_ERROR_INVALID_PARAM ;
-#endif
       break ;
     default :
       fprintf(stderr, "[VEDNN ERROR] Unknown Filter Layout %d\n", pParamGradKernel->layout) ;
@@ -160,16 +155,10 @@ vednnError_t vednnConvolutionBackwardFilter(
       	&& pParamConv->dilationHeight == 1 && pParamConv->dilationWidth == 1
       	&& pParamConv->padHeight == 1 && pParamConv->padWidth == 1 )
       {
-	return vednnConvolutionBackwardFilter_wrapper(
-	    vednnConvolutionBackwardFilter_direct_dil1_str2_pad1_ker3_owU128,
-	    pParamIn, pDataIn, pParamGradOut, pDataGradOut,
-	    pParamConv, pParamGradKernel, pDataGradKernel );
+	OMPWRAP(dil1_str2_pad1_ker3_owU128) ;
       }
       else {
-	return vednnConvolutionBackwardFilter_wrapper(
-	    vednnConvolutionBackwardFilter_direct_ker3_owU128,
-	    pParamIn, pDataIn, pParamGradOut, pDataGradOut,
-	    pParamConv, pParamGradKernel, pDataGradKernel );
+	OMPWRAP(ker3_owU128) ;
       }
     }
     else {
