@@ -81,7 +81,7 @@ vednnError_t vednnConvolutionBackwardFilter(
     // [todo] add variations
     if ( pParamGradOut->height * pParamGradOut->width <= 16 ||
         ( pParamGradOut->height * pParamGradOut->width < 64
-          && pParamGradOut->height * pParamGradOut->width < pParamIn->channel)  ) {
+          && pParamGradOut->height * pParamGradOut->width < pParamIn->channel / pParamConv->group )  ) {
       OMPWRAP(vecC);
     }else if (pParamConv->strideHeight == 1 && pParamConv->strideWidth == 1
         && pParamConv->dilationHeight == 1 && pParamConv->dilationWidth == 1
