@@ -6,7 +6,7 @@
 #include "velintrin.h"
 #define VLEN	(256)
 
-template<filterLayout_t FLAYOUT, int NUMKERNEL, int R, int S>
+template<filterLayout_t FLAYOUT, int NUMKERNEL>
 static inline void func(
     const float * __restrict__ pIn,
     const float * __restrict__ pGOut,
@@ -21,6 +21,10 @@ static inline void func(
     const int64_t gKernHeight,
     const int64_t strideWidth,
     const int64_t strideHeight,
+    const int64_t padWidth,
+    const int64_t padHeight,
+    const int64_t dilationWidth,
+    const int64_t dilationHeight,
     const int64_t inChannelGroup,
     const int64_t gOutChannelGroup,
     const int64_t inGroupOffset,
@@ -29,284 +33,101 @@ static inline void func(
     const int64_t batch,
     const int64_t k,
     const int64_t nY,
-    const __vr vrij,
-    const int64_t r,
-    const int64_t s
+    const __vr vri,
+    const __vr vrj
 )
 {
   const int64_t remain  = NUMKERNEL & 0x1 ;
   const int64_t nPacked = NUMKERNEL >> 1 ;
 
   for (int64_t c=0; c<inChannelGroup; c++) {
+    for (int64_t r=0; r<gKernHeight; r++) {
+      for (int64_t s=0; s<gKernWidth; s++) {
 
-    __vr vrsum0[R*S] ;
-    __vr vrsum[nPacked*R*S] ;
-#pragma clang loop unroll(full)
-    for(int64_t rs=0; rs<R*S; rs++) {
-      vrsum0[rs] = _vel_vbrds_vsl(0.f, VLEN) ;
-#pragma clang loop unroll(full)
-      for(int64_t kk=0; kk<nPacked; kk++) {
-	vrsum[kk*R*S+rs] = _vel_pvbrd_vsl(0UL, VLEN) ;
-      }
-    }
-
-    for (int64_t n=0; n<batch; n++) {
-      for (int64_t y=0; y<gOutHeight; y+=nY) {
-
-	const int64_t vl = gOutWidth * (gOutHeight - y < nY ? gOutHeight - y : nY) ;
-
-	const float *pInChannel = pIn + inGroupOffset + ((n * inChannel + c) * inHeight * inWidth ) ;
-
-	const int64_t outIndex = gOutGroupOffset + ((n * gOutChannel + k) * gOutHeight + y) * gOutWidth  ;
-
-
-	__vr vrin[R*S] ;
-#pragma clang loop unroll(full)
-	for(int64_t rr=0; rr<R; rr++) {
-#pragma clang loop unroll(full)
-	  for(int64_t ss=0; ss<S; ss++) {
-	    __vr vrpin = _vel_vsfa_vvssl(vrij,2,(int64_t)(pInChannel+(y*strideHeight+r+rr)*inWidth+s+ss), vl) ;
-	    vrin[rr*S+ss] = _vel_vgtu_vvssl(vrpin, 0, 0, vl) ;
-	  }
-	}
-
-	if( nPacked > 0 ) {
-#pragma clang loop unroll(full)
-	  for(int64_t rr=0; rr<R; rr++) {
-#pragma clang loop unroll(full)
-	    for(int64_t ss=0; ss<S; ss++) {
-	      vrin[rr*S+ss] = _vel_vshf_vvvsl(vrin[rr*S+ss], vrin[rr*S+ss], VE_VSHUFFLE_YUZU, vl) ;
-	    }
-	  }
-	}
-
-	__vr vrgout[NUMKERNEL] ;
-#pragma clang loop unroll(full)
-	for(int64_t kk=0; kk<NUMKERNEL; kk++) {
-	  vrgout[kk] = _vel_vldu_vssl(4, pGOut+outIndex+kk*gOutHeight*gOutWidth, vl) ;
-	}
-
-	__vr vrgoutp[NUMKERNEL]  ;
+	__vr vrsum0  = _vel_vbrds_vsl(0.f, VLEN) ;
+	__vr vrsum[nPacked] ;
 #pragma clang loop unroll(full)
 	for(int64_t kk=0; kk<nPacked; kk++) {
-	  vrgoutp[kk] = _vel_vshf_vvvsl(vrgout[2*kk+remain], vrgout[2*kk+remain+1], VE_VSHUFFLE_YUZU, vl) ;
+	  vrsum[kk] = _vel_pvbrd_vsl(0UL, VLEN) ;
 	}
 
+	for (int64_t n=0; n<batch; n++) {
+	  for (int64_t y=0; y<gOutHeight; y+=nY) {
+
+	    const int64_t vl = gOutWidth * (gOutHeight - y < nY ? gOutHeight - y : nY) ;
+	    const int64_t gop = y * gOutWidth ;
+
+	    __vr vrh = _vel_vaddsl_vsvl(r*dilationHeight-padHeight+y*strideHeight, vri, vl) ;
+	    __vr vrw = _vel_vaddsl_vsvl(s*dilationWidth-padWidth,  vrj, vl) ;
+
+	    __vm256 vmh0 =  _vel_vfmklge_mvl(vrh, vl) ;				// condition(0 <= h)
+	    __vm256 vmh1 =  _vel_vfmklgt_mvl(_vel_vcmpsl_vsvl(inHeight,vrh, vl), vl) ;	// condition(h < inHeight)
+	    __vm256 vmw0 =  _vel_vfmklge_mvl(vrw, vl) ;				// condition(0 <= w)
+	    __vm256 vmw1 =  _vel_vfmklgt_mvl(_vel_vcmpsl_vsvl(inWidth,vrw, vl), vl) ;	// condition(w < inWidth)
+
+	    __vm256 vmh  = _vel_andm_mmm(vmh0, vmh1) ;
+	    __vm256 vmw  = _vel_andm_mmm(vmw0, vmw1) ;
+	    __vm256 vmall = _vel_andm_mmm(vmh, vmw) ;
+
+	    const float *pInChannel = pIn + inGroupOffset + ((n * inChannel + c) * inHeight * inWidth ) ;
+
+	    const int64_t outIndex = gOutGroupOffset + ((n * gOutChannel + k) * gOutHeight + y) * gOutWidth ;
+
+	    __vr vrpin = _vel_vsfa_vvssl(_vel_vaddul_vvvl(vrw, _vel_vmulul_vsvl(inWidth,vrh, vl), vl),
+				       2,
+				       (uint64_t)pInChannel, vl) ;
+
+	    __vr vrin = _vel_vgtu_vvssml(vrpin, 0, 0, vmall, vl) ;
+	    vrin = _vel_vmrg_vvvml(_vel_vbrds_vsl(0.0f, vl), vrin, vmall, vl) ;
+
+	    __vr vrinP = _vel_vshf_vvvsl(vrin, vrin, VE_VSHUFFLE_YUZU, vl) ;
+
+	    __vr vrgout[NUMKERNEL] ;
 #pragma clang loop unroll(full)
-	for(int64_t rs=0; rs<R*S; rs++) {
-	  if( remain ) {
-	    vrsum0[rs]  = _vel_vfmads_vvvvvl(vrsum0[rs], vrin[rs], vrgout[0], vrsum0[rs], vl) ;
-	  }
+	    for(int64_t kk=0; kk<NUMKERNEL; kk++) {
+	      vrgout[kk] = _vel_vldu_vssl(4, pGOut+outIndex+kk*gOutHeight*gOutWidth, vl) ;
+	    }
+
+	    __vr vrgoutp[NUMKERNEL]  ;
 #pragma clang loop unroll(full)
-	  for(int64_t kk=0; kk<nPacked; kk++) {
-	    vrsum[kk*R*S+rs] = _vel_pvfmad_vvvvvl(vrsum[kk*R*S+rs], vrin[rs], vrgoutp[kk], vrsum[kk*R*S+rs], vl) ;
-	  }
-	}
-      } // gOutHeight
-    } // batch
+	    for(int64_t kk=0; kk<nPacked; kk++) {
+	      vrgoutp[kk] = _vel_vshf_vvvsl(vrgout[2*kk+remain], vrgout[2*kk+remain+1], VE_VSHUFFLE_YUZU, vl) ;
+	    }
+
+	    if( remain ) {
+	      vrsum0  = _vel_vfmads_vvvvvl(vrsum0, vrin, vrgout[0], vrsum0, vl) ;
+	    }
+#pragma clang loop unroll(full)
+	    for(int64_t kk=0; kk<nPacked; kk++) {
+	      vrsum[kk] = _vel_pvfmad_vvvvvl(vrsum[kk], vrinP, vrgoutp[kk], vrsum[kk], vl) ;
+	    }
+
+	  } // gOutPixels
+	} // batch
 
 #define FILTER_OFFSET(k,c,r,s) ( gKernGroupOffset + filter_index<FLAYOUT>(k,c,r,s, inChannelGroup, gOutChannelGroup, gKernHeight, gKernWidth) )
 
-#pragma clang loop unroll(full)
-    for(int64_t rr=0; rr<R; rr++) {
-#pragma clang loop unroll(full)
-      for(int64_t ss=0; ss<S; ss++) {
-	int64_t rs = rr*S+ss ;
 	if( remain ) {
-	  vrsum0[rs] = _vel_vfsums_vvl(vrsum0[rs], VLEN) ;
-	  _vel_vstu_vssl(vrsum0[rs], 4, pGKernel+FILTER_OFFSET(k+0,c,r+rr,s+ss), 1) ;
+	  vrsum0 = _vel_vfsums_vvl(vrsum0, VLEN) ;
+	  _vel_vstu_vssl(vrsum0, 4, pGKernel+FILTER_OFFSET(k+0,c,r,s), 1) ;
 	}
 
 #pragma clang loop unroll(full)
 	for(int64_t kk=0; kk<nPacked; kk++) {
-	  __vr vrsumU = _vel_vfsums_vvl(vrsum[kk*R*S+rs], VLEN) ;
-	  _vel_vstu_vssl(vrsumU, 4, pGKernel + FILTER_OFFSET(k+2*kk+remain,  c,r+rr,s+ss), 1) ;
-	  __vr vrsumL = _vel_vfsums_vvl(_vel_vsll_vvsl(vrsum[kk*R*S+rs],32, VLEN), VLEN);
-	  _vel_vstu_vssl(vrsumL, 4, pGKernel + FILTER_OFFSET(k+2*kk+remain+1,c,r+rr,s+ss), 1) ;
+	  __vr vrsumU = _vel_vfsums_vvl(vrsum[kk], VLEN) ;
+	  _vel_vstu_vssl(vrsumU, 4, pGKernel + FILTER_OFFSET(k+2*kk+remain,  c,r,s), 1) ;
+	  __vr vrsumL = _vel_vfsums_vvl(_vel_vsll_vvsl(vrsum[kk],32, VLEN), VLEN);
+	  _vel_vstu_vssl(vrsumL, 4, pGKernel + FILTER_OFFSET(k+2*kk+remain+1,c,r,s), 1) ;
 	}
-      }
-    }
 
 #undef FILTER_OFFSET
+
+      } // kernWidth
+    } // kernHeight
   } // inChannel
+
 }
 
-template<filterLayout_t FLAYOUT, int NUMKERNEL>
-static inline void RSLoop(
-    const float * __restrict__ pIn,
-    const float * __restrict__ pGOut,
-    float * __restrict__ const pGKernel,
-    const int64_t gOutChannel,
-    const int64_t gOutWidth,
-    const int64_t gOutHeight,
-    const int64_t inChannel,
-    const int64_t inWidth,
-    const int64_t inHeight,
-    const int64_t gKernWidth,
-    const int64_t gKernHeight,
-    const int64_t strideWidth,
-    const int64_t strideHeight,
-    const int64_t inChannelGroup,
-    const int64_t gOutChannelGroup,
-    const int64_t inGroupOffset,
-    const int64_t gOutGroupOffset,
-    const int64_t gKernGroupOffset,
-    const int64_t batch,
-    const int64_t k,
-    const int64_t nY,
-    const __vr vrij )
-{
-  int64_t r = 0;
-
-  switch(gKernHeight % 3) {
-  case 1 :
-    {
-      int64_t s = 0;
-      switch( gKernWidth % 3 ) {
-      case 1 :
-	func<FLAYOUT, NUMKERNEL, 1, 1>(pIn, pGOut, pGKernel,
-	   gOutChannel, gOutWidth, gOutHeight,
-	   inChannel, inWidth, inHeight,
-	   gKernWidth, gKernHeight,
-	   strideWidth, strideHeight,
-	   inChannelGroup, gOutChannelGroup,
-	   inGroupOffset, gOutGroupOffset, gKernGroupOffset,
-	   batch, k,
-	   nY, vrij,
-	   r, s) ;
-	s+=1 ;
-	break ;
-      case 2 :
-	func<FLAYOUT, NUMKERNEL, 1, 2>(pIn, pGOut, pGKernel,
-	   gOutChannel, gOutWidth, gOutHeight,
-	   inChannel, inWidth, inHeight,
-	   gKernWidth, gKernHeight,
-	   strideWidth, strideHeight,
-	   inChannelGroup, gOutChannelGroup,
-	   inGroupOffset, gOutGroupOffset, gKernGroupOffset,
-	   batch, k,
-	   nY, vrij,
-	   r, s) ;
-
-	s+=2 ;
-	break ;
-      default : ;
-      }
-      for (; s<gKernWidth; s+=3) {
-	func<FLAYOUT, NUMKERNEL, 1, 3>(pIn, pGOut, pGKernel,
-	   gOutChannel, gOutWidth, gOutHeight,
-	   inChannel, inWidth, inHeight,
-	   gKernWidth, gKernHeight,
-	   strideWidth, strideHeight,
-	   inChannelGroup, gOutChannelGroup,
-	   inGroupOffset, gOutGroupOffset, gKernGroupOffset,
-	   batch, k,
-	   nY, vrij,
-	   r, s) ;
-
-      }
-      r+=1 ;
-    }
-    break ;
-  case 2 :
-    {
-      int64_t s = 0;
-      switch( gKernWidth % 3 ) {
-      case 1 :
-	func<FLAYOUT, NUMKERNEL, 2, 1>(pIn, pGOut, pGKernel,
-	   gOutChannel, gOutWidth, gOutHeight,
-	   inChannel, inWidth, inHeight,
-	   gKernWidth, gKernHeight,
-	   strideWidth, strideHeight,
-	   inChannelGroup, gOutChannelGroup,
-	   inGroupOffset, gOutGroupOffset, gKernGroupOffset,
-	   batch, k,
-	   nY, vrij,
-	   r, s) ;
-
-	s+=1 ;
-	break ;
-      case 2 :
-	func<FLAYOUT, NUMKERNEL, 2, 2>(pIn, pGOut, pGKernel,
-	   gOutChannel, gOutWidth, gOutHeight,
-	   inChannel, inWidth, inHeight,
-	   gKernWidth, gKernHeight,
-	   strideWidth, strideHeight,
-	   inChannelGroup, gOutChannelGroup,
-	   inGroupOffset, gOutGroupOffset, gKernGroupOffset,
-	   batch, k,
-	   nY, vrij,
-	   r, s) ;
-
-	s+=2 ;
-	break ;
-      default : ;
-      }
-      for (; s<gKernWidth; s+=3) {
-	func<FLAYOUT, NUMKERNEL, 2, 3>(pIn, pGOut, pGKernel,
-	   gOutChannel, gOutWidth, gOutHeight,
-	   inChannel, inWidth, inHeight,
-	   gKernWidth, gKernHeight,
-	   strideWidth, strideHeight,
-	   inChannelGroup, gOutChannelGroup,
-	   inGroupOffset, gOutGroupOffset, gKernGroupOffset,
-	   batch, k,
-	   nY, vrij,
-	   r, s) ;
-
-      }
-      r+=2 ;
-    }
-    break ;
-  default :
-    break ;
-  }
-  for(; r<gKernHeight; r+=3) {
-    int64_t s = 0;
-    switch( gKernWidth % 3 ) {
-    case 1 :
-      func<FLAYOUT, NUMKERNEL, 3, 1>(pIn, pGOut, pGKernel,
-	 gOutChannel, gOutWidth, gOutHeight,
-	 inChannel, inWidth, inHeight,
-	 gKernWidth, gKernHeight,
-	 strideWidth, strideHeight,
-	 inChannelGroup, gOutChannelGroup,
-	 inGroupOffset, gOutGroupOffset, gKernGroupOffset,
-	 batch, k,
-	 nY, vrij,
-	 r, s) ;
-
-      s+=1 ;
-      break ;
-    case 2 :
-      func<FLAYOUT, NUMKERNEL, 3, 2>(pIn, pGOut, pGKernel,
-	 gOutChannel, gOutWidth, gOutHeight,
-	 inChannel, inWidth, inHeight,
-	 gKernWidth, gKernHeight,
-	 strideWidth, strideHeight,
-	 inChannelGroup, gOutChannelGroup,
-	 inGroupOffset, gOutGroupOffset, gKernGroupOffset,
-	 batch, k,
-	 nY, vrij,
-	 r, s) ;
-      s+=2 ;
-      break ;
-    default : ;
-    }
-    for (; s<gKernWidth; s+=3) {
-      func<FLAYOUT, NUMKERNEL, 3, 3>(pIn, pGOut, pGKernel,
-	 gOutChannel, gOutWidth, gOutHeight,
-	 inChannel, inWidth, inHeight,
-	 gKernWidth, gKernHeight,
-	 strideWidth, strideHeight,
-	 inChannelGroup, gOutChannelGroup,
-	 inGroupOffset, gOutGroupOffset, gKernGroupOffset,
-	 batch, k,
-	 nY, vrij,
-	 r, s) ;
-    }
-  }
-}
 
 template<filterLayout_t FLAYOUT>
 static inline void convloop(
@@ -342,123 +163,249 @@ static inline void convloop(
   __vr vrx  = _vel_vsubsl_vvvl(vrseq, _vel_vmulul_vsvl(gOutWidth,vry, nY*gOutWidth), nY*gOutWidth) ;
   __vr vri  = _vel_vmulsl_vsvl(strideHeight, vry, nY*gOutWidth) ;
   __vr vrj  = _vel_vmulsl_vsvl(strideWidth,  vrx, nY*gOutWidth) ;
-  __vr vrij = _vel_vaddul_vvvl(vrj, _vel_vmulul_vsvl(inWidth,vri, nY*gOutWidth), nY*gOutWidth) ;
 
   for (int64_t g = 0; g < group; g++) {
     int64_t inGroupOffset    = g * inChannelGroup  * inHeight  * inWidth;
     int64_t gOutGroupOffset  = g * gOutChannelGroup * gOutHeight * gOutWidth;
     int64_t gKernGroupOffset = g * gOutChannelGroup * inChannelGroup * gKernHeight * gKernWidth;
 
-    const int64_t remain = nOChannel & 0x7 ;
-
+    const int64_t remain = nOChannel & 0xf ;
 
     int64_t k=0;
     switch(remain) {
     case 1:
-      RSLoop<FLAYOUT, 1>(pIn, pGOut, pGKernel,
+      func<FLAYOUT, 1>(pIn, pGOut, pGKernel,
 	 gOutChannel, gOutWidth, gOutHeight,
 	 inChannel, inWidth, inHeight,
 	 gKernWidth, gKernHeight,
 	 strideWidth, strideHeight,
+	 padWidth, padHeight,
+	 dilationWidth, dilationHeight,
 	 inChannelGroup, gOutChannelGroup,
 	 inGroupOffset, gOutGroupOffset, gKernGroupOffset,
 	 batch, beginOChannel + k,
-	 nY, vrij ) ;
+	 nY, vri, vrj ) ;
       k+=1 ;
       break ;
     case 2:
-      RSLoop<FLAYOUT, 2>(pIn, pGOut, pGKernel,
+      func<FLAYOUT, 2>(pIn, pGOut, pGKernel,
 	 gOutChannel, gOutWidth, gOutHeight,
 	 inChannel, inWidth, inHeight,
 	 gKernWidth, gKernHeight,
 	 strideWidth, strideHeight,
+	 padWidth, padHeight,
+	 dilationWidth, dilationHeight,
 	 inChannelGroup, gOutChannelGroup,
 	 inGroupOffset, gOutGroupOffset, gKernGroupOffset,
 	 batch, beginOChannel + k,
-	 nY, vrij ) ;
+	 nY, vri, vrj ) ;
       k+=2 ;
       break ;
     case 3:
-      RSLoop<FLAYOUT, 3>(pIn, pGOut, pGKernel,
+      func<FLAYOUT, 3>(pIn, pGOut, pGKernel,
 	 gOutChannel, gOutWidth, gOutHeight,
 	 inChannel, inWidth, inHeight,
 	 gKernWidth, gKernHeight,
 	 strideWidth, strideHeight,
+	 padWidth, padHeight,
+	 dilationWidth, dilationHeight,
 	 inChannelGroup, gOutChannelGroup,
 	 inGroupOffset, gOutGroupOffset, gKernGroupOffset,
 	 batch, beginOChannel + k,
-	 nY, vrij ) ;
+	 nY, vri, vrj ) ;
       k+=3 ;
       break ;
     case 4:
-      RSLoop<FLAYOUT, 4>(pIn, pGOut, pGKernel,
+      func<FLAYOUT, 4>(pIn, pGOut, pGKernel,
 	 gOutChannel, gOutWidth, gOutHeight,
 	 inChannel, inWidth, inHeight,
 	 gKernWidth, gKernHeight,
 	 strideWidth, strideHeight,
+	 padWidth, padHeight,
+	 dilationWidth, dilationHeight,
 	 inChannelGroup, gOutChannelGroup,
 	 inGroupOffset, gOutGroupOffset, gKernGroupOffset,
 	 batch, beginOChannel + k,
-	 nY, vrij ) ;
+	 nY, vri, vrj ) ;
       k+=4 ;
       break ;
     case 5:
-      RSLoop<FLAYOUT, 5>(pIn, pGOut, pGKernel,
+      func<FLAYOUT, 5>(pIn, pGOut, pGKernel,
 	 gOutChannel, gOutWidth, gOutHeight,
 	 inChannel, inWidth, inHeight,
 	 gKernWidth, gKernHeight,
 	 strideWidth, strideHeight,
+	 padWidth, padHeight,
+	 dilationWidth, dilationHeight,
 	 inChannelGroup, gOutChannelGroup,
 	 inGroupOffset, gOutGroupOffset, gKernGroupOffset,
 	 batch, beginOChannel + k,
-	 nY, vrij ) ;
+	 nY, vri, vrj ) ;
       k+=5 ;
       break ;
     case 6:
-      RSLoop<FLAYOUT, 6>(pIn, pGOut, pGKernel,
+      func<FLAYOUT, 6>(pIn, pGOut, pGKernel,
 	 gOutChannel, gOutWidth, gOutHeight,
 	 inChannel, inWidth, inHeight,
 	 gKernWidth, gKernHeight,
 	 strideWidth, strideHeight,
+	 padWidth, padHeight,
+	 dilationWidth, dilationHeight,
 	 inChannelGroup, gOutChannelGroup,
 	 inGroupOffset, gOutGroupOffset, gKernGroupOffset,
 	 batch, beginOChannel + k,
-	 nY, vrij ) ;
+	 nY, vri, vrj ) ;
       k+=6 ;
       break ;
     case 7:
-      RSLoop<FLAYOUT, 7>(pIn, pGOut, pGKernel,
+      func<FLAYOUT, 7>(pIn, pGOut, pGKernel,
 	 gOutChannel, gOutWidth, gOutHeight,
 	 inChannel, inWidth, inHeight,
 	 gKernWidth, gKernHeight,
 	 strideWidth, strideHeight,
+	 padWidth, padHeight,
+	 dilationWidth, dilationHeight,
 	 inChannelGroup, gOutChannelGroup,
 	 inGroupOffset, gOutGroupOffset, gKernGroupOffset,
 	 batch, beginOChannel + k,
-	 nY, vrij ) ;
+	 nY, vri, vrj ) ;
       k+=7 ;
+      break ;
+    case 8:
+      func<FLAYOUT, 8>(pIn, pGOut, pGKernel,
+	 gOutChannel, gOutWidth, gOutHeight,
+	 inChannel, inWidth, inHeight,
+	 gKernWidth, gKernHeight,
+	 strideWidth, strideHeight,
+	 padWidth, padHeight,
+	 dilationWidth, dilationHeight,
+	 inChannelGroup, gOutChannelGroup,
+	 inGroupOffset, gOutGroupOffset, gKernGroupOffset,
+	 batch, beginOChannel + k,
+	 nY, vri, vrj ) ;
+      k+=8 ;
+      break ;
+    case 9:
+      func<FLAYOUT, 9>(pIn, pGOut, pGKernel,
+	 gOutChannel, gOutWidth, gOutHeight,
+	 inChannel, inWidth, inHeight,
+	 gKernWidth, gKernHeight,
+	 strideWidth, strideHeight,
+	 padWidth, padHeight,
+	 dilationWidth, dilationHeight,
+	 inChannelGroup, gOutChannelGroup,
+	 inGroupOffset, gOutGroupOffset, gKernGroupOffset,
+	 batch, beginOChannel + k,
+	 nY, vri, vrj ) ;
+      k+=9 ;
+      break ;
+    case 10:
+      func<FLAYOUT, 10>(pIn, pGOut, pGKernel,
+	 gOutChannel, gOutWidth, gOutHeight,
+	 inChannel, inWidth, inHeight,
+	 gKernWidth, gKernHeight,
+	 strideWidth, strideHeight,
+	 padWidth, padHeight,
+	 dilationWidth, dilationHeight,
+	 inChannelGroup, gOutChannelGroup,
+	 inGroupOffset, gOutGroupOffset, gKernGroupOffset,
+	 batch, beginOChannel + k,
+	 nY, vri, vrj ) ;
+      k+=10 ;
+      break ;
+    case 11:
+      func<FLAYOUT, 11>(pIn, pGOut, pGKernel,
+	 gOutChannel, gOutWidth, gOutHeight,
+	 inChannel, inWidth, inHeight,
+	 gKernWidth, gKernHeight,
+	 strideWidth, strideHeight,
+	 padWidth, padHeight,
+	 dilationWidth, dilationHeight,
+	 inChannelGroup, gOutChannelGroup,
+	 inGroupOffset, gOutGroupOffset, gKernGroupOffset,
+	 batch, beginOChannel + k,
+	 nY, vri, vrj ) ;
+      k+=11 ;
+      break ;
+    case 12:
+      func<FLAYOUT, 12>(pIn, pGOut, pGKernel,
+	 gOutChannel, gOutWidth, gOutHeight,
+	 inChannel, inWidth, inHeight,
+	 gKernWidth, gKernHeight,
+	 strideWidth, strideHeight,
+	 padWidth, padHeight,
+	 dilationWidth, dilationHeight,
+	 inChannelGroup, gOutChannelGroup,
+	 inGroupOffset, gOutGroupOffset, gKernGroupOffset,
+	 batch, beginOChannel + k,
+	 nY, vri, vrj ) ;
+      k+=12 ;
+      break ;
+    case 13:
+      func<FLAYOUT, 13>(pIn, pGOut, pGKernel,
+	 gOutChannel, gOutWidth, gOutHeight,
+	 inChannel, inWidth, inHeight,
+	 gKernWidth, gKernHeight,
+	 strideWidth, strideHeight,
+	 padWidth, padHeight,
+	 dilationWidth, dilationHeight,
+	 inChannelGroup, gOutChannelGroup,
+	 inGroupOffset, gOutGroupOffset, gKernGroupOffset,
+	 batch, beginOChannel + k,
+	 nY, vri, vrj ) ;
+      k+=13 ;
+      break ;
+    case 14:
+      func<FLAYOUT, 14>(pIn, pGOut, pGKernel,
+	 gOutChannel, gOutWidth, gOutHeight,
+	 inChannel, inWidth, inHeight,
+	 gKernWidth, gKernHeight,
+	 strideWidth, strideHeight,
+	 padWidth, padHeight,
+	 dilationWidth, dilationHeight,
+	 inChannelGroup, gOutChannelGroup,
+	 inGroupOffset, gOutGroupOffset, gKernGroupOffset,
+	 batch, beginOChannel + k,
+	 nY, vri, vrj ) ;
+      k+=14 ;
+      break ;
+    case 15:
+      func<FLAYOUT, 15>(pIn, pGOut, pGKernel,
+	 gOutChannel, gOutWidth, gOutHeight,
+	 inChannel, inWidth, inHeight,
+	 gKernWidth, gKernHeight,
+	 strideWidth, strideHeight,
+	 padWidth, padHeight,
+	 dilationWidth, dilationHeight,
+	 inChannelGroup, gOutChannelGroup,
+	 inGroupOffset, gOutGroupOffset, gKernGroupOffset,
+	 batch, beginOChannel + k,
+	 nY, vri, vrj ) ;
+      k+=15 ;
       break ;
     default :
       break ;
     }
     for (; k<nOChannel; ) {
-      RSLoop<FLAYOUT, 8>(pIn, pGOut, pGKernel,
+      func<FLAYOUT, 16>(pIn, pGOut, pGKernel,
 	 gOutChannel, gOutWidth, gOutHeight,
 	 inChannel, inWidth, inHeight,
 	 gKernWidth, gKernHeight,
 	 strideWidth, strideHeight,
+	 padWidth, padHeight,
+	 dilationWidth, dilationHeight,
 	 inChannelGroup, gOutChannelGroup,
 	 inGroupOffset, gOutGroupOffset, gKernGroupOffset,
 	 batch, beginOChannel + k,
-	 nY, vrij ) ;
-      k+=8 ;
+	 nY, vri, vrj ) ;
+      k+=16 ;
     } // gOutChannel
   } // group
 }
 
 
 extern "C" vednnError_t
-vednnConvolutionBackwardFilter_direct_dil1_pad0_owU32(
+vednnConvolutionBackwardFilter_direct_owU128(
     const vednnTensorParam_t * restrict 	pParamIn,
     const void * restrict 			pDataIn,
     const vednnTensorParam_t * restrict 	pParamGradOut,
