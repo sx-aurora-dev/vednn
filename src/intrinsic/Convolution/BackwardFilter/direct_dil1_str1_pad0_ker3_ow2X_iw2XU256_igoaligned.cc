@@ -200,6 +200,8 @@ static inline void convloop(
     const int64_t gOutChannelGroup,
     const int64_t beginOChannel,
     const int64_t nOChannel,
+    const int64_t beginGroup,
+    const int64_t nGroup,
     const int64_t strideWidth,		// 1
     const int64_t strideHeight,		// 1
     const int64_t padWidth,		// 0
@@ -223,7 +225,7 @@ static inline void convloop(
   __vr vrx_s2  = _vel_vsubsl_vvvl(vrseq2, _vel_vmulul_vsvl(inWidthHalf,vry_s2, VLEN), VLEN) ;
   __vm256 vm_s2 =  _vel_vfmklgt_mvl(_vel_vcmpsl_vsvl(gOutWidthHalf, vrx_s2, VLEN), VLEN) ; // condition(x<gOutWidthHalf)
 
-  for (int64_t g = 0; g < group; g++) {
+  for (int64_t g = beginGroup; g < nGroup; g++) {
     int64_t inGroupOffset    = g * inChannelGroup  * inHeight  * inWidth;
     int64_t gOutGroupOffset  = g * gOutChannelGroup * gOutHeight * gOutWidth;
     int64_t gKernGroupOffset = g * gOutChannelGroup * inChannelGroup * gKernHeight * gKernWidth;
@@ -307,6 +309,11 @@ vednnConvolutionBackwardFilter_direct_dil1_str1_pad0_ker3_ow2X_iw2XU256_igoalign
     ,
     const int64_t				beginOChannel,
     const int64_t				nOChannel
+#ifdef VEDNN_OMP_GROUP_PARALLEL
+    ,
+    const int64_t				beginGroup,
+    const int64_t				nGroup
+#endif
 #endif
 )
 {
@@ -341,6 +348,10 @@ vednnConvolutionBackwardFilter_direct_dil1_str1_pad0_ker3_ow2X_iw2XU256_igoalign
   const int64_t beginOChannel = 0 ;
   const int64_t nOChannel     = gOutChannelGroup ;
 #endif
+#ifndef VEDNN_OMP_GROUP_PARALLEL
+  const int64_t beginGroup = 0 ;
+  const int64_t nGroup     = group ;
+#endif
 
   if( filter_layout == VEDNN_FILTER_LAYOUT_NCHW) {
     convloop<VEDNN_FILTER_LAYOUT_NCHW>(pIn, pGOut, pGKernel,
@@ -350,6 +361,7 @@ vednnConvolutionBackwardFilter_direct_dil1_str1_pad0_ker3_ow2X_iw2XU256_igoalign
 	       gKernWidth, gKernHeight,
 	       inChannelGroup, gOutChannelGroup,
 	       beginOChannel, nOChannel,
+	       beginGroup, nGroup,
 	       strideWidth, strideHeight,
 	       padWidth, padHeight,
 	       dilationWidth, dilationHeight) ;
@@ -362,6 +374,7 @@ vednnConvolutionBackwardFilter_direct_dil1_str1_pad0_ker3_ow2X_iw2XU256_igoalign
 	       gKernWidth, gKernHeight,
 	       inChannelGroup, gOutChannelGroup,
 	       beginOChannel, nOChannel,
+	       beginGroup, nGroup,
 	       strideWidth, strideHeight,
 	       padWidth, padHeight,
 	       dilationWidth, dilationHeight) ;

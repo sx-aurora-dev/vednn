@@ -8,6 +8,7 @@ set(CMAKE_CXX_FLAGS ${CMAKE_C_FLAGS})
 
 if(USE_OPENMP)
     add_definitions(-DVEDNN_USE_OPENMP)
+    add_definitions(-DVEDNN_OMP_GROUP_PARALLEL)
 endif()
 
 # clang does not accept -ftrace as compiler flag
