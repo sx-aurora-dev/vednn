@@ -27,12 +27,22 @@ void * restrict                          pDataGradKernel
 #ifndef VEDNN_USE_OPENMP
 #define VEDNN_CONVBKF_OMPARGS      VEDNN_CONVBKF_ARGS
 #define VEDNN_CONVBKF_OMPARGS_LIST VEDNN_CONVBKF_ARGS
-#else
+#else // VEDNN_USE_OPENMP
+#ifndef VEDNN_OMP_GROUP_PARALLEL
 #define VEDNN_CONVBKF_OMPARGS VEDNN_CONVBKF_ARGS, \
     const int64_t beginOChannel, /* openmp only */ \
 const int64_t nOChannel      /* openmp only */
 #define VEDNN_CONVBKF_OMPARGS_LIST pParamIn, pDataIn, pParamGradOut, pDataGradOut, \
     pParamConv, pParamGradKernel, pDataGradKernel, beginOChannel, nOChannel
+#else // VEDNN_OMP_GROUP_PARALLEL
+#define VEDNN_CONVBKF_OMPARGS VEDNN_CONVBKF_ARGS, \
+    const int64_t beginOChannel, /* openmp only */ \
+    const int64_t nOChannel,     /* openmp only */ \
+    const int64_t beginGroup,    /* openmp-group-parallel only */ \
+    const int64_t nGroup         /* openmp-group-parallel only */
+#define VEDNN_CONVBKF_OMPARGS_LIST pParamIn, pDataIn, pParamGradOut, pDataGradOut, \
+    pParamConv, pParamGradKernel, pDataGradKernel, beginOChannel, nOChannel, beginGroup, nGroup
+#endif // VEDNN_OMP_GROUP_PARALLEL
 #endif // VEDNN_USE_OPENMP
 
 typedef

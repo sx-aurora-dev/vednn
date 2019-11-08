@@ -321,6 +321,8 @@ static inline void convloop(
     const int64_t gOutChannelGroup,
     const int64_t beginOChannel,
     const int64_t nOChannel,
+    const int64_t beginGroup,
+    const int64_t nGroup,
     const int64_t strideWidth,
     const int64_t strideHeight,
     const int64_t padWidth,		// 0
@@ -337,7 +339,7 @@ static inline void convloop(
   __vr vri  = _vel_vmulsl_vsvl(strideHeight, vry, VLEN) ;
   __vr vrj  = _vel_vmulsl_vsvl(strideWidth,  vrx, VLEN) ;
 
-  for (int64_t g = 0; g < group; g++) {
+  for (int64_t g = beginGroup; g < nGroup; g++) {
     int64_t inGroupOffset    = g * inChannelGroup  * inHeight  * inWidth;
     int64_t gOutGroupOffset  = g * gOutChannelGroup * gOutHeight * gOutWidth;
     int64_t gKernGroupOffset = g * gOutChannelGroup * inChannelGroup * gKernHeight * gKernWidth;
@@ -543,6 +545,11 @@ vednnConvolutionBackwardFilter_direct_dil1_pad0_ker1_owU32(
     ,
     const int64_t				beginOChannel,
     const int64_t				nOChannel
+#ifdef VEDNN_OMP_GROUP_PARALLEL
+    ,
+    const int64_t				beginGroup,
+    const int64_t				nGroup
+#endif
 #endif
 )
 {
@@ -577,6 +584,10 @@ vednnConvolutionBackwardFilter_direct_dil1_pad0_ker1_owU32(
   const int64_t beginOChannel = 0 ;
   const int64_t nOChannel     = gOutChannelGroup ;
 #endif
+#ifndef VEDNN_OMP_GROUP_PARALLEL
+  const int64_t beginGroup = 0 ;
+  const int64_t nGroup     = group ;
+#endif
 
   if( filter_layout == VEDNN_FILTER_LAYOUT_NCHW) {
     convloop<VEDNN_FILTER_LAYOUT_NCHW>(pIn, pGOut, pGKernel,
@@ -586,6 +597,7 @@ vednnConvolutionBackwardFilter_direct_dil1_pad0_ker1_owU32(
 	       gKernWidth, gKernHeight,
 	       inChannelGroup, gOutChannelGroup,
 	       beginOChannel, nOChannel,
+	       beginGroup, nGroup,
 	       strideWidth, strideHeight,
 	       padWidth, padHeight,
 	       dilationWidth, dilationHeight) ;
@@ -598,6 +610,7 @@ vednnConvolutionBackwardFilter_direct_dil1_pad0_ker1_owU32(
 	       gKernWidth, gKernHeight,
 	       inChannelGroup, gOutChannelGroup,
 	       beginOChannel, nOChannel,
+	       beginGroup, nGroup,
 	       strideWidth, strideHeight,
 	       padWidth, padHeight,
 	       dilationWidth, dilationHeight) ;

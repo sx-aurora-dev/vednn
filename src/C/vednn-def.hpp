@@ -14,7 +14,7 @@
 #define VERBOSE 0
 #endif
 #ifndef VEDNN_SCRATCH_DBG
-#if 1 || VERBOSE
+#ifdef _DEBUG
 #define VEDNN_SCRATCH_DBG(...) do{ printf(__VA_ARGS__); fflush(stdout); }while(0)
 #else
 #define VEDNN_SCRATCH_DBG(...) do{}while(0)
