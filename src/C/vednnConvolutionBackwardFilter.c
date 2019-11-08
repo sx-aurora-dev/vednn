@@ -10,7 +10,8 @@ vednnConvolutionBackwardFilter_wrapper(
 {
 #ifndef VEDNN_USE_OPENMP
   return pFunc( VEDNN_CONVBKF_ARGS_LIST );
-#else
+#else // VEDNN_USE_OPENMP
+#ifndef VEDNN_OMP_GROUP_PARALLEL
   if ( __vednn_omp_num_threads == 1 ) {
     int64_t gOutChannel = pParamGradOut->channel;
     int64_t group       = pParamConv->group;
@@ -45,7 +46,59 @@ vednnConvolutionBackwardFilter_wrapper(
     }
     return rc ;
   }
-#endif
+#else // VEDNN_OMP_GROUP_PARALLEL
+  if ( __vednn_omp_num_threads == 1 ) {
+    int64_t gOutChannel = pParamGradOut->channel;
+    int64_t group       = pParamConv->group;
+    int64_t gOutChannelGroup = gOutChannel  / group;
+
+    return pFunc(VEDNN_CONVBKF_ARGS_LIST, 0, gOutChannelGroup, 0, group);
+  }
+  else {
+    vednnError_t rc = VEDNN_SUCCESS ;
+#pragma omp parallel reduction(|:rc)
+    {
+      int64_t nthreads = omp_get_num_threads() ;
+      int64_t threadid = omp_get_thread_num() ;
+
+      int64_t gOutChannel      = pParamGradOut->channel;
+      int64_t group            = pParamConv->group;
+      int64_t gOutChannelGroup = gOutChannel  / group;
+
+      if( gOutChannelGroup >= group )
+      {
+	int64_t nOChannlel = gOutChannelGroup / nthreads ;
+	int64_t remain     = gOutChannelGroup % nthreads ;
+
+	int64_t beginOChannel = nOChannlel * threadid + ( threadid < remain ? threadid : remain ) ;
+	int64_t myOChannel    = nOChannlel + ( threadid < remain ? 1 : 0 ) ;
+
+	if( myOChannel == 0 ) {
+	  rc |= VEDNN_SUCCESS ;
+	}
+	else  {
+	  rc |= pFunc(VEDNN_CONVBKF_ARGS_LIST, beginOChannel, myOChannel, 0, group);
+	}
+      }
+      else {
+	int64_t nGroup = group / nthreads ;
+	int64_t remain = group % nthreads ;
+
+	int64_t beginGroup = nGroup * threadid + ( threadid < remain ? threadid : remain ) ;
+	int64_t myGroup    = nGroup + ( threadid < remain ? 1 : 0 ) ;
+
+	if( myGroup == 0 ) {
+	  rc |= VEDNN_SUCCESS ;
+	}
+	else  {
+	  rc |= pFunc(VEDNN_CONVBKF_ARGS_LIST, 0, gOutChannelGroup, beginGroup, nGroup);
+	}
+      }
+    }
+    return rc ;
+  }
+#endif // VEDNN_OMP_GROUP_PARALLEL
+#endif // VEDNN_USE_OMP
 }
 
 /* ----------------------------------------------------------------------- */
