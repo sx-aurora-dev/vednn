@@ -37,7 +37,11 @@ $ ftrace
   - these extensions go into libvednxx ('x' for extensions)
   - src/test/ codes that use libvednnx still have to be copied over
 
-- src/C/vconv has:
+- src/wrap/vconv has:
   - a subset of gen-dnn (v0.16) that supports im2col convolution,
   - as well as some useful C++ objects like parallel_nd_iterator.
   - (not fully hooked up to src/C/ yet, mostly for speed comparison)
+
+- a simple im2col-gemm, good for low minibatch until parallel_nd intrinsics
+  get merged into this branch. im2col should be done with intrinsics, though.
+

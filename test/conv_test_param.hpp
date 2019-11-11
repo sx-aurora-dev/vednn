@@ -66,7 +66,10 @@ inline OneConvForward::OneConvForward( struct param const *pNetwork, int const f
     testconvForward_init( &conv );
     if(strlen(pNetwork->pName)) strncpy(conv.region, pNetwork->pName, 128);
     else snprintf(conv.region, 128, "test:Fwd%s", (flagBias?"B":""));
-    snprintf(conv.ref_region, 128, "<gemm:Fwd%s>%s", (flagBias?"B":""), conv.region);
+    // TODO change args, or testconvForward struct, so can use layer spec if unnamed ("wip")
+    int namedLayer = strcmp(conv.region,"\"wip\"") != 0;
+    snprintf(conv.ref_region, 128, "<gemm:Fwd%s-Ref>%s",
+            (flagBias?"B":""), (namedLayer?conv.region:""));
     testconvForward_alloc( &conv, pNetwork, flagBias, filter_layout );
     testconvForward_randomData( &conv, flagBias );
     if(v) testconvForward_dumpParms( &conv, flagBias );

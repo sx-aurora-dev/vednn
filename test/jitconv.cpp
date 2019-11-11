@@ -107,16 +107,16 @@ static CjitSyms const* getForwardJitSymbols(struct param const* pNetwork, int nE
     // added ability for C api to track which nEntry..
     char const* generators[] = {
         // MOVED into cjitConvFwd6:    "cjitConvFwd6vel",
-        "cjitConvFwd1",
-        "cjitConvFwd1p",
+        //"cjitConvFwd1", // usually slower
+        //"cjitConvFwd1p", // usually slower, 1 with ptrs vs offsets
+        //"cjitConvFwd1b", // usually slower? 1 with mask precalc
         "cjitConvFwd1q",
-        "cjitConvFwd6",
-        "cjitConvFwd1b", // usually slower? 1 with mask precalc
-        "cjitConvFwd3", // usually slower
-        "cjitConvFwd2", // usually slower
+        //"cjitConvFwd2", // usually slower
+        //"cjitConvFwd3", // usually slower
         // 4 and 5 have a bug in kBy1 loop.  Should cross-check with Fwd3 and fix TODO
         //"cjitConvFwd4",
         //"cjitConvFwd5",
+        "cjitConvFwd6",
         NULL};
     // jit_dir is now settable as -S SUBDIR [default tmp_cjitConv]
     struct CjitOpt cjitOpt= { jit_dir, 0, 0 }; // "tmp_cjitConv", full prep, full build 
@@ -276,96 +276,6 @@ void testForward(struct param *pNetwork, int nEntry, double HZ, int flagBias, in
                 printf(" doItr-rep-%d",r); fflush(stdout);
                 vednnError_t rv;
                 char name[80];
-
-                // Convolution
-#if 0
-                if ( flagBias ) {
-                    // use parameters and args, split according to order of libvednn public api.
-                    // I.e. \c vednnConvolutionForwardAddBias call as defined in \ref vednn.h
-#define FWDB_PARMS \
-                    pConv->pParamIn, pConv->pParamKernel, pConv->pParamBias, pConv->pParamOut, \
-                    pConv->pParamConv, VEDNN_CONV_ALGORITHM_DIRECT
-#define FWDB_DATA \
-                    pConv->pDataIn,  pConv->pDataKernel,  pConv->pDataBias,  pConv->pDataOut
-                    // libvednnx "iterator over impls"
-                    int iter_cnt=0;
-                    for (vednnConvForwardAddBiasImpls * iter = vednnConvForwardAddBias_Begin(FWDB_PARMS);
-                            iter->okfn != NULL;
-                            iter = vednnConvForwardAddBias_Next(iter, FWDB_PARMS))
-                    {
-                        snprintf(name,80,"%s:%d:%s",pConv->region,iter_cnt,iter->shortname);
-                        printf(" %s...",name); fflush(stdout);
-                        cacheKiller();
-
-                        // TODO realNext (check for _rtok to run the impl, as below)
-                        FTRACE_BEGIN("realNext");
-                        //printf(" B"); fflush(stdout);
-                        vednnConvForwardAddBiasImpls *actual = vednnConvForwardAddBias_realNext(
-                                iter, FWDB_PARMS, FWDB_DATA );
-                        FTRACE_END("realNext");
-
-                        int idx = 0;
-                        if ( actual != NULL ) {
-                            if( actual == iter ){ // almost always...
-                                snprintf(name,80,"%s:%d:%s",pConv->region,iter_cnt,iter->shortname);
-                            }else{
-                                snprintf(name,80,"%s:%d:%s-->%s",pConv->region,iter_cnt,iter->shortname,actual->shortname);
-                            }
-                            //printf(" C%s",name); fflush(stdout);
-                            c[0] = __cycle();
-                            FTRACE_BEGIN(name);
-                            // NB:             CONVX_.....order for low-level call
-                            //rv = (*actual->impl)(CONVX_FWDB_ORDER(FWDB_PARMS, FWDB_DATA));
-                            // now we also want omp support, so we call via _Run, not via (*actual->impl)
-                            // Note: _Run *also* calls realNext to skip over inappropriate impls (_rtok)
-                            vednnConvForwardAddBias_out_t const out = vednnConvForwardAddBias_Run( actual, FWDB_PARMS, FWDB_DATA );
-                            c[1] = __cycle();
-                            FTRACE_END(name);
-                            idx = (actual - vednnConvForwardAddBiasList);
-                            //printf(" idx=%d",idx);
-                            if( idx>=0 && idx < maxImpls ) {sum_times[idx] += c[1] - c[0]; ++rep_times[idx];}
-                            assert( out.actual == actual );
-                            rv = out.status;
-                        }else{
-                            printf(" not run\n");
-                            continue;
-                        }
-
-                        if (r == 0){
-                            if( pConv->pParamIn->batch == 1 ) {
-                                printf(" batch 1 group=%d inChannel=%d outChannel=%d",
-                                        (int)(pConv->pParamConv->group),
-                                        (int)(pConv->pParamIn->channel),
-                                        (int)(pConv->pParamOut->channel));
-                            }
-                            //pConv->cycle += c[1] - c[0]; // this is reserved for the libvednn time
-                            //printf(" %s %llu cycles", name, c[1]-c[0]);
-                            double diff = !doRef? -13.0
-                                : diffData(pConv->pParamOut, pConv->pDataOut, pConv->pBufRef);
-                            max_diff = diff > max_diff? diff: max_diff;
-                            printf("%s %8.3f ms DIFF = %f %s\n",(rv==VEDNN_SUCCESS?"  OK":" BAD")
-                                    , (1.0e3/HZ)*(c[1]-c[0]), diff ,name);
-                            fflush(stdout);
-
-                            // NEW detailed stats...
-                            idx = (actual - vednnConvForwardAddBiasList);
-                            vtd.emplace_back(t, pConv->region, (size_t)idx,
-                                    vednnConvForwardAddBiasList[idx].shortname,
-                                    1/*doItr*/, pNw_param_cstr/*test-wide descr*/ );
-                            assert(vtd.size() == iter_cnt+1U);
-                            TestData& td = vtd.at(iter_cnt);
-                            td.diff = diff;
-                            td.ops = pConv->ops;
-                        }
-                        TestData& td = vtd.at(iter_cnt);
-                        td.sum_times += c[1]-c[0];
-                        td.reps = r+1;
-
-                        if(++iter_cnt>=100) ERROR_EXIT("run-away iter over ConvForwardBias impls?");
-                    }
-                }
-                else
-#endif
                 {
 #define FWD_PARMS \
                     /* */ pConv->pParamIn,     \
@@ -390,14 +300,6 @@ void testForward(struct param *pNetwork, int nEntry, double HZ, int flagBias, in
                         cacheKiller();
                         //printf(" A"); fflush(stdout);
 
-#if 0 // original way:
-                        // BADNESS:  no thread support, no rtok check at runtime for data tr alignment
-                        FTRACE_BEGIN(name);
-                        // libvednn calls directly into libvednn low-level routines, so use
-                        // the CONVX_.. macro to get low-level arg order correct.
-                        rv = (*iter->impl)(CONVX_FWD_ORDER(FWD_PARMS, FWD_DATA));
-                        FTRACE_END(name);
-#endif
                         FTRACE_BEGIN("realNext");
                         //printf(" B"); fflush(stdout);
                         vednnConvForwardImpls *actual = vednnConvForward_realNext(
@@ -405,12 +307,17 @@ void testForward(struct param *pNetwork, int nEntry, double HZ, int flagBias, in
                         FTRACE_END("realNext");
 
                         if ( actual != NULL ) {
-                            if( actual == iter ){ // almost always...
-                                snprintf(name,80,"%s:%d:%s",pConv->region,iter_cnt,iter->shortname);
+                            int const long_ftrace_names = 0;
+                            if(long_ftrace_names){
+                                if( actual == iter ){ // almost always...
+                                    snprintf(name,80,"%s:%d:%s",pConv->region,iter_cnt,iter->shortname);
+                                }else{
+                                    snprintf(name,80,"%s:%d:%s-->%s",pConv->region,iter_cnt,iter->shortname,actual->shortname);
+                                }
                             }else{
-                                snprintf(name,80,"%s:%d:%s-->%s",pConv->region,iter_cnt,iter->shortname,actual->shortname);
+                                snprintf(name,80,"vednn:%s",actual->shortname);
                             }
-                            testconvForward_dumpParms( pConv, flagBias );
+                            //testconvForward_dumpParms( pConv, flagBias );
                             //printf(" C%s",name); fflush(stdout);
                             c[0] = __cycle();
                             FTRACE_BEGIN(name);

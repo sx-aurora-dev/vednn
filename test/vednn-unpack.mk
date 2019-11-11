@@ -48,7 +48,6 @@ endif
 
 VEDNN_DIR:=$(abspath $(myfile_dir)$(VEDNN_SUBDIR))
 VEDNNX_DIR:=$(VEDNN_DIR)
-VEDNN_DIR=../install
 
 ifeq ($(COMPILE_TYPE),ncc)
 ifneq ($(TGZ),)           #111111111

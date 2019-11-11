@@ -269,16 +269,15 @@ struct DfgNames {
 };
 
 static DfgNames const dfgNames[] = {
-    {"cjitConvFwd1", cjitConvolutionForward1}
-    ,{"cjitConvFwd1b", cjitConvolutionForward1b}
-    ,{"cjitConvFwd1p", cjitConvolutionForward1p}
-    ,{"cjitConvFwd1q", cjitConvolutionForward1q}
-    ,{"cjitConvFwd2", cjitConvolutionForward2}
-    ,{"cjitConvFwd3", cjitConvolutionForward3}
-    ,{"cjitConvFwd4", cjitConvolutionForward4}
-    ,{"cjitConvFwd5", cjitConvolutionForward5}
+    //{"cjitConvFwd1", cjitConvolutionForward1}
+    //,{"cjitConvFwd1b", cjitConvolutionForward1b}
+    //,{"cjitConvFwd1p", cjitConvolutionForward1p}
+    {"cjitConvFwd1q", cjitConvolutionForward1q}
+    //,{"cjitConvFwd2", cjitConvolutionForward2}
+    //,{"cjitConvFwd3", cjitConvolutionForward3}
+    //,{"cjitConvFwd4", cjitConvolutionForward4}
+    //,{"cjitConvFwd5", cjitConvolutionForward5}
     ,{"cjitConvFwd6", cjitConvolutionForward6}
-    // REVMOED ,{"cjitConvFwd6", cjitConvolutionForward6}
 };
 static size_t const nDfgNames = sizeof(dfgNames)/sizeof(DfgNames);
 

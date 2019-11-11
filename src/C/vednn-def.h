@@ -59,9 +59,11 @@ void vednn_free_global_scratchpads(); // called during __vednn_init
 #include <ftrace.h>
 #define FTRACE_BEGIN(...) ftrace_region_begin(__VA_ARGS__)
 #define FTRACE_END(...) ftrace_region_end(__VA_ARGS__)
+#define FTRACE_IF(...) do{ __VA_ARGS__; }while(0)
 #else
 #define FTRACE_BEGIN(...)
 #define FTRACE_END(...)
+#define FTRACE_IF(...) do{}while(0)
 #endif
 
 #define WRAP_RET(FUNC, OMP_WRAPPER, ...) do{ \

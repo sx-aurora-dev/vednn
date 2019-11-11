@@ -18,6 +18,7 @@ if(DEFINED ENV{NCXX})
 else()
     set(NCXX "/opt/nec/ve/bin/nc++" CACHE FILEPATH "Path of nc++")
 endif()
+set(CMAKE_AR /opt/nec/ve/bin/nar)
 
 # If unspecified build release with debug info
 set(default_build_type "RelWithDebInfo")
@@ -60,11 +61,16 @@ if(NOT USE_FTRACE) # enforce 0 or 1 or 2 -- default build should prefer 0
 else() # specify USE_FTRACE 2 to instrument EVERY function, else just selected regions are ftraced
     if(USE_FTRACE STREQUAL "0")
     else()
-        if(USE_FTRACE STREQUAL "2")
+        add_definitions(-DFTRACE) # lib hand-selects key ftrace_begin/end regions
+        if(USE_FTRACE STREQUAL "1")
+            # selected ftrace regions
         else()
-            set(USE_FTRACE "1") # TODO check USE_FTRACE 1 vs 2 throughout build, someday.
+            set(USE_FTRACE "2") # -ftrace compile (all funcs)
         endif()
     endif()
+endif()
+if(USE_OPENMP)
+    add_definitions(-DVEDNN_USE_OPENMP)
 endif()
 message(STATUS "USE_FTRACE --------> ${USE_FTRACE}")
 message(STATUS "USE_OPENMP --------> ${USE_OPENMP}")

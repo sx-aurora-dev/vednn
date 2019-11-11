@@ -1,16 +1,14 @@
 cmake_minimum_required(VERSION 3.0)
 
-set(CMAKE_C_COMPILER /opt/nec/ve/bin/ncc)
-if(DEFINED ENV{NCC})
-    set(CMAKE_C_COMPILER ENV{NCC})
-endif()
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -O4 -finline -finline-functions -DNDEBUG")
-set(CMAKE_CXX_FLAGS "${CMAKE_C_FLAGS} -O4 -finline -finline-functions -DNDEBUG")
+set(CMAKE_C_COMPILER ${NCC})
+set(CMAKE_CXX_COMPILER ${NCXX})
+#set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -O4 -finline -finline-functions -DNDEBUG -DCMK_VCONV")
+#set(CMAKE_CXX_FLAGS "${CMAKE_C_FLAGS} -O4 -finline -finline-functions -DNDEBUG -DCMK_VCONV")
 
-if(USE_FTRACE AND NOT USE_FTRACE STREQUAL 1)
-    message(STATUS " ??? adding ftrace compilation flag ??? ")
-    set(CMAKE_C_FLAGS   "${CMAKE_C_FLAGS}   -ftrace")
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -ftrace")
+if(USE_FTRACE AND USE_FTRACE STREQUAL 2)
+    #message(STATUS " ??? adding ftrace compilation flag ??? ")
+    set(CMAKE_C_FLAGS   "${CMAKE_C_FLAGS}   -ftrace -pthread")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -ftrace -pthread")
 endif()
 
 if(USE_OPENMP)
@@ -23,9 +21,10 @@ if(BUILD_SHARED_LIB)
     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fPIC")
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fPIC")
 endif()
-
+set(CMAKE_C_FLAGS   "${CMAKE_C_FLAGS}   -DCMK_VCONV")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DCMK_VCONV")
 message(STATUS "src/wrap/vconv CMAKE_C_FLAGS=${CMAKE_C_FLAGS}")
-message(STATUS "src/wrap/vconv CMAKE_CXX_FLAGS=${CMAKE_C_FLAGS}")
+message(STATUS "src/wrap/vconv CMAKE_CXX_FLAGS=${CMAKE_CXX_FLAGS}")
 message(STATUS "NLCDIR is ${NLCDIR}")
 
 if(NOT IS_DIRECTORY "${NLCDIR}") # usually set in some higher CMakeLists.txt ...
@@ -42,6 +41,8 @@ endif()
 #    DEPENDS ${PROJECT_SOURCE_DIR}/vconv-ve.tar.gz
 #    COMMENT "Unpacking vconv-ve.tar.gz into ${CMAKE_SOURCE_DIR}"
 #    VERBATIM)
+# unpack has to run at **cmake** time. add_custom_target...i
+#        PRE_BUILD is not quite good enough.
 if(( (NOT IS_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/include/)
     OR (NOT IS_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/lib/)
     OR (NOT IS_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/src/)
@@ -65,8 +66,11 @@ file(GLOB_RECURSE VCONV_SOURCES
     )
 message(STATUS "vconv headers ${VCONV_HEADERS}")
 message(STATUS "vconv sources ${VCONV_SOURCES}")
+file(COPY ${VCONV_HEADERS} DESTINATION ${CMAKE_BINARY_DIR}/include/gen-dnn)
+# vconv headers installed at CMAKE_INSTALL_PREFIX/include/C/gen-dnn
 
-include_directories("../wrap" "../.." "../../C" "./include/gen-dnn/vconv" "./include/gen-dnn/vgemm" "${NLCDIR}/include")
+#include_directories("../wrap" "../.." "../../C" "./include/gen-dnn/vconv" "./include/gen-dnn/vgemm" "${NLCDIR}/include")
+include_directories("../wrap" "../.." "../../C" "${CMAKE_BINARY_DIR}/include" "${NLCDIR}/include")
 
 # The Makefile has the best set of compilation flags
 add_library(vconv_code OBJECT

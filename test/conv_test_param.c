@@ -166,7 +166,7 @@ void testconvForward_oclobber( struct testconvForward const* pConv ){
 void
 testconvForward_refcalcs( struct testconvForward *pConvArray, int const nEntry ){
     vednnError_t rv;
-    FTRACE_IF(char const* ref_all_region = "<gemm:Fwd> all convolution");
+    FTRACE_IF(char const* ref_all_region = "<gemm:Fwd>all");
     FTRACE_BEGIN(ref_all_region);
     for (int i=0; i<nEntry; i++) {
         struct testconvForward *pConv = &pConvArray[i];
@@ -190,8 +190,9 @@ testconvForward_vednncalcs( struct testconvForward *pConvArray, int const nEntry
     for (int i=0; i<nEntry; i++) {
         struct testconvForward *pConv = &pConvArray[i];
         int const flagBias = (pConv->pDataBias != NULL);
+        int namedLayer = strcmp(pConv->region,"\"wip\"") != 0;
 #ifdef FTRACE
-        FTRACE_IF(char const* all_region = (flagBias? "all FwdB convolutions": "all Fwd convolutions"));
+        FTRACE_IF(char const* all_region = (flagBias? "vednn-def all FwdB conv": "vednn-def all Fwd conv"));
         printf("all_region = %s\ndef_region = %s\n",all_region,pConv->region);
 #endif
         FTRACE_BEGIN(all_region);
@@ -200,7 +201,7 @@ testconvForward_vednncalcs( struct testconvForward *pConvArray, int const nEntry
         c[0] = __cycle();
 
         // Convolution
-        FTRACE_BEGIN(pConv->region);
+        if(namedLayer) FTRACE_BEGIN(pConv->region);
         if ( flagBias ) {
             rv = vednnConvolutionForwardAddBias(pConv->pParamIn, pConv->pDataIn,
                     pConv->pParamKernel, pConv->pDataKernel,
@@ -214,7 +215,7 @@ testconvForward_vednncalcs( struct testconvForward *pConvArray, int const nEntry
                     pConv->pParamOut, pConv->pDataOut,
                     pConv->pParamConv, VEDNN_CONV_ALGORITHM_DIRECT );
         }
-        FTRACE_END(pConv->region);
+        if(namedLayer) FTRACE_END(pConv->region);
         FTRACE_END(all_region);
         if (rv != VEDNN_SUCCESS) ERROR_EXIT("convolution() failed.");
 
@@ -385,15 +386,16 @@ testconvBackwardData_vednncalcs( struct testconvBackwardData *pConvArray, int co
     for (int i=0; i<nEntry; i++) {
         struct testconvBackwardData *pConv = &pConvArray[i];
         unsigned long long c[2];
+        int namedLayer = strcmp(pConv->region,"\"wip\"") != 0;
         c[0] = __cycle();
-        FTRACE_BEGIN(pConv->region);
+        if(namedLayer) FTRACE_BEGIN(pConv->region);
         // Convolution
         rv = vednnConvolutionBackwardData(pConv->pParamGradOut, pConv->pDataGradOut,
                 pConv->pParamKernel, pConv->pDataKernel,
                 pConv->pParamGradIn, pConv->pDataGradIn,
                 pConv->pParamConv, VEDNN_CONV_ALGORITHM_DIRECT );
         if (rv != VEDNN_SUCCESS) ERROR_EXIT("convolution() failed.\n");
-        FTRACE_END(pConv->region);
+        if(namedLayer) FTRACE_END(pConv->region);
         c[1] = __cycle();
         unsigned long long d = c[1] - c[0];
         if( pConv->reps == 0U || d < pConv->mincycle ) pConv->mincycle = d;
@@ -541,15 +543,16 @@ testconvBackwardFilter_vednncalcs( struct testconvBackwardFilter *pConvArray, in
     for (int i=0; i<nEntry; i++) {
         struct testconvBackwardFilter *pConv = &pConvArray[i];
         unsigned long long c[2];
+        int namedLayer = strcmp(pConv->region,"\"wip\"") != 0;
         c[0] = __cycle();
-        FTRACE_BEGIN(pConv->region);
+        if(namedLayer) FTRACE_BEGIN(pConv->region);
         // Convolution
         rv = vednnConvolutionBackwardFilter(pConv->pParamIn, pConv->pDataIn,
                 pConv->pParamGradOut, pConv->pDataGradOut,
                 pConv->pParamGradKernel, pConv->pDataGradKernel,
                 pConv->pParamConv, VEDNN_CONV_ALGORITHM_DIRECT );
         if (rv != VEDNN_SUCCESS) ERROR_EXIT("convolution() failed.\n");
-        FTRACE_END(pConv->region);
+        if(namedLayer) FTRACE_END(pConv->region);
         c[1] = __cycle();
         unsigned long long d = c[1] - c[0];
         if( pConv->reps == 0U || d < pConv->mincycle ) pConv->mincycle = d;

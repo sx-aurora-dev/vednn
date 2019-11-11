@@ -82,8 +82,7 @@ OBJS	= $(SRCS:%.c=%.o)
 COPTS	= -O3 -finline-functions -Wall -g2
 COPTS   += -DVEL_BUG=0 -DNDEBUG
 CFLAGS	+= $(COPTS)
-LDLIBS	+= $(COPTS) -lm
-NCCOPTS := -assembly-list
+LDLIBS	+= -lm
 
 CLANG?=clang
 CLANG_HAS_VE:=${shell if llc --version | grep -q 've *- VE'; then echo 1; else echo 0; fi}
@@ -116,7 +115,7 @@ CFLAGS		+= -I${VEDNNX_DIR}/include/wrap -I${VEDNN_DIR}/include/C
 CLANG_FLAGS	+= -I${VEDNNX_DIR}/include/wrap -I${VEDNN_DIR}/include/C
 
 ifeq ($(OPENMP),YES)
-LDLIBS	+= -L${VEDNNX_DDIR}/lib -lvednnx_openmp
+LDLIBS	+= -L${VEDNNX_DIR}/lib -lvednnx_openmp
 LDLIBS	+= -L${VEDNN_DIR}/lib -lvednn_openmp
 LDLIBS  += -L$(BLAS_LIB_DIR) -lcblas -lblas_openmp
 LDLIBS  += -fopenmp
@@ -132,21 +131,35 @@ endif
 LDLIBS	+= '-Wl,-rpath,$(VEDNN_DIR)/lib:$(VEDNNX_DIR)/lib:$(realpath vejit/lib):$(BLAS_LIB_DIR)'
 
 # should link with veproginf be optional?
-LDLIBS  += -Wl,-rpath-link,/opt/nec/ve/lib -lveproginf -lncc
+#LDLIBS  += -Wl,-rpath-link,/opt/nec/ve/lib -lveproginf -lncc
+LDLIBS  += -Wl,-rpath-link,/opt/nec/ve/lib
 
 ifeq ($(FTRACE),YES)
+CFLAGS		+= -ftrace -pthread
 # TODO: snarf cache value from VE_VEPERF_DIR	
+ifeq (0,1)
 VEPERF_DIR	= /usr/uhome/aurora/mpc/pub/veperf/180218-ELF
 VEPERF_INC_DIR	= $(VEPERF_DIR)/include
 VEPERF_LIB_DIR	= $(VEPERF_DIR)/lib
-CLANG_FLAGS	+= -I$(VEPERF_INC_DIR) -DFTRACE
 CFLAGS		+= -I$(VEPERF_INC_DIR) -DFTRACE
-NCCOPTS         += -ftrace
 LDLIBS		+= -L$(VEPERF_LIB_DIR) -ftrace
-# otherwise attempt simple flags and hope things are found
-#CFLAGS		+= -DFTRACE
-#LDLIBS		+= -ftrace
+LDLIBS		+= -lveperf
+CLANG_FLAGS	+= -I$(VEPERF_INC_DIR) -DFTRACE
+else
+VEPERF_DIR	= /opt/nec/ve
+VEPERF_INC_DIR	= $(VEPERF_DIR)/include
+VEPERF_LIB_DIR	= $(VEPERF_DIR)/lib
+# unfortunately, system libs do NOT give nice ftrace_region_begin/end output!
+ifeq (0,1)
+CFLAGS		+= -I$(VEPERF_INC_DIR) -DFTRACE
+LDLIBS		+= -L$(VEPERF_LIB_DIR) -lveftrace_t -lveproginf -lveperfcnt -ftrace
+else# otherwise attempt simple flags and hope things are found
+CFLAGS		+= -DFTRACE
+LDLIBS		+= -ftrace
 endif
+CLANG_FLAGS	+= -I$(VEPERF_INC_DIR) -DFTRACE
+endif
+endif# FTRACE=YES
 
 # or maybe with $(mkfile_dir)...
 VJINC:=./vejit/include
@@ -314,24 +327,20 @@ cjitConv%-ve.o: cjitConv%.cpp cjitConv.hpp conv_test_param.h ve_cvecops.hpp
 	$(CJIT_CXX) -c $< -o $@
 cjitConv%-ve.lo: cjitConv%.cpp cjitConv.hpp conv_test_param.h ve_cvecops.hpp
 	$(CJIT_CXX) -fPIC -c $< -o $@
-# cjitConvFwd6vel-ve.o REMOVED	
-libcjitConv-ve.a: cjitConv-ve.o cjitConvFwd1-ve.o cjitConvFwd1b-ve.o cjitConvFwd1p-ve.o \
-	cjitConvFwd1q-ve.o cjitConvFwd2-ve.o cjitConvFwd3-ve.o cjitConvFwd4-ve.o \
-	cjitConvFwd5-ve.o cjitConvFwd6-ve.o ve_cvecops-ve.o
-	rm -f $@
-	# create quick with index $@
-	$(AR) cqs $@ $^
-libcjitConv-x86.a: cjitConv-x86.o cjitConvFwd1-x86.o cjitConvFwd1b-x86.o cjitConvFwd1p-x86.o \
-	cjitConvFwd1q-x86.o cjitConvFwd2-x86.o cjitConvFwd3-x86.o cjitConvFwd4-x86.o \
-	cjitConvFwd5-x86.o cjitConvFwd6-x86.o ve_cvecops-x86.o
-	rm -f $@
-libcjitConv-ve.so: cjitConv-ve.lo cjitConvFwd1-ve.lo cjitConvFwd1b-ve.lo cjitConvFwd1p-ve.lo \
-	cjitConvFwd1q-ve.lo cjitConvFwd2-ve.lo cjitConvFwd3-ve.lo cjitConvFwd4-ve.lo \
-	cjitConvFwd5-ve.lo cjitConvFwd6-ve.lo ve_cvecops-ve.lo
+# small subset
+CJITCONV_SET:=cjitConvFwd1q cjitConvFwd6
+# larger subset --- enable for jit development work (slow compilations!)
+# coordinate with list of used jit impls in:
+# 		jitconv.cpp
+# 		cjitConv.cpp
+#CJITCONV_SET+=cjitConvFwd1 cjitConvFwd1b cjitConvFwd1p cjitConvFwd2 cjitConvFwd3 cjitConvFwd4 cjitConvFwd5
+libcjitConv-ve.a: $(patsubst %,%-ve.o,$(CJITCONV_SET)) cjitConv-ve.o ve_cvecops-ve.o
+	rm -f $@; $(AR) cqs $@ $^ # create quick with index
+libcjitConv-x86.a: cjitConv-x86.o $(patsubst %,%-x86.o,$(CJITCONV_SET)) ve_cvecops-x86.o
+	rm -f $@; $(AR) cqs $@ $^ # create quick with index
+libcjitConv-ve.so: cjitConv-ve.lo $(patsubst %,%-ve.lo,$(CJITCONV_SET)) ve_cvecops-ve.lo
 	$(CJIT_CXX) $^ -fPIC -shared -o $@
-libcjitConv-x86.so: cjitConv-x86.lo cjitConvFwd1-x86.lo cjitConvFwd1b-x86.lo cjitConvFwd1p-x86.lo \
-	cjitConvFwd1q-x86.lo cjitConvFwd2-x86.lo cjitConvFwd3-x86.lo cjitConvFwd4-x86.lo \
-	cjitConvFwd5-x86.lo cjitConvFwd6-x86.lo ve_cvecops-x86.lo
+libcjitConv-x86.so: cjitConv-x86.lo $(patsubst %,%-x86.lo,$(CJITCONV_SET)) ve_cvecops-x86.lo
 	$(CJITX86) $^ -fPIC -shared -o $@
 cjitConv02-x86: cjitConv02.cpp cjitConv-x86.o vejit-unpack
 	$(CJITX86) -E $< -o $@.i
@@ -536,13 +545,6 @@ ve_cmpconv2: ve_cmpconv.o $(CONVGEMM).o libcjitConv-ve.a conv_test_param.o vednn
 	 @# -Wl,-z,stacksize=0x10000000 ignored
 	 $(CXX) $(filter %.o,$@) $^ ${CFLAGS} ${LDFLAGS} -Wl,-z,max-page-size=0x200000 $(filter %.a,%^) ${LDLIBS} \
 		 -o $@ -Lvejit/lib -ljit1 -ldl
-# libjit1 has C++ code, which VE cannot initialize correctly.
-# So, FOR NOW, the desired linking as ve_cmpconv2 FAILS:
-#ve_cmpconv2 : ve_cmpconv.c $(CONVGEMM).o cjitConv-ve.o conv_test_param.o vednn_helper.o libcjitConv-ve.a
-#	 $(CXX) ${CFLAGS} $(filter %.c,$^) $(filter %.o,$^) $(filter %.a,$^) ${LDFLAGS} ${LDLIBS} -o $@ -Lvejit/lib -l${LIBJIT} -ldl
-jitconv.o: jitconv.cpp conv_test_param.h
-	$(CXX) ${CXXFLAGS} -E $< -o jitconv.i
-	$(CXX) ${CXXFLAGS} -Wall -Werror -c $< -o $@
 # Convolution/Forward, working versions (override library things, quick compile/test cycle)
 LOCALIMPLS:=
 #LOCALIMPLS+=direct_dil1_str1_padsame_ker3_c1A.o
@@ -584,10 +586,14 @@ libmegajit.so: # if lbmegajit does not exist, create a zero-length file instead,
 	else touch libmegajit.so; \
 	fi
 	ls -l libmegajit*
+jitconv.o: jitconv.cpp conv_test_param.h
+	$(CXX) ${CXXFLAGS} -E $< -o jitconv.i
+	$(CXX) ${CXXFLAGS} -Wall -Werror -c $< -o $@
 jitconv: vejit-unpack jitconv.o $(LOCALIMPLS) $(CONVGEMM).o libcjitConv-ve.so conv_test_param.o vednn_helper.o testdata.o
 	@echo 'OPENMP $(OPENMP)'
 	@echo 'FTRACE $(FTRACE)'
 	@echo 'THISMAKE $(THISMAKE)'
+	@echo 'LDLIBS $(LDLIBS)'
 	@echo 'mkfile_path $(mkfile_path)'
 	$(THISMAKE) cjit_vars
 	#$(THISMAKE) libmegajit.so
@@ -596,13 +602,14 @@ jitconv: vejit-unpack jitconv.o $(LOCALIMPLS) $(CONVGEMM).o libcjitConv-ve.so co
 	export megajit="" && [[ -s "libmegajit.soNONO" ]] && megajit="-lmegajit"; \
 	echo "megajit options <$${megajit}>"; \
 	$(CXX) $(filter %.o,$^) \
-		${CXXFLAGS} ${LDFLAGS} \
+		${CXXFLAGS} \
+		${LDFLAGS} -l$(LIBVEDNNX) -l$(LIBVEDNN) \
 		-fPIC -Wl,-z,max-page-size=0x200000 \
 		$(filter %.a,%^) $(filter %.so,$^) \
 		-L. -Wl,-rpath,${mkfile_dir} -lcjitConv-ve $${megajit} \
 		-Lvejit/lib  -Wl,-rpath,${mkfile_dir}/vejit/lib -l${LIBJIT} \
 		-o $@ \
-		${LDLIBS} -l$(LIBVEDNNX) -l$(LIBVEDNN) -ldl
+		${LDLIBS} -ldl
 	-ls -l libmegajit* $@
 	nreadelf -d $@ | grep NEEDED
 # jitconv-dev is a convenience:
@@ -616,9 +623,9 @@ jitconv-dev: jitconv.o d1s1pSB.o $(CONVGEMM).o libcjitConv-ve.so conv_test_param
 		$(filter %.a,%^) $(filter %.so,$^) \
 		-l${LIBJIT} -o $@ \
 		${LDLIBS} -ldl
-resnext-t8.log: jitconv
-	{ cmd='./jitconv -k -t 8 -S resnext -M params/conv/resnext2.txt'; rm -f ftrace.out \
-	       echo "$$cmd"; time $$cmd; status=$$?; ftrace || true; } >& resnext-t8.log; \
+resnext-t%.log: jitconv
+	{ cmd='./jitconv -k -t $* -S resnext -M params/conv/resnext2.txt'; rm -f ftrace.out \
+	       echo "$$cmd"; time $$cmd; status=$$?; ftrace || true; } >& resnext-t$*.log; \
 	       if [ "$${status}" != "0" ]; then echo "$@ FAILED"; fi; \
 	       [ "$${status}" == "0" ];
 	@echo "$@ OK"

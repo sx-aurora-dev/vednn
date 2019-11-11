@@ -14,20 +14,8 @@
 #define VERBOSE 0
 #endif
 
-#if 0
-#ifdef VEDNN_USE_OPENMP
-#define GET_NTHREADS(nthreads) int64_t const nthreads = omp_get_max_threads() ;
-    // NOTE: outside parallel region, use omp_get_max_threads
-    //       inside                   use omp_get_num_threads (current #)
-    //printf(" openmp threads %ld batch %ld",nthreads,allBatch); fflush(stdout);
-#else
-//#warning "no openmp?"
-#define GET_NTHREADS(nthreads) int64_t const nthreads = 1;
-    //printf(" threads %ld batch %ld",nthreads,allBatch); fflush(stdout);
-#endif
-#else // now vednn exports __vednn_omp_num_threads from vednn-def.h
+// now vednn exports __vednn_omp_num_threads from vednn-def.h
 #define GET_NTHREADS(nthreads) int64_t const nthreads = __vednn_omp_num_threads;
-#endif
 
 #ifdef __cplusplus
 extern "C" {
@@ -495,7 +483,7 @@ vednnConv##Forward##_out_t vednnConv##Forward##_Run( \
     } \
     return ret; \
 }
-#if VERBOSE // long-hand version of macros, for debug ....
+#if 0 //VERBOSE // long-hand version of macros, for debug ....
 vednnConvForward_out_t vednnConvForward_Run(
         vednnConvForwardImpls* current,
         VEDNN_PARAMS_CONV_FORWARD,

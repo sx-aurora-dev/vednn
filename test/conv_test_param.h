@@ -111,7 +111,7 @@ void testconvBackwardFilter_refcalcs( struct testconvBackwardFilter *pConvArray,
 void testconvBackwardFilter_vednncalcs( struct testconvBackwardFilter *pConvArray, int const nEntry );
 void testconvBackwardFilter_free( struct testconvBackwardFilter *pConv );
 
-inline unsigned long long count_ops(struct param const* p); // as in bench-dnn
+inline unsigned long long count_ops(struct param const* p); // as in bench-dnn, for Fwd conv.
 
 struct param {
     int        batchNum;
