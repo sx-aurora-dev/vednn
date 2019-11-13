@@ -62,25 +62,25 @@ LIBVEDNNX:=vednnx$(VEDNN_SUFFIX)
 ./vednn: ../vednnx.tar.gz
 	rm -rf tmp-v; mkdir tmp-v
 	cd tmp-v && tar xzmf ../$^
-	rm -rf $@; mv tmp-v/vednnx $@; rm -rf tmp-v
+	rm -rf $@; mv tmp-v/vednn $@; rm -rf tmp-v
 	touch $@; chmod -R ugo-w $@;
 	ls -l $@/lib $^
-./vednn-ftrace1: ../vednnx-ftrace1.tar.gz
+./vednn-ftrace1: ../vednn-ftrace1.tar.gz
 	rm -rf tmp-vft1; mkdir tmp-vft1
 	cd tmp-vft1 && tar xzmf ../$^
-	rm -rf $@; mv tmp-vft1/vednnx $@; rm -rf tmp-vft1
+	rm -rf $@; mv tmp-vft1/vednn $@; rm -rf tmp-vft1
 	touch $@; chmod -R ugo-w $@;
 	ls -l $@/lib $^
 vednn-unpack:
 	if [ -d '$(VEDNN_SUBDIR)' ]; then chmod -R ugo+rw '$(VEDNN_SUBDIR)'; rm -rf '$(VEDNN_SUBDIR)'; fi
 	if [ ! -z "$(VEDNN_SUBDIR)" ]; then \
-		@echo 'VEDNN_SUBDIR "$(VEDNN_SUBDIR)" being remade'; \
+		echo 'VEDNN_SUBDIR "$(VEDNN_SUBDIR)" being remade'; \
 		$(MAKE_UNPACK) ./$(VEDNN_SUBDIR); \
 	fi
-../vednnx.tar.gz: ../Makefile	
+../vednn.tar.gz: ../Makefile	
 	@echo 'Regenerating vednn tarballs (SLOW)'
-	-$(MAKE) -C $(myfile_dir)/.. libvednn.tar.gz libvednnx.tar.gz
-vednn-rebuild: ../vednnx.tar.gz
+	-$(MAKE) -C $(myfile_dir)/.. libvednn.tar.gz libvednn.tar.gz
+vednn-rebuild: ../vednn.tar.gz
 	@# this is a less nice target, that regenerates tarballs -- QUITE SLOW
 	$(MAKE_UNPACK) vednn-unpack
 else

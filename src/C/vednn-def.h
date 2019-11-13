@@ -14,24 +14,41 @@ extern "C" {
  * threads! */
 extern int __vednn_omp_num_threads ;
 
+#if 0
+static inline void vednn_set_num_threads(int const threads){
+#ifdef VEDNN_USE_OPENMP
+    __vednn_omp_num_threads = threads;
+#else
+    __vednn_omp_num_threads = 0;
+#endif
+}
+static inline int vednn_get_num_threads(){
+    return __vednn_omp_num_threads;
+}
+#endif
+
 /// \group vednn scratchpads
 /** Scratchpads are local to the current process (or libvednn load/unload).
  * Scratchpads are nicely-sized persistent regions, reducing malloc calls.
- * They have high alignment, and actual length is the desired length rounded
- * up to at least a multiple of 16 bytes. */
+ * They have ALIGNMENT at least 16, and actual length is the desired length
+ * rounded up to at least a multiple of 16 bytes. Note: x86 also page-aligns
+ * these at 2MB pages. What governs 2M vs 64M pages on Aurora? */
 //@{
 /** Resize to \c size bytes and access vednn global scratchpad.
  * Initialized during \c __vednn_init, via \c vednn_init_global_scratchpads().
  * Modeled after mkldnn::impl::scratchpad_t.
  * This is a general-purpose read-write scratchpad, usable in omp wrapper functions.
  */
-char* vednn_scratchpad_shared(size_t bytes);
+void* vednn_scratchpad_shared(size_t bytes);
 
-#if 0 // do not expose thread-local scratchpads until needed
 /** thread-local re-usable scratchpads (e.g. for omp threads).
- * Not used yet in vednn, but these are the default flavor in mkl-dnn. */
-char* vednn_scratchpadTLS(size_t bytes);
-#endif
+ * Such scratchpads will be 'local' to each OpenMP thread.
+ *
+ * These thread-locals will leak, except for master thread, because
+ * the client does not 'free' them, and OpenMP has no thread
+ * cancellation hooks.
+ */
+void* vednn_scratchpadTLS(size_t bytes);
 
 /** Resize to \c floats and, if resized, initialize all values to 1.0f.
  * Client is expected to treat this scratchpad as const memory. */
@@ -53,17 +70,16 @@ float* vednn_scratchpad_float_ones(size_t floats);
 void vednn_init_global_scratchpads(); // called during __vednn_init
 void vednn_free_global_scratchpads(); // called during __vednn_init
 
+
 //@}
 
 #ifdef FTRACE
 #include <ftrace.h>
 #define FTRACE_BEGIN(...) ftrace_region_begin(__VA_ARGS__)
 #define FTRACE_END(...) ftrace_region_end(__VA_ARGS__)
-#define FTRACE_IF(...) do{ __VA_ARGS__; }while(0)
 #else
 #define FTRACE_BEGIN(...)
 #define FTRACE_END(...)
-#define FTRACE_IF(...) do{}while(0)
 #endif
 
 #define WRAP_RET(FUNC, OMP_WRAPPER, ...) do{ \

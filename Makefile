@@ -84,7 +84,7 @@ clean:
 	rm -rf build-${PRJ}* build-ft1* ${PRJ} mk-build.log mk-${PRJ}.log mk-${PRJ}_omp.log mk-ft1-${PRJ}.log mk-ft1-${PRJ}_omp.log
 	$(MAKE) -C test clean
 realclean: clean
-	rm -rf build build-vednn build-vednn_omp ${PRJ}.tar.gz ${PRJ}-ftrace1.tar.gz
+	rm -rf build build-vednn build-vednn_omp install vednnx ${PRJ}.tar.gz ${PRJ}-ftrace1.tar.gz
 	$(MAKE) -C src/wrap realclean
 	$(MAKE) -C test realclean
 #

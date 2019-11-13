@@ -11,7 +11,37 @@
 #endif
 
 #ifdef __cplusplus
-extern "C" {
+extern "C" { /*}*/
+#endif
+
+/** vednn always initializes this to env OMP_NUM_THREADS, but you may wish to
+ * control it better.
+ *
+ * - This routine does 1 thing:
+ *   - set \c __vednn_omp_num_threads used by libvednn internals
+ *
+ * - It does NOT call \c omp_set_num_threads(threads)
+ *
+ * Note that if you do not have OMP_NUM_THREADS in env, libvednn init code would
+ * use zero for \c __vednn_omp_num_threads in \ref vednnInit.c
+ *
+ * This was changed so default will be \c omp_get_max_threads() for -fopenmp
+ * compilation.   This way if env vars are unset, gemm convolution will still
+ * allow blas to use the desired number of threads.
+ *
+ * Often the following snippet will do something reasonable, and can be inlined
+ * if you include \ref vednn-def.h :
+ * ```
+ * omp_set_num_threads(threads);
+ * __vednn_omp_num_threads = threads;
+ * ```
+ */
+#if 0
+void vednn_set_num_threads(int const threads);
+int vednn_get_num_threads();
+#else // simpler, no problems w/ C vs C++ linkage, but need vednn-def.h
+#define vednn_set_num_threads(THREADS) (__vednn_omp_num_threads = THREADS)
+#define vednn_get_num_threads(...) (__vednn_omp_num_threads)
 #endif
 
 typedef enum {

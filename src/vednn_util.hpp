@@ -1,5 +1,5 @@
-#ifndef __VEDNN_UTIL__
-#define __VEDNN_UTIL__
+#ifndef VEDNN_UTIL_HPP
+#define VEDNN_UTIL_HPP
 // Note: including only vednn.h will always pull in this header if compiling C++ code.
 #include "vednn.h"
 #include <stdint.h>
@@ -25,4 +25,4 @@ inline int64_t filter_index(
       (( r * kernWidth + s ) * inChannelGroup + c ) * outChannelGroup + k ;
 }
 // vim: sw=2 ts=2 et ai
-#endif
+#endif // VEDNN_UTIL_HPP

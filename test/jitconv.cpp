@@ -5,6 +5,7 @@
 // OK in'c++ : static struct testconvForward tcfFoo;
 #include "conv_test_param.hpp"
 #include "vednnx.h"
+#include "vednn-def.h"  // fast vednn_get/set_num_threads macros
 #include "cjitConv.h"
 #include "vechash.hpp"
 
@@ -141,7 +142,7 @@ void testForward(struct param *pNetwork, int nEntry, double HZ, int flagBias, in
     static int const doRef = 1; // do ref gemm calc
     static int const doStd = 1; // do libvednn default calc
     static int const doItr = 1; // do libvednnx "all" calc
-    static int const doJit = 1;
+    static int const doJit = 0;
     static int const doJitunrolls = 1; // clang now has issues with many unrollings (_ve_lvl)
     int t;
     typedef struct testconvForward conv;
@@ -316,6 +317,10 @@ void testForward(struct param *pNetwork, int nEntry, double HZ, int flagBias, in
                                 }
                             }else{
                                 snprintf(name,80,"vednn:%s",actual->shortname);
+                            }
+                            if(strstr(name,"ConvFwd-gemm")){
+                                cout<<" skipping "<<name<<" based on impl name"<<endl;
+                                continue;
                             }
                             //testconvForward_dumpParms( pConv, flagBias );
                             //printf(" C%s",name); fflush(stdout);
@@ -910,7 +915,7 @@ static struct {
 char const* default_parameter_file="mb27g1_ic3ih27iw270_oc47oh14ow135_kh3kw3_ph1pw1_sw2sh2_dw1dh1";
 // oc47 ~ 47=0x2f : this many outChannelGroups will check many hand-unrolled code cases
 static void help(){
-    printf( "\nve_cmpconv:"
+    printf( "\njitconv [OPTIONS] [OVERRIDES]:"
             "\n   -p PATH   convolution parameter file"
             "\n             -- or --  a STRING like"
             "\n   -p mb27g1_ic3ih22iw22_oc100oh22ow22_kh5kw5_ph3pw3_sw1sh1_dw1dh1"
@@ -939,6 +944,8 @@ static void help(){
             "\n   -k        enable cacheKiller before every timed call"
             "\n   -f STRING filter layout: [filter_nchw] filter_hwcn"
             "\n               Note: current JIT impls assume filter_nchw (iohw) kernel data"
+            "\n OVERRIDES: non-option as TAG[=]NUMBER...  Examples: mb=64 kh3kw3 ih32iw=32"
+            "\n   'jitconv -M parms.txt mb32 will change every test in parms.txt to use minibatch 32"
             "\n PATH file format:"
             "\n   First line: number of tests"
             "\n   Test lines: either libvednn CSV format (name,mb,g, ic,ih,iw, oc,oh,ow, kh,kw, sh,sw, ph,pw)"
@@ -988,10 +995,10 @@ static int/*err?*/ check_override( struct param * ovr, char const* arg ){
     // codes can be concatenated (embeded whitespace, =, or _ ignored)
     // but terminal 'n' will NEVER be handled correctly.
     while(arg[0]!= '\0'){
-        cout<<" remaining arg = "<<arg<<endl;
+        cout<<" remaining arg = '"<<arg<<"' int(arg[0])="<<int(arg[0])<<endl;
         if(0) ;
         else if(strncmp(arg,"b" ,1)==0) {arg+=1; ovr->batchNum       = ovrint(arg); ++ret;}
-        else if(strncmp(arg,"mb",2)==0) {arg+=1; ovr->batchNum       = ovrint(arg); ++ret;}
+        else if(strncmp(arg,"mb",2)==0) {arg+=2; ovr->batchNum       = ovrint(arg); ++ret;}
         else if(strncmp(arg,"g" ,1)==0) {arg+=1; ovr->group          = ovrint(arg); ++ret;}
         else if(strncmp(arg,"ic",2)==0) {arg+=2; ovr->inChannel      = ovrint(arg); ++ret;}
         else if(strncmp(arg,"ih",2)==0) {arg+=2; ovr->inHeight       = ovrint(arg); ++ret;}
@@ -1013,6 +1020,7 @@ static int/*err?*/ check_override( struct param * ovr, char const* arg ){
             break; // give up [includes parm string with terminal 'n' (name) field
         }
         arg += strspn(arg,"+-0123456789"); // skip 'int' chars and keep going
+        //if(ret > 100) { cout<<"program error?"<<endl; break; }
     }
     if(ret){
         cout<<" found "<<ret<<" overrides"<<endl;
@@ -1086,81 +1094,80 @@ int main(int argc, char **argv)
         .pName          = "N" // set to "Y" if maybe found some overrides
     };
     vector<string> ldlibs; // load libraries [if problems, report and continue]
-    while(optind < argc){
-        if ((opt = getopt(argc, argv, "p:M:CH:T:t:r:l:S:kf:")) != -1) {
-            switch (opt) {
-            case 'M':
-                m_for_mkldnn = 'm'; // fall-through
-            case 'p':
-                snprintf(paramBuf,PARAMBUFSZ,"%s",optarg);
-                pParamPath = &paramBuf[0];
-                break;
-            case 'r':
-                reps = (int)atof(optarg); break;
-            case 'C':
-                flagCSV = 1; break;
-            case 'H':
-                HZ = atof(optarg); break;
-            case 'T':
-                {
-                    int found = 0;
-                    for (int t=0; t<sizeof(tests)/sizeof(tests[0]); ++t) {
-                        if (strcasecmp(optarg, tests[t].pName) == 0) {
-                            testtype = tests[t].testtype ;
-                            found = 1;
-                            break;
-                        }
-                    }
-                    if (! found )  {
-                        fprintf(stderr, "Invalid test type.\n");
-                        exit(1);
+    while((opt = getopt(argc, argv, "p:M:CH:T:t:r:l:S:kf:")) != -1) {
+        switch (opt) {
+        case 'M':
+            m_for_mkldnn = 'm'; // fall-through
+        case 'p':
+            snprintf(paramBuf,PARAMBUFSZ,"%s",optarg);
+            pParamPath = &paramBuf[0];
+            break;
+        case 'r':
+            reps = (int)atof(optarg); break;
+        case 'C':
+            flagCSV = 1; break;
+        case 'H':
+            HZ = atof(optarg); break;
+        case 'T':
+            {
+                int found = 0;
+                for (int t=0; t<sizeof(tests)/sizeof(tests[0]); ++t) {
+                    if (strcasecmp(optarg, tests[t].pName) == 0) {
+                        testtype = tests[t].testtype ;
+                        found = 1;
+                        break;
                     }
                 }
-                break;
-            case 'f' :
-                {
-                    int found = 0;
-                    for (int i=0; i<sizeof(filterLayout)/sizeof(filterLayout[0]); i++) {
-                        if (strcasecmp(optarg, filterLayout[i].pName) == 0) {
-                            filter_layout= filterLayout[i].layouttype ;
-                            found = 1;
-                            break;
-                        }
-                    }
-                    if (! found )  {
-                        fprintf(stderr, "Invalid filter layout.\n");
-                        exit(1);
+                if (! found )  {
+                    fprintf(stderr, "Invalid test type.\n");
+                    exit(1);
+                }
+            }
+            break;
+        case 'f' :
+            {
+                int found = 0;
+                for (int i=0; i<sizeof(filterLayout)/sizeof(filterLayout[0]); i++) {
+                    if (strcasecmp(optarg, filterLayout[i].pName) == 0) {
+                        filter_layout= filterLayout[i].layouttype ;
+                        found = 1;
+                        break;
                     }
                 }
-            case 't':
-                threads = atof(optarg);
-                if(threads > 16) threads = 16;
-                if(threads < 0 ) threads = -1;
-                break;
-            case 'l':
-                ldlibs.push_back(optarg); break;
-            case 'S':
-                jit_dir = optarg; break;
-            case 'k':
-                CacheKiller::enable = true; break;
-            default: /* '?' */
-                fprintf(stderr, "Unknown option.\n");
-                help();
-                exit(1);
+                if (! found )  {
+                    fprintf(stderr, "Invalid filter layout.\n");
+                    exit(1);
+                }
             }
-        }else{ // non-option arguments
-            // 1. special parameter overrides
-            // 2. REMOVED  else pretende it is test file or single test spec ?
-            //    ** now you MUST use -M or -p option **
-            cout<<" non-option: "<<argv[optind]<<endl;
-            int nOvr = check_override( &overrides, argv[optind] );
-            if(nOvr==0){
-                // just pretend it is an mkl-dnn test file name, like '-p'
-                snprintf(paramBuf,PARAMBUFSZ,"%s",argv[optind]);
-                pParamPath = &paramBuf[0];
-            }
-            ++optind;
+        case 't':
+            threads = atof(optarg);
+            if(threads > 16) threads = 16;
+            if(threads < 0 ) threads = -1;
+            break;
+        case 'l':
+            ldlibs.push_back(optarg); break;
+        case 'S':
+            jit_dir = optarg; break;
+        case 'k':
+            CacheKiller::enable = true; break;
+        default: /* '?' */
+            fprintf(stderr, "Unknown option.\n");
+            help();
+            exit(1);
         }
+    }
+    while(optind < argc){ // non-option arguments
+        // 1. special parameter overrides
+        // 2. REMOVED  else pretende it is test file or single test spec ?
+        //    ** now you MUST use -M or -p option **
+        cout<<" non-option: "<<argv[optind]<<endl;
+        int nOvr = check_override( &overrides, argv[optind] );
+        if(nOvr==0){
+            // just pretend it is an mkl-dnn test file name, like '-p'
+            snprintf(paramBuf,PARAMBUFSZ,"%s",argv[optind]);
+            pParamPath = &paramBuf[0];
+        }
+        ++optind;
     }
     if (optind < argc) {
         fprintf(stderr, "Unexpected arguments\n");
@@ -1255,7 +1262,24 @@ int main(int argc, char **argv)
     for(int thr=thrlo; thr<=thrhi; ++thr){
         printf(" omp_set_num_threads(%d)...\n", thr);
         omp_set_num_threads(thr);
-        fflush(stdout);
+        // New: vednnInit also sets __vednn_omp_num_threads...
+        // IMPORTANT: **we** must set this here
+        // (else set vednnConvolutionLists.c to use omp_get_max_threads() or so)
+#if 0 
+        cout<<" Original libvednn __vednn_omp_num_threads = "<<__vednn_omp_num_threads
+            <<" will be set to "<<thr<<endl;
+        __vednn_omp_num_threads = thr;
+#else // equivalent (api addition...)
+        // BETTER: provide a public function "vednn_set_num_threads"
+        //         that does both (well a macro, to avoid fn call overhead)
+        cout<<" Original libvednn vednn_get_num_threads = "
+            <<vednn_get_num_threads()<<" will be set to "<<thr<<endl;
+        vednn_set_num_threads(thr);
+#endif
+#else
+        cout<<" libvednn using vednn_get_num_threads() = "
+            <<vednn_get_num_threads()<<" (jitconv -t "<<threads<<" ignored)"
+            <<endl;
 #endif
         switch(testtype) {
         case CONV_TEST_FORWARD :

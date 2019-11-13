@@ -70,8 +70,8 @@ FWD_FN_OK(vednnConvolutionForward_direct_default)
 //    int ok = FWD_LIKE(default);
 //    return ok? VEDNN_SUCCESS: VEDNN_ERROR_INVALID_PARAM;
 //}
-FWD_FN_OK_LIKE(gendnn, default, 1); // Note: this one comes in libvednnx, not libvednn (different scratchpad usage)
-FWD_FN_OK_LIKE(gemm, default, 1); // Note: this one has been added to libvednn
+FWD_FN_OK_LIKE(gendnn, default, 1); // Note: this one comes in libvednnx [wip]
+FWD_FN_OK_LIKE(gemm, default, pParamKernel->layout==VEDNN_FILTER_LAYOUT_NCHW );
 FWD_FN_OK_LIKE(default2, default, 1);
 FWD_FN_OK_LIKE(default2p, default, 1);
 FWD_FN_OK_LIKE(default3, default, 1);

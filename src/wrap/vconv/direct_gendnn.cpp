@@ -55,23 +55,6 @@ vednnConvolutionForward_direct_gendnn(
 
     delete scratchpad;
 }
-#if 0
-vednnError_t vednnConvolutionForwardAddBias_direct_gendnn(
-    const vednnTensorParam_t         *pParamIn,
-    const void                 *pDataIn,
-    const vednnFilterParam_t        *pParamKernel,
-    const void                 *pDataKernel,
-    const vednnBiasParam_t         *pParamBias,
-    const void                 *pDataBias,
-    const vednnTensorParam_t         *pParamOut,
-    void                 *pDataOut,
-    const vednnConvolutionParam_t    *pParamConv,
-    vednnConvolutionAlgorithm_t     algo
-)
-{
-}
-#endif
-
 vednnError_t vednnConvolutionBackwardData_direct_gendnn(
     const vednnTensorParam_t         *pParamGradIn,
     const void                 *pDataGradIn,

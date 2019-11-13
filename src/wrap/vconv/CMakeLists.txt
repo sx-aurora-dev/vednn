@@ -57,8 +57,8 @@ if(( (NOT IS_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/include/)
         )
 endif()
 file(GLOB_RECURSE VCONV_HEADERS
-    ${CMAKE_BINARY_DIR}/include/*.h
-    ${CMAKE_BINARY_DIR}/include/*.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/*.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/*.hpp
     )
 file(GLOB_RECURSE VCONV_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/src/*.c
@@ -93,6 +93,6 @@ install(FILES
     vednn2gendnn.h
     md_util.h
     ${VCONV_HEADERS}
-    DESTINATION include/C/vconv
+    DESTINATION include/C/gen-dnn
     )
 # vim: et ts=4 sw=4 ai

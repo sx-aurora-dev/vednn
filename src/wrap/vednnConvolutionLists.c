@@ -1,4 +1,3 @@
-
 #include "vednnConvolutionLists.h"
 #include "vednnx.h"
 #include "vednn-def.h"
@@ -183,6 +182,7 @@ ITERATOR_BEGIN(BackwardData,   BACKWARD_DATA);
 ITERATOR_BEGIN(BackwardFilter, BACKWARD_FILTER);
 #undef ITERATOR_BEGIN
 
+// XXX show wrap state
 #define ITERATOR_DUMP(Forward,FORWARD) \
 void vednnConv##Forward##_Dump( vednnConv##Forward##Impls const* it) \
 { \

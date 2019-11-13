@@ -2,35 +2,18 @@
 
 #include "vednn.h"
 #include "vednn-def.hpp" // vednn.h + C++ scratchpad API (C++ can inline one call)
-#include "vednnConvolutionForward.h"
-#include "vednnConvolutionBackwardData.h"
-#include "vednnConvolutionBackwardFilter.h"
+#include "gen-dnn/mkldnn_thread.hpp" // OMP pragmas
+#include "gen-dnn/utils.hpp"
 
 #include <stdio.h>
 #include <assert.h>
 #include <string.h> // memset
 #include <stdint.h>
 
-/** 0=malloc+free, 1=vednn_scratchpad_shared */
+/** 0=malloc+free, 1=vednn_scratchpad_shared, 2=vednn_scratchpadTLS */
 #ifndef SCRATCHPAD
-#define SCRATCHPAD 0
+#define SCRATCHPAD 2
 #endif
-
-//#if defined(__GNUC__) && !defined(restrict)
-//#define restrict __restrict
-//#endif
-
-/** return sizeof(float) if pParam is DTYPE_FLOAT */
-static inline size_t getTensorDataSize(const vednnTensorParam_t * restrict pParam)
-{
-  size_t dataSize = 0;
-  switch (pParam->dtype) {
-  case DTYPE_FLOAT: dataSize = sizeof(float);
-                    break;
-  }
-  assert(dataSize>0); /* BUG */
-  return dataSize;
-}
 
 #define LOCAL_FTRACE 1
 #if LOCAL_FTRACE
@@ -45,80 +28,56 @@ static inline size_t getTensorDataSize(const vednnTensorParam_t * restrict pPara
 
 #define SGEMM   sgemm_
 
+/** local scratchpad alloc via \c SCRATCHPAD method */
+static inline float* restrict getScratch( size_t nBytes ){
+#if SCRATCHPAD==0
+  float * restrict ret = (float*) malloc(nBytes);
+#elif SCRATCHPAD==1
+  //printf(" dirGemmA: scratchpad_shared!"); fflush(stdout);
+  using vednn::scratchpad::vednn_scratchpad_shared;
+  float * restrict ret = (float*)(void*)
+    vednn_scratchpad_shared(nBytes);
+#else // 2... TLS
+  using vednn::scratchpad::vednn_scratchpadTLS;
+  float * restrict ret = (float*)(void*)
+    vednn_scratchpadTLS(nBytes);
+#endif
+  return ret;
+}
+
+typedef long unsigned lu;
+
+/** return sizeof(float) if pParam is DTYPE_FLOAT */
+static inline size_t getTensorDataSize(const vednnTensorParam_t * restrict pParam)
+{
+  size_t dataSize = 0;
+  switch (pParam->dtype) {
+  case DTYPE_FLOAT: dataSize = sizeof(float);
+                    break;
+  }
+  assert(dataSize>0); /* BUG */
+  return dataSize;
+}
+
+// Hmm replace using vednn.h macros vednn_get/set_num_threads (API addition)
+#ifdef VEDNN_USE_OPENMP
+static inline void chkThreads() {
+  if(__vednn_omp_num_threads<=0) __vednn_omp_num_threads = omp_get_max_threads();
+}
+static inline int getThreads() {
+  //return __vednn_omp_num_threads? __vednn_omp_num_threads: omp_get_max_threads();
+  return __vednn_omp_num_threads;
+}
+#else
+static inline void chkThreads() {}
+static inline int getThreads() { return 1; }
+#endif
+
 extern "C" {
   void sgemm_(char *TRANSA, char *TRANSB, int *M, int *N, int *K,
       float *ALPHA, float *A,  int *LDA, float *B, int *LDB,
       float *BETA, float *C, int *LDC ) ;
 }
-
-
-#if 0
-// This header code is a pure internal detail (and these original function signatures
-// can be removed to save a function call XXX
-//#ifndef CONVOLUTION_GEMM_H
-//#define CONVOLUTION_GEMM_H
-//#include "vednn.h"
-
-#ifdef __cplusplus
-extern "C" {
-#endif /*}*/
-
-/// \group historical C api
-/** Historical 'C' api from test/ directory, now just 'detail'
- *
- * pColBuff is malloced as:
- * `(float*) malloc(pColrows*pColcols*getTensorDataSize(pConv->pParamIn));`
- * where
- * `size_t pColrows = pConv->pParamKernel->inChannel * pConv->pParamKernel->width * pConv->pParamKernel->height;`
- * and
- * `size_t pColcols = pConv->pParamOut->width * pConv->pParamOut->height;`
- *  This can be quite big, and usual impls may do "one col at a time" (re-using the buffer)
- *
- *  This can be a libvednn scratchpad, I think (thread-local should be ok, shared among omp threads
- *  during gemm call)
- *
- *  note getTensorDataSize for pParam->dtype==DTYPE_FLOAT is sizeof(float). (vednn_helper.c)
- *
- *  pOnesize is float[ow*oh] and is used to add in the bias via a second gemm_ call.
- *
- *  For libvednn, these scratchpads are now auto-supplied (re-usable between multiple
- *  layers, layer types).
- */
-//@{
-static vednnError_t
-vednnConvFwd_gemm(
-    const vednnTensorParam_t * restrict pParamIn, const void * restrict pDataIn,
-    const vednnFilterParam_t * restrict pParamKernel, const void * restrict pDataKernel,
-    const vednnBiasParam_t * restrict pParamBias, const void * restrict pDataBias,
-    const vednnTensorParam_t * restrict pParamOut, void * restrict pDataOut,
-    const float * restrict pOne,  float * restrict pColBuff,
-    const vednnConvolutionParam_t * restrict pParamConv ) ;
-
-static vednnError_t
-vednnConvBwD_gemm(
-    const vednnTensorParam_t * restrict pParamGradOut, const void * restrict pDataGradOut,
-    const vednnFilterParam_t * restrict pParamKernel, const void * restrict pDataKernel,
-    const vednnTensorParam_t * restrict pParamGradIn, void * restrict pDataGradIn,
-    float * restrict pColBuff,
-    const vednnConvolutionParam_t * restrict pParamConv ) ;
-
-static vednnError_t
-vednnConvBwF_gemm(
-    const vednnTensorParam_t * restrict pParamIn, const void * restrict pDataIn,
-    const vednnTensorParam_t * restrict pParamGradOut, const void * restrict pDataGradOut,
-    const vednnFilterParam_t * restrict pParamGradKernel, void * restrict pDataGradKernel,
-    float * restrict pColBuff,
-    const vednnConvolutionParam_t * restrict pParamConv ) ;
-//@}
-
-#ifdef __cplusplus /*{*/
-}
-#endif
-#endif // CONVOLUTION_GEMM_H
-
-//
-// -------------------------- end historical 'C' header ------------------------
-//
 
 static char  TRANS   = 'T';
 static char  NOTRANS = 'N';
@@ -132,6 +91,50 @@ static int   IONE    = 1;
 //  return a>=0  && a<b; // for ncc auto vectorization, this is better
 //}
 
+static inline
+void krn_i2c_sw1( int64_t const kernel_row, int64_t kernel_col,
+    int64_t const pad_h, int64_t const dilation_h, int64_t const stride_h,
+    int64_t const pad_w, int64_t const dilation_w, /* int64_t const stride_w = 1, */
+    int64_t const output_h, int64_t output_w, //uint64_t output_wB,
+    int64_t const height, int64_t const width,
+    float const * restrict data_im_channel,
+    float       * restrict data_col)
+{
+  typedef uint64_t u64;
+  int64_t outOffset=0;
+  int64_t const ir0 = -pad_h + kernel_row * dilation_h;
+  for (int64_t output_row = 0; output_row<output_h; ++output_row) {	// outHeight
+    int64_t input_row = ir0 + output_row*stride_h;
+    if ( (u64)input_row >= (u64)height ) {
+      for (int64_t output_col = output_w; output_col; output_col--) { // outWidth
+        data_col[outOffset++] = 0.f; //*(data_col++) = 0;
+      }
+    } else {
+      int64_t const ic0 = -pad_w + kernel_col * dilation_w;
+      float const* restrict data_im_row = &data_im_channel[input_row * width];
+      int64_t ic_sw[256];
+#pragma _NEC vreg(ic_sw)
+      for(int64_t i=0; i<256; ++i) ic_sw[i] = ic0 + i*1;
+      float x[256];
+#pragma _NEC vreg(x)
+      // unblock loop, generate register explicitly, force single store
+      for( int64_t ocB = 0; ocB<output_w; ocB += 256U ){
+        int64_t const ocBlen = (output_w-ocB < 256? output_w-ocB: 256);
+#pragma _NEC shortloop
+        for (int64_t output_col = ocB; output_col<ocB+ocBlen; ++output_col) {	// outWidth
+          x[output_col-ocB] = data_im_row[ ic0 + output_col*1];
+          if ( (u64)(ic0 + output_col )>= (u64)width )
+            x[output_col-ocB] = 0.f; //fzeros[output_col-ocB];
+          data_col[outOffset++] = x[output_col-ocB]; // single store
+        }
+      }//outWidth
+#pragma _NEC shortloop
+      for(int i=0; i<256; ++i) ic_sw[i] += 256*1;
+    }//outWidth Blocking
+  }
+  //printf(" outOffset=%lu",(u64)outOffset); // output_h * output_w
+}
+
 /** data_col size to hold float[ic*kw*kh*ow*oh]. */
   static void
 vednn_im2col(const float * restrict data_im, const int64_t channels,
@@ -139,81 +142,210 @@ vednn_im2col(const float * restrict data_im, const int64_t channels,
     const int64_t pad_h, const int64_t pad_w,
     const int64_t stride_h, const int64_t stride_w,
     const int64_t dilation_h, const int64_t dilation_w,
-    float * restrict data_col)
+    float * restrict data_col, int const threads)
 {
-  LFTRACE_BEGIN("vednnIm2col");
+  typedef uint64_t u64;
+  LFTRACE_BEGIN("vednn_im2col");
   const int64_t output_h = (height + 2 * pad_h - (dilation_h * (kernel_h - 1) + 1)) / stride_h + 1;
   const int64_t output_w = (width + 2 * pad_w -  (dilation_w * (kernel_w - 1) + 1)) / stride_w + 1;
+  const int64_t kernel_hw = kernel_h*kernel_w;
   const int64_t channel_size = height * width;
+  const int64_t output_hw = output_h * output_w;
 
-  int64_t channel;
+  int64_t const workPerChannel = kernel_hw * output_hw;
+  //int const collapse_2_loops = kernel_h > 1 && channels%threads && channels < 2*threads;
+  //if( collapse_2_loops ) // [channels,kernel_h]
+  if( channels < 2*threads && channels%threads && channels*kernel_h > 1 ){
+    if(stride_w==1){
+      OMP(parallel for collapse(2))//;
+      for (int64_t channel = 0 ; channel < channels; ++channel) {       // inChannel
+        for (int64_t kernel_row = 0; kernel_row < kernel_h; ++kernel_row) {   // kernHeight
+          int64_t const inOffset = channel * channel_size;
+          int64_t outOffset = channel * workPerChannel + kernel_row * kernel_w*output_hw;
+          for (int64_t kernel_col = 0; kernel_col < kernel_w; kernel_col++) {   // kernWidth
+            krn_i2c_sw1( kernel_row, kernel_col,
+                pad_h, dilation_h, stride_h, pad_w, dilation_w, /*stride_w,*/
+                output_h, output_w, //256U,
+                height, width,
+                &data_im[inOffset], &data_col[outOffset] );
+            outOffset += output_hw;
+          } } }
+    }else{ //stride_w>1
+      OMP(parallel for collapse(2))//;
+      for (int64_t channel = 0 ; channel < channels; ++channel) {       // inChannel
+        for (int64_t kernel_row = 0; kernel_row < kernel_h; ++kernel_row) {   // kernHeight
+          int64_t i_x_stride_w[256]; // const
+#pragma _NEC vreg(i_x_stride_w)
+          float fzeros[256];
+#pragma _NEC vreg(fzeros)
+          for(int i=0; i<256; ++i) i_x_stride_w[i] = i*stride_w;
+          for(int i=0; i<256; ++i) fzeros[i] = 0.f;
+          int64_t const inOffset = channel * channel_size;
+          int64_t outOffset = channel * workPerChannel + kernel_row * kernel_w*output_hw;
+          for (int64_t kernel_col = 0; kernel_col < kernel_w; ++kernel_col) {   // kernWidth
 
-  if(stride_w != 1 ){
-    // nc++ may now support if clause?
-    // dnnl tests and special-cases: stride==1 (and some other thing)
-    OMP(parallel for if(channels>=3))//;
-    for (channel = 0 ; channel < channels; channel++) {             // inChannel
-      int64_t kernel_row, kernel_col, output_rows, output_cols, output_col;
-
-      int64_t inOffset = channel * channel_size;
-      int64_t outOffset = channel * output_h * output_w * kernel_h * kernel_w;
-
-      for (kernel_row = 0; kernel_row < kernel_h; kernel_row++) {     // kernHeight
-        for (kernel_col = 0; kernel_col < kernel_w; kernel_col++) {     // kernWidth
-          int64_t input_row = -pad_h + kernel_row * dilation_h;
-          for (output_rows = output_h; output_rows; output_rows--) {  // outHeight
-            if (input_row < 0 || input_row >= height ) {
-              for (output_col = output_w; output_col; --output_col) { // outWidth
-                data_col[outOffset++] = FZERO; //*(data_col++) = 0;
+            int64_t const ir0 = -pad_h + kernel_row * dilation_h;
+            for (int64_t output_row = 0; output_row < output_h; ++output_row) {  // outHeight
+              int64_t input_row = ir0 + output_row*stride_h;
+              if ( (u64)input_row >= (u64)height ) {
+                for (int64_t oc = output_w; oc; --oc) { // outWidth
+                  data_col[outOffset++] = FZERO;
+                }
+              } else {
+                float const* restrict data_im_row = &data_im[inOffset + input_row * width];
+                int64_t const ic0 = -pad_w + kernel_col * dilation_w;
+                int64_t ic_sw[256];
+#pragma _NEC vreg(ic_sw)
+                for(int i=0; i<256; ++i) ic_sw[i] = ic0 + i_x_stride_w[i];
+                for(int64_t ocB = 0; ocB<output_w; ocB += 256U ){
+                  int64_t const ocBlen = (output_w-ocB < 256? output_w-ocB: 256);
+#pragma _NEC shortloop
+                  for (int64_t output_col = ocB; output_col<ocB+ocBlen; ++output_col) {	// outWidth
+                    float x[256];
+#pragma _NEC vreg(x)
+                    x[output_col-ocB] = data_im_row[ ic0 + output_col * stride_w ];
+                    if ( (u64)ic_sw[output_col-ocB] >= (u64)width )
+                      x[output_col-ocB] = fzeros[output_col-ocB];
+                    data_col[outOffset++] = x[output_col-ocB];
+                  }//outWidth, vector
+#pragma _NEC shortloop
+                  for(int i=0; i<256; ++i) ic_sw[i] += 256*stride_w;
+                }//outWidth, blocking
               }
-            } else {
-              int64_t input_col = -pad_w + kernel_col * dilation_w;
-              for (output_col = 0; output_col<output_w; ++output_col) {	// outWidth
-                data_col[outOffset++] //*(data_col++)
-                  = //(is_a_ge_zero_and_a_lt_b(input_col, width)
-                  ( input_col >= 0 && input_col < width
-                    ? data_im[inOffset + input_row * width + input_col]
-                    : FZERO);
-                input_col += stride_w;
-              }
-            }
-            input_row += stride_h;
+            }//outHeight
           }
         }
       }
     }
-  }else{ //stride_w == 1
-    OMP(parallel for if(channels>=3))//;
-    for (channel = 0 ; channel < channels; channel++) {             // inChannel
-      int64_t kernel_row, kernel_col, output_rows, output_cols, output_col;
+  }else{ // collapse just one outer [channels] loop
+    if(stride_w==1){
+      OMP(parallel for collapse(2))//;
+      for (int64_t channel = 0 ; channel < channels; ++channel) {       // inChannel
+        for (int64_t kernel_row = 0; kernel_row < kernel_h; ++kernel_row) {   // kernHeight
+          int64_t const inOffset = channel * channel_size;
+          int64_t outOffset = channel * workPerChannel + kernel_row * kernel_w*output_hw;
+          for (int64_t kernel_col = 0; kernel_col < kernel_w; kernel_col++) {   // kernWidth
+            krn_i2c_sw1( kernel_row, kernel_col,
+                pad_h, dilation_h, stride_h, pad_w, dilation_w, /*stride_w,*/
+                output_h, output_w, //256U,
+                height, width,
+                &data_im[inOffset], &data_col[outOffset] );
+            outOffset += output_hw;
+          } } }
+    }else{ //stride_w>1
+      //printf(" omp1str>1 ");
+      OMP(parallel for)//;
+      for (int64_t channel = 0 ; channel < channels; ++channel) {       // inChannel
+        int64_t i_x_stride_w[256]; // const
+#pragma _NEC vreg(i_x_stride_w)
+        float fzeros[256];
+#pragma _NEC vreg(fzeros)
+        for(int i=0; i<256; ++i) i_x_stride_w[i] = i*stride_w;
+        for(int i=0; i<256; ++i) fzeros[i] = 0.f;
+        for (int64_t kernel_row = 0; kernel_row < kernel_h; kernel_row++) {   // kernHeight
+          int64_t const inOffset = channel * channel_size;
+          int64_t outOffset = channel * workPerChannel + kernel_row * kernel_w*output_hw;
+          int64_t const ir0 = -pad_h + kernel_row * dilation_h;
+          for (int64_t kernel_col = 0; kernel_col < kernel_w; ++kernel_col) {   // kernWidth
 
-      int64_t inOffset = channel * channel_size;
-      int64_t outOffset = channel * output_h * output_w * kernel_h * kernel_w;
-
-      for (kernel_row = 0; kernel_row < kernel_h; kernel_row++) {     // kernHeight
-        for (kernel_col = 0; kernel_col < kernel_w; kernel_col++) {     // kernWidth
-          int64_t input_row = -pad_h + kernel_row * dilation_h;
-          for (output_rows = output_h; output_rows; output_rows--) {  // outHeight
-            if (input_row < 0 || input_row >= height ) {
-              for (output_col = 0; output_col<output_w; ++output_col) {	// outWidth
-                data_col[outOffset++] = FZERO; //*(data_col++) = 0;
+            for (int64_t output_row = 0; output_row < output_h; ++output_row) {  // outHeight
+              int64_t input_row = ir0 + output_row*stride_h;
+              if ( (u64)input_row >= (u64)height ) {
+                for (int64_t oc = output_w; oc; --oc) { // outWidth
+                  data_col[outOffset++] = FZERO;
+                }
+              } else {
+                float const* restrict data_im_row = &data_im[inOffset + input_row * width];
+                int64_t const ic0 = -pad_w + kernel_col * dilation_w;
+                //float const* restrict data_im_row = &data_im[inOffset + ic0 + input_row * width];
+                int64_t ic_sw[256];
+#pragma _NEC vreg(ic_sw)
+                for(int i=0; i<256; ++i) ic_sw[i] = ic0 + i_x_stride_w[i];
+                for(int64_t ocB = 0; ocB<output_w; ocB += 256U ){
+                  int64_t const ocBlen = (output_w-ocB < 256? output_w-ocB: 256);
+#pragma _NEC shortloop
+                  for (int64_t output_col = ocB; output_col<ocB+ocBlen; ++output_col) {	// outWidth
+                    float x[256];
+#pragma _NEC vreg(x)
+                    x[output_col-ocB] = data_im_row[ ic0 + output_col * stride_w ];
+                    //x[output_col-ocB] = data_im[ inOffset + input_row*width + ic0 + output_col * stride_w ];
+                    if ( (u64)ic_sw[output_col-ocB] >= (u64)width )
+                      x[output_col-ocB] = fzeros[output_col-ocB];
+                    data_col[outOffset++] = x[output_col-ocB];
+                  }//outWidth, vector
+#pragma _NEC shortloop
+                  for(int i=0; i<ocBlen; ++i) ic_sw[i] += 256*stride_w;
+                }//outWidth, blocking
               }
-            } else {
-              int64_t const input_col = -pad_w + kernel_col * dilation_w;
-              for (output_col = input_col; output_col<input_col+output_w; ++output_col) {	// outWidth
-                data_col[outOffset++] //*(data_col++)
-                  = ( output_col >= 0 && output_col < width
-                      ? data_im[inOffset + input_row * width + output_col]
+            }//outHeight
+          }
+        }
+      }
+#if 0
+      OMP(parallel for if(channels>1))//;
+      for (int64_t channel = 0 ; channel < channels; ++channel) {       // inChannel
+        int64_t inOffset = channel * channel_size;
+        int64_t outOffset = channel * workPerChannel;
+        for (int64_t kernel_row = 0; kernel_row < kernel_h; kernel_row++) {   // kernHeight
+          //if(channel==0) printf("inOffset=%-8lu outOffset=%-8lu\n",(lu)inOffset,(lu)outOffset);
+          for (int64_t kernel_col = 0; kernel_col < kernel_w; kernel_col++) {   // kernWidth
+            int64_t input_row = -pad_h + kernel_row * dilation_h;
+            for (int64_t const input_row_max = input_row + output_h*stride_h;
+                input_row < input_row_max; input_row += stride_h){ // outHeight-->inRow
+              int64_t       input_col     = -pad_w + kernel_col * dilation_w;
+              int64_t const input_col_max = input_col + output_w * stride_w;
+              for( ; input_col < input_col_max; input_col+=stride_w) { // outWidth
+                data_col[outOffset++]
+                  = ( (0 <= input_row && input_row < height) // (ncc reduces 4 conds to 2 vfmk, good)
+                      && (0 <= input_col && input_col < width)
+                      ? data_im[inOffset + input_row * width + input_col]
                       : FZERO);
-              }
-            }
-            input_row += stride_h;
-          }
-        }
-      }
+              } } } } }
+#endif
     }
-  }// end stride_w cases
-  LFTRACE_END("vednnIm2col");
+  }// end collapse one
+  LFTRACE_END("vednn_im2col");
+}
+
+/** maskless specialization: kh1, a stride != 1.
+ * kh1sh1 is a "no in2col" situation. Hmmm. very little speedup? */
+  static inline void
+vednn_im2col_k1p0_str(const float * restrict data_im, const int64_t channels,
+    const int64_t height, const int64_t width,
+    /* kernel 1x1  : const int64_t kernel_h, const int64_t kernel_w,*/
+    /* pad    == 0 : const int64_t pad_h, const int64_t pad_w,*/
+    const int64_t stride_h, const int64_t stride_w,
+    /* dilation irrelevant for 1x1 kernel : const int64_t dilation_h, const int64_t dilation_w, */
+    float * restrict data_col, int const nThreads)
+{
+  LFTRACE_BEGIN("vednn_im2col_k1p0_str");
+  const int64_t output_h = (height - 1) / stride_h + 1;
+  const int64_t output_w = (width  - 1) / stride_w + 1;
+  const int64_t channel_size = height * width;
+  int64_t const output_hw = output_h*output_w; // workPerChannel
+
+  if( channels < 2*nThreads && channels%nThreads && channels*output_h > 1 )
+  {
+#pragma omp for collapse(2) // no effect of collapse(2) ?
+    for (int64_t channel = 0u ; channel < channels; ++channel) {       // inChannel
+      for(int64_t output_row = 0; output_row < output_h; ++output_row){
+        for(int64_t output_col = 0; output_col < output_w; output_col += stride_w){
+          // input_row = output_row * stride_h; input_col = output_col * stride_w;
+          data_col[channel*output_hw  + output_row          * output_w + output_col]
+            = data_im[channel*channel_size + output_row*stride_h * width    + output_col*stride_w];
+        } } }
+  }else{
+#pragma omp parallel for
+  for (int64_t channel = 0u ; channel < channels; ++channel) {       // inChannel
+    int64_t inOffset = channel * channel_size;
+    // __builtin_vprefetch( &data_im[inOffset], output_hw*sizeof(float) );
+    int64_t outOffset = channel * output_hw;
+    for(int64_t input_row = 0; input_row < output_h*stride_h; input_row += stride_h){
+      for(int64_t input_col = 0; input_col < output_w*stride_w; input_col += stride_w){
+        data_col[outOffset++] = data_im[inOffset + input_row * width + input_col];
+      } } }
+  }
+  LFTRACE_END("vednn_im2col_k1p0_str");
 }
 
   static void
@@ -223,9 +355,9 @@ vednn_col2im(
     const int pad_h, const int pad_w,
     const int stride_h, const int stride_w,
     const int dilation_h, const int dilation_w,
-    float* data_im)
+    float* data_im, int const threads)
 {
-  LFTRACE_BEGIN("vednnCol2im");
+  LFTRACE_BEGIN("vednn_col2im");
   memset(data_im, 0, sizeof(float)*height*width*channels) ;
 
   const int output_h = (height + 2 * pad_h - (dilation_h * (kernel_h - 1) + 1)) / stride_h + 1;
@@ -252,7 +384,7 @@ vednn_col2im(
             //  ++outOffset;
             outOffset += output_cols;
           } else {
-            int input_col = -pad_w + kernel_col * dilation_w;
+            int input_col = -pad_w + kernel_col * dilation_w; // prevents opt?
             for (output_col = output_w; output_col; output_col--) { // outWidth
               if (input_col >= 0 && input_col < width) {
                 // *(data_col++) = data_im[input_row * width + input_col];
@@ -270,7 +402,7 @@ vednn_col2im(
       }
     }
   }
-  LFTRACE_END("vednnCol2im");
+  LFTRACE_END("vednn_col2im");
 }
 
 extern "C" { //}
@@ -280,7 +412,7 @@ vednnConvFwd_gemm(
     const vednnFilterParam_t * restrict pParamKernel, const void * restrict pDataKernel,
     const vednnBiasParam_t * restrict pParamBias, const void * restrict pDataBias,
     const vednnTensorParam_t * restrict pParamOut, void * restrict pDataOut,
-    const float * restrict pOne,  float * restrict pColBuff,
+    const float * restrict pOne,  float * restrict pColBuf,
     const vednnConvolutionParam_t * restrict pParamConv )
 {
   LFTRACE_BEGIN("vednnConvFwd_gemm");
@@ -313,21 +445,22 @@ vednnConvFwd_gemm(
   float * restrict pOut    = (float *)pDataOut;
 
   int no_im2col = (kernWidth == 1 && kernHeight == 1 && strideWidth == 1 && strideHeight == 1 && padWidth == 0 && padHeight == 0);
+  //chkThreads();
 
-  for (n = 0; n < batch; n++) { // this->num_
-    int inBatchOffset  = n * inChannel  * inWidth  * inHeight;
-    int outBatchOffset = n * outChannel * outWidth * outHeight;
+  if (no_im2col) {
+    for (n = 0; n < batch; n++) { // this->num_
+      int inBatchOffset  = n * inChannel  * inWidth  * inHeight;
+      int outBatchOffset = n * outChannel * outWidth * outHeight;
 
-    for (g = 0; g < group; g++) {
-      int inGroupOffset   = g * inChannelGroup                   * inHeight   * inWidth;
-      int outGroupOffset  = g * outChannelGroup                  * outHeight  * outWidth;
-      int kernGroupOffset = g * outChannelGroup * inChannelGroup * kernHeight * kernWidth;
-      int biasGroupOffset = g * outChannelGroup;
+      for (g = 0; g < group; g++) {
+        int inGroupOffset   = g * inChannelGroup                   * inHeight   * inWidth;
+        int outGroupOffset  = g * outChannelGroup                  * outHeight  * outWidth;
+        int kernGroupOffset = g * outChannelGroup * inChannelGroup * kernHeight * kernWidth;
+        int biasGroupOffset = g * outChannelGroup;
 
-      int inOffset  = inBatchOffset  + inGroupOffset;
-      int outOffset = outBatchOffset + outGroupOffset;
-
-      if (no_im2col) {
+        int inOffset  = inBatchOffset  + inGroupOffset;
+        int outOffset = outBatchOffset + outGroupOffset;
+        // no im2col ...
         int M = outChannelGroup;
         int N = outWidth * outHeight;
         int K = inChannelGroup;
@@ -344,21 +477,36 @@ vednnConvFwd_gemm(
               (float *) &pBias[biasGroupOffset], &IONE,
               &FONE, &pOut[outOffset], &N);
         }
+      } // group
+    } // batch
+  }else if( kernHeight+kernWidth==2 && padHeight+padWidth==0 && strideHeight+strideWidth>2 ){
+    for (n = 0; n < batch; n++) { // this->num_
+      int inBatchOffset  = n * inChannel  * inWidth  * inHeight;
+      int outBatchOffset = n * outChannel * outWidth * outHeight;
 
-      } else {
+      for (g = 0; g < group; g++) {
+        int inGroupOffset   = g * inChannelGroup                   * inHeight   * inWidth;
+        int outGroupOffset  = g * outChannelGroup                  * outHeight  * outWidth;
+        int kernGroupOffset = g * outChannelGroup * inChannelGroup * kernHeight * kernWidth;
+        int biasGroupOffset = g * outChannelGroup;
+
+        int inOffset  = inBatchOffset  + inGroupOffset;
+        int outOffset = outBatchOffset + outGroupOffset;
 
         int M = outChannelGroup;
         int N = outWidth * outHeight;
         int K = inChannelGroup * kernWidth * kernHeight;
 
-        vednn_im2col(&pIn[inOffset],
-            inChannelGroup, inHeight, inWidth, kernHeight, kernWidth,
-            padHeight, padWidth, strideHeight, strideWidth, dilationHeight, dilationWidth,
-            pColBuff);
-
+        // k1, padding irrelevant, assume output sz matches input sz,str,dil settings
+        //assert( kernHeight == 1 && kernHeight == 1 );
+        //assert(  padHeight == 1 &&  padHeight == 1 );
+        vednn_im2col_k1p0_str(&pIn[inOffset],
+            inChannelGroup, inHeight, inWidth, /*kernHeight, kernWidth,*/
+            /*padHeight, padWidth,*/ strideHeight, strideWidth, /*dilationHeight, dilationWidth,*/
+            pColBuf, getThreads());
 
         SGEMM(&NOTRANS, &NOTRANS, &N, &M, &K,
-            &FONE, pColBuff, &N,
+            &FONE, pColBuf, &N,
             (float *)&pKernel[kernGroupOffset], &K,
             &FZERO, &pOut[outOffset], &N);
 
@@ -368,23 +516,64 @@ vednnConvFwd_gemm(
               (float *) &pBias[biasGroupOffset], &IONE,
               &FONE, &pOut[outOffset], &N);
         }
-      }
-    } // group
-  } // batch
+      } // group
+    } // batch
 
+    // Hmmm. perhaps separate the collapse(2) case (first layer, ic=3)
+    // or even channels*kernel_h too small ==> sequential (or outer threading)
+    //}else if( channels < 2*threads && channels%threads && channels*kernel_h > 1 ){
+    // ... existing code, above, good for ic=3 input layers
+
+  }else{ // generic im2col
+    for (n = 0; n < batch; n++) { // this->num_
+      int inBatchOffset  = n * inChannel  * inWidth  * inHeight;
+      int outBatchOffset = n * outChannel * outWidth * outHeight;
+
+      for (g = 0; g < group; g++) {
+        int inGroupOffset   = g * inChannelGroup                   * inHeight   * inWidth;
+        int outGroupOffset  = g * outChannelGroup                  * outHeight  * outWidth;
+        int kernGroupOffset = g * outChannelGroup * inChannelGroup * kernHeight * kernWidth;
+        int biasGroupOffset = g * outChannelGroup;
+
+        int inOffset  = inBatchOffset  + inGroupOffset;
+        int outOffset = outBatchOffset + outGroupOffset;
+
+        int M = outChannelGroup;
+        int N = outWidth * outHeight;
+        int K = inChannelGroup * kernWidth * kernHeight;
+
+        vednn_im2col(&pIn[inOffset],
+            inChannelGroup, inHeight, inWidth, kernHeight, kernWidth,
+            padHeight, padWidth, strideHeight, strideWidth, dilationHeight, dilationWidth,
+            pColBuf, getThreads());
+
+        SGEMM(&NOTRANS, &NOTRANS, &N, &M, &K,
+            &FONE, pColBuf, &N,
+            (float *)&pKernel[kernGroupOffset], &K,
+            &FZERO, &pOut[outOffset], &N);
+
+        if (pBias) {
+          SGEMM(&NOTRANS, &NOTRANS, &N, &M, &IONE,
+              &FONE, (float *)pOne, &N,
+              (float *) &pBias[biasGroupOffset], &IONE,
+              &FONE, &pOut[outOffset], &N);
+        }
+      } // group
+    } // batch
+  }
   LFTRACE_END("vednnConvFwd_gemm");
   return VEDNN_SUCCESS;
 }
 
   static vednnError_t
-vednnConvBkD_gemm(
+vednnConvBkD_Gemm(
     const vednnTensorParam_t * restrict pParamGradOut, const void * restrict pDataGradOut,
     const vednnFilterParam_t * restrict pParamKernel, const void * restrict pDataKernel,
     const vednnTensorParam_t * restrict pParamGradIn, void * restrict pDataGradIn,
-    float * restrict pColBuff,
+    float * restrict pColBuf,
     const vednnConvolutionParam_t * restrict pParamConv )
 {
-  LFTRACE_BEGIN("vednnConvBkD_gemm");
+  LFTRACE_BEGIN("vednnConvBkD_Gemm");
   int n, g;
 
   int batch       = pParamGradOut->batch;
@@ -413,6 +602,7 @@ vednnConvBkD_gemm(
   float * restrict pGradIn  = (float*)pDataGradIn;
 
   int no_im2col = (kernWidth == 1 && kernHeight == 1 && strideWidth == 1 && strideHeight == 1 && padWidth == 0 && padHeight == 0);
+  //chkThreads();
 
   for (n = 0; n < batch; n++) { // this->num_
     int gOutBatchOffset  = n * gOutChannel  * gOutWidth  * gOutHeight;
@@ -440,17 +630,17 @@ vednnConvBkD_gemm(
         SGEMM(&NOTRANS, &TRANS, &N, &M, &K,
             &FONE, (float *) &pGradOut[gOutOffset], &N,
             (float *) &pKernel[kernGroupOffset], &M,
-            &FZERO, pColBuff, &N);
+            &FZERO, pColBuf, &N);
 
-        vednn_col2im(pColBuff,
+        vednn_col2im(pColBuf,
             gInChannelGroup, gInHeight, gInWidth, kernHeight, kernWidth,
             padHeight, padWidth, strideHeight, strideWidth, dilationHeight, dilationWidth,
-            &pGradIn[gInOffset]);
+            &pGradIn[gInOffset], getThreads());
       }
     } // group
   } // batch
 
-  LFTRACE_END("vednnConvBkD_gemm");
+  LFTRACE_END("vednnConvBkD_Gemm");
   return VEDNN_SUCCESS;
 }
 
@@ -459,7 +649,7 @@ vednnConvBkF_gemm(
     const vednnTensorParam_t * restrict pParamIn, const void * restrict pDataIn,
     const vednnTensorParam_t * restrict pParamGradOut, const void * restrict pDataGradOut,
     const vednnFilterParam_t * restrict pParamGradKernel, void * restrict pDataGradKernel,
-    float * restrict pColBuff,
+    float * restrict pColBuf,
     const vednnConvolutionParam_t * restrict pParamConv )
 {
   LFTRACE_BEGIN("vednnConvBkF_gemm");
@@ -491,6 +681,7 @@ vednnConvBkF_gemm(
   float * restrict pKernel       = (float*)pDataGradKernel ;
 
   int no_im2col = (kernWidth == 1 && kernHeight == 1 && strideWidth == 1 && strideHeight == 1 && padWidth == 0 && padHeight == 0);
+  //chkThreads();
 
   for (n = 0; n < batch; n++) { // this->num_
     int inBatchOffset  = n * inChannel  * inWidth  * inHeight;
@@ -518,14 +709,14 @@ vednnConvBkF_gemm(
         vednn_im2col(&pIn[inOffset],
             inChannelGroup, inHeight, inWidth, kernHeight, kernWidth,
             padHeight, padWidth, strideHeight, strideWidth, dilationHeight, dilationWidth,
-            pColBuff);
+            pColBuf, getThreads());
 
         int M = outChannelGroup;
         int N = inChannelGroup * kernWidth * kernHeight;
         int K = outWidth * outHeight;
 
         SGEMM(&TRANS, &NOTRANS, &N, &M, &K,
-            &FONE,  pColBuff, &K,
+            &FONE,  pColBuf, &K,
             (float*)&pOut[outOffset], &K,
             &FONE, &pKernel[kernGroupOffset], &N);
       }
@@ -538,60 +729,83 @@ vednnConvBkF_gemm(
 
 vednnError_t
 vednnConvolutionForward_direct_gemm(
-    VEDNN_CONVFWD_ARGS
-    //const vednnTensorParam_t * restrict         pParamIn,
-    //const void * restrict                       pDataIn,
-    //const vednnFilterParam_t * restrict         pParamKernel,
-    //const void * restrict                       pDataKernel,
-    //const vednnBiasParam_t * restrict           pParamBias,
-    //const void * restrict                       pDataBias,
-    //const vednnConvolutionParam_t * restrict    pParamConv,
-    //const vednnTensorParam_t * restrict         pParamOut,
-    //void * restrict                             pDataOut
-    )
-{
-  //LFTRACE_IF( printf("vednnConvFwd+ftrace!\n") );
-  LFTRACE_BEGIN("ConvGemmFwd");
-
+    const vednnTensorParam_t * restrict         pParamIn,
+    const void * restrict                       pDataIn,
+    const vednnFilterParam_t * restrict         pParamKernel,
+    const void * restrict                       pDataKernel,
+    const vednnConvolutionParam_t * restrict    pParamConv,
+    const vednnTensorParam_t * restrict         pParamOut,
+    void * restrict                             pDataOut
+    ){
   size_t pColrows = pParamKernel->inChannel * pParamKernel->width * pParamKernel->height;
   size_t pColcols = pParamOut->width * pParamOut->height;
-
   // This buffer is only used for bias term
-  float * pOnes = nullptr;
-  if(pDataBias){
-    // assert pColcols is consistent with pParamBias
-#if SCRATCHPAD==0
-    pOnes = (float *) malloc(pColcols * sizeof(float)/*bytes*/);
-    for(int i = 0; i < pColcols; ++i)
-      pOnes[i] = 1.0f;
-#else
-    using vednn::scratchpad::vednn_scratchpad_float_ones;
-    pOnes = (float *)
-      vednn_scratchpad_float_ones(pColcols/*floats*/); // ow * oh float 1.0f
-#endif
-  }
+  float * restrict pOnes = nullptr;
+  //float const* restrict pOnes = (float const*)
+  //    (void*)vednn_scratchpad_float_ones(pColcols); // ow * oh float 1.0f
 
   // This buffer is used for a monolithic im2col
   // (could use a smaller buffer if im2col were done "as-needed")
   size_t const nBytes = pColrows * pColcols * getTensorDataSize(pParamIn);
+  float * restrict pColBuf = getScratch(nBytes);
+  if(!pColBuf) return VEDNN_ERROR_MEMORY_EXHAUST;
+  chkThreads();
+
+  vednnError_t ret = vednnConvFwd_gemm(
+      pParamIn, pDataIn,
+      pParamKernel, pDataKernel,
+      nullptr, nullptr/*avoids bias gemm call*/ ,
+      pParamOut, pDataOut/*output*/,
+      pOnes, pColBuf, pParamConv );
 #if SCRATCHPAD==0
-  float * restrict pColBuff = (float *) malloc(nBytes);
-#else
-  using vednn::scratchpad::vednn_scratchpad_shared;
-  float * restrict pColBuff = (float*)(void*)
-    vednn_scratchpad_shared(nBytes);
+  free(pColBuf);
 #endif
+  return ret;
+} 
+  vednnError_t
+vednnConvolutionForwardAddBias_direct_gemm(
+    const vednnTensorParam_t * restrict         pParamIn,
+    const void * restrict                       pDataIn,
+    const vednnFilterParam_t * restrict         pParamKernel,
+    const void * restrict                       pDataKernel,
+    const vednnBiasParam_t * restrict           pParamBias,
+    const void * restrict                       pDataBias,
+    const vednnConvolutionParam_t * restrict    pParamConv,
+    const vednnTensorParam_t * restrict         pParamOut,
+    void * restrict                             pDataOut
+    )
+{
+  size_t pColrows = pParamKernel->inChannel * pParamKernel->width * pParamKernel->height;
+  size_t pColcols = pParamOut->width * pParamOut->height;
+
+  // This buffer is only used for bias term
+#if SCRATCHPAD==0
+  float * restrict pOnes = (float *) malloc(pColcols * sizeof(float)/*bytes*/);
+  for(int i = 0; i < pColcols; ++i)
+    pOnes[i] = 1.0f;
+#else
+  using vednn::scratchpad::vednn_scratchpad_float_ones;
+  float const* restrict pOnes = (float const*)
+    vednn_scratchpad_float_ones(pColcols/*floats*/); // ow * oh float 1.0f
+#endif
+
+  // This buffer is used for a monolithic im2col
+  // (could use a smaller buffer if im2col were done "as-needed")
+  size_t const nBytes = pColrows * pColcols * getTensorDataSize(pParamIn);
+  float * restrict pColBuf = getScratch(nBytes);
+  if(!pColBuf) return VEDNN_ERROR_MEMORY_EXHAUST;
+
+  chkThreads();
   vednnError_t ret = vednnConvFwd_gemm(
       pParamIn, pDataIn,
       pParamKernel, pDataKernel,
       pParamBias, pDataBias,
       pParamOut, pDataOut/*output*/,
-      pOnes, pColBuff, pParamConv );
+      pOnes, pColBuf, pParamConv );
 #if SCRATCHPAD==0
   free(pOnes);
-  free(pColBuff);
+  free(pColBuf);
 #endif
-  LFTRACE_END("ConvGemmFwd");
   return ret;
 }
 vednnError_t
@@ -610,27 +824,21 @@ vednnConvolutionBackwardFilter_direct_gemm(
     //    const int64_t                               nOChannel
     //#endif
     ){
-  LFTRACE_BEGIN("ConvGemmBwD");
-  size_t pColrows = pParamGradKernel->inChannel * pParamGradKernel->width * pParamGradKernel->height;
-  size_t pColcols = pParamGradOut->width * pParamGradOut->height;
+  size_t const pColrows = pParamGradKernel->inChannel * pParamGradKernel->width * pParamGradKernel->height;
+  size_t const pColcols = pParamGradOut->width * pParamGradOut->height;
   size_t const nBytes = pColrows * pColcols * getTensorDataSize(pParamIn);
-#if SCRATCHPAD==0
-  float * restrict pColBuff  = (float*) malloc(nBytes);
-#else
-  using vednn::scratchpad::vednn_scratchpad_shared;
-  float * restrict pColBuff = (float*)(void*)
-    vednn_scratchpad_shared(nBytes);
-#endif
+  float * restrict pColBuf = getScratch(nBytes);
+  if(!pColBuf) return VEDNN_ERROR_MEMORY_EXHAUST;
+
   vednnError_t ret = vednnConvBkF_gemm(
       pParamIn, pDataIn,
       pParamGradOut, pDataGradOut,
       pParamGradKernel, pDataGradKernel/*output*/,
-      pColBuff, pParamConv );
+      pColBuf, pParamConv );
 #if SCRATCHPAD==0
-  free(pColBuff);
+  free(pColBuf);
 #endif
   return ret;
-  LFTRACE_END("ConvGemmBwD");
 }
 
   vednnError_t
@@ -644,26 +852,20 @@ vednnConvolutionBackwardData_direct_gemm(
     void * restrict                             pDataGradIn
     )
 {
-  LFTRACE_BEGIN("ConvGemmBwF");
   size_t pColrows = pParamKernel->inChannel * pParamKernel->width * pParamKernel->height;
   size_t pColcols = pParamGradOut->width * pParamGradOut->height;
   size_t const nBytes = pColrows * pColcols * getTensorDataSize(pParamGradIn);
-#if SCRATCHPAD==0
-  float * restrict pColBuff = (float*) malloc(nBytes);
-#else
-  using vednn::scratchpad::vednn_scratchpad_shared;
-  float * restrict pColBuff = (float*)(void*)
-    vednn_scratchpad_shared(nBytes);
-#endif
-  vednnError_t ret =  vednnConvBkD_gemm(
+  float * restrict pColBuf = getScratch(nBytes);
+  if(!pColBuf) return VEDNN_ERROR_MEMORY_EXHAUST;
+
+  vednnError_t ret =  vednnConvBkD_Gemm(
       pParamGradOut, pDataGradOut,
       pParamKernel, pDataKernel,
       pParamGradIn, pDataGradIn/*output*/,
-      pColBuff, pParamConv );
+      pColBuf, pParamConv );
 #if SCRATCHPAD==0
-  free(pColBuff);
+  free(pColBuf);
 #endif
-  LFTRACE_END("ConvGemmBwF");
   return ret;
 }
 

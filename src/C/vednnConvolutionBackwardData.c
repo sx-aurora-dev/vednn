@@ -84,7 +84,7 @@ vednnError_t vednnConvolutionBackwardData(
     {
       if ( pParamGradIn->height * pParamGradIn->width <= 16 ||
           ( pParamGradIn->height * pParamGradIn->width < 64
-            && pParamGradIn->height * pParamGradIn->width < pParamGradIn->channel ))
+            && pParamGradIn->height * pParamGradIn->width < pParamGradIn->channel / pParamConv->group ))
         OMPWRAP(vecC);
       if (pParamConv->strideHeight == 1 && pParamConv->strideWidth == 1
           && pParamConv->dilationHeight == 1 && pParamConv->dilationWidth == 1 )
@@ -129,14 +129,20 @@ vednnError_t vednnConvolutionBackwardData(
       }
       if (pParamConv->strideHeight == 2 && pParamConv->strideWidth == 2
       	&& pParamConv->dilationHeight == 1 && pParamConv->dilationWidth == 1
-      	&& pParamConv->padHeight == 1 && pParamConv->padWidth == 1
       	&& pParamKernel->height == 3 && pParamKernel->width == 3
       	&& pParamGradIn->width <= 256 )
       {
-	return vednnConvolutionBackwardData_wrapper(
-	    vednnConvolutionBackwardData_direct_dil1_str2_pad1_ker3_iwU256,
-	    pParamGradOut, pDataGradOut, pParamKernel, pDataKernel,
-	    pParamConv, pParamGradIn, pDataGradIn );
+	if( pParamConv->padHeight == 1 && pParamConv->padWidth == 1 )
+	{
+	  return vednnConvolutionBackwardData_wrapper(
+	      vednnConvolutionBackwardData_direct_dil1_str2_pad1_ker3_iwU256,
+	      pParamGradOut, pDataGradOut, pParamKernel, pDataKernel,
+	      pParamConv, pParamGradIn, pDataGradIn );
+	}
+	else
+	{
+          OMPWRAP(dil1_str2_ker3_iwU256);
+	}
       }
       if( pParamKernel->height == 5 && pParamKernel->width == 5
 	  && pParamConv->dilationHeight == 1 && pParamConv->dilationWidth == 1

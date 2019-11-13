@@ -17,6 +17,8 @@ endif()
 if(USE_OPENMP)
     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fopenmp -pthread")
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fopenmp -pthread")
+    add_definitions(-DVEDNN_USE_OPENMP)
+    add_definitions(-DVEDNN_OMP_GROUP_PARALLEL)
 endif()
 
 if(BUILD_SHARED_LIB)
@@ -62,9 +64,9 @@ target_compile_options(vednn_c_code PRIVATE
 # having some trouble with SCRATCHPAD=1 (reduce malloc calls)
 # -fcse-after-vectorization -msched-block important for convolution_gemm speed:
 target_compile_options(vednn_gemm_convolution PRIVATE
-    $<$<CONFIG:Release>:${SRC_C_OPT3} -DVERBOSE=0 -DSCRATCHPAD=0 -DTMP03>
-    $<$<CONFIG:RelWithDebInfo>:${SRC_C_OPT3} -DVERBOSE=0 -DSCRATCHPAD=0 -DTMP04>
-    $<$<CONFIG:Debug>:-O0 -DVERBOSE=1 -DSCRATCHPAD=1 -DTMP05>
+    $<$<CONFIG:Release>:${SRC_C_OPT3} -DVERBOSE=0 -DTMP03>
+    $<$<CONFIG:RelWithDebInfo>:${SRC_C_OPT3} -DVERBOSE=0 -DTMP04>
+    $<$<CONFIG:Debug>:-O0 -DVERBOSE=1 -DTMP05>
     )
 
 

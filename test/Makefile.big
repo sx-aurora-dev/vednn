@@ -624,8 +624,16 @@ jitconv-dev: jitconv.o d1s1pSB.o $(CONVGEMM).o libcjitConv-ve.so conv_test_param
 		-l${LIBJIT} -o $@ \
 		${LDLIBS} -ldl
 resnext-t%.log: jitconv
-	{ cmd='./jitconv -k -t $* -S resnext -M params/conv/resnext2.txt'; rm -f ftrace.out \
-	       echo "$$cmd"; time $$cmd; status=$$?; ftrace || true; } >& resnext-t$*.log; \
+	@# NOTE -k for cachekiller, -r REPS
+	{ cmd='./jitconv -t $* -S resnext -M params/conv/resnext2.txt -r 8'; rm -f ftrace.out \
+	       echo "$$cmd"; time $$cmd; status=$$?; ftrace || true; } >& '$@'; \
+	       if [ "$${status}" != "0" ]; then echo "$@ FAILED"; fi; \
+	       [ "$${status}" == "0" ];
+	@echo "$@ OK"
+resnext-t%-mb8.log: jitconv
+	@# NOTE -k for cachekiller, -r REPS
+	{ cmd='./jitconv -t $* -S resnext-mb8 -M params/conv/resnext2.txt -r 8 mb8'; rm -f ftrace.out \
+	       echo "$$cmd"; time $$cmd; status=$$?; ftrace || true; } >& '$@'; \
 	       if [ "$${status}" != "0" ]; then echo "$@ FAILED"; fi; \
 	       [ "$${status}" == "0" ];
 	@echo "$@ OK"

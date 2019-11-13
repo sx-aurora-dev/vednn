@@ -12,6 +12,11 @@ void __vednn_init() {
   if( i > 0 )
     __vednn_omp_num_threads = i ;
 
+#if defined(_OPENMP)
+  if( __vednn_omp_num_threads <= 0 )
+	  __vednn_omp_num_threads = omp_get_max_threads();
+#endif
+
   vednn_init_global_scratchpads();
 }
 
