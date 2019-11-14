@@ -149,11 +149,6 @@ vednnError_t vednnConvolutionBackwardData(
 	  && pParamConv->strideHeight == 2 && pParamConv->strideWidth == 2
 	  && pParamConv->padHeight == 2 && pParamConv->padWidth == 2 )
       {
-        if( pParamConv->dilationHeight == 1 && pParamConv->dilationWidth == 1
-            && pParamConv->padHeight == 0 && pParamConv->padWidth == 0
-            && pParamKernel->height == 1 && pParamKernel->width == 1
-            && pParamGradOut->width <= 128 )
-          OMPWRAP(dil1_pad0_ker1_owU128);
         if( pParamKernel->height == 5 && pParamKernel->width == 5
             && pParamConv->dilationHeight == 1 && pParamConv->dilationWidth == 1
             && pParamConv->strideHeight == 2 && pParamConv->strideWidth == 2
@@ -164,6 +159,13 @@ vednnError_t vednnConvolutionBackwardData(
           else
             OMPWRAP(dil1_str2_pad2_ker5);
         }
+      }
+      if( pParamConv->dilationHeight == 1 && pParamConv->dilationWidth == 1
+          && pParamConv->padHeight == 0 && pParamConv->padWidth == 0
+          && pParamKernel->height == 1 && pParamKernel->width == 1
+          && pParamGradOut->width <= 128 )
+      {
+        OMPWRAP(dil1_pad0_ker1_owU128);
       }
       // no else
       if (pParamGradIn->width <= 128) {
