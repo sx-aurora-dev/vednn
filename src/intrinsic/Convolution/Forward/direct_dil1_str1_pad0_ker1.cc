@@ -102,6 +102,7 @@ static inline void func(
     if( remain ) {
 	_vel_vstu_vssl(vrsum0,  4, pOut+outIndex + 0 * outHeight*outWidth, vl) ;
     }
+#pragma clang loop unroll(full)
     for(int64_t kk=0; kk<nPacked; kk++) {
 	_vel_vstu_vssl(vrsum[kk], 4, pOut+outIndex + (2*kk+remain)   * outHeight*outWidth, vl) ;
 	_vel_vstl_vssl(vrsum[kk], 4, pOut+outIndex + (2*kk+remain+1) * outHeight*outWidth, vl) ;
@@ -198,6 +199,7 @@ static inline void func_filternchw_avoid_l1m(
     if( remain ) {
       _vel_vstu_vssl(vrsum0,  4, pOut+outIndex + 0 * outHeight*outWidth, vl) ;
     }
+#pragma clang loop unroll(full)
     for(int64_t kk=0; kk<nPacked; kk++) {
       _vel_vstu_vssl(vrsum[kk], 4, pOut+outIndex + (2*kk+remain)   * outHeight*outWidth, vl) ;
       _vel_vstl_vssl(vrsum[kk], 4, pOut+outIndex + (2*kk+remain+1) * outHeight*outWidth, vl) ;
