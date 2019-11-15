@@ -7,7 +7,7 @@
 #define VLEN	(256)
 
 template<filterLayout_t FLAYOUT, int NUMKERNEL, bool ADDBIAS>
-static inline void func_inoaligned(
+static __attribute__((noinline)) void func_inoaligned(
   const float * __restrict__ pIn,
   const float * __restrict__ pKernel,
   const float * __restrict__ pBias,
@@ -255,7 +255,7 @@ static inline void func_inoaligned(
 
 
 template<int NUMKERNEL, bool ADDBIAS>
-static inline void func_inoaligned_filternchw_avoid_l1m(
+static __attribute__((noinline)) void func_inoaligned_filternchw_avoid_l1m(
   const float * __restrict__ pIn,
   const float * __restrict__ pKernel,
   const float * __restrict__ pBias,
@@ -699,7 +699,7 @@ static inline void func_inoaligned_filternchw_avoid_l1m(
 
 
 template<filterLayout_t FLAYOUT, int NUMKERNEL, bool ADDBIAS>
-static inline void func_ialigned(
+static __attribute__((noinline)) void func_ialigned(
   const float * __restrict__ pIn,
   const float * __restrict__ pKernel,
   const float * __restrict__ pBias,
@@ -921,7 +921,7 @@ static inline void func_ialigned(
 
 
 template<int NUMKERNEL, bool ADDBIAS>
-static inline void func_ialigned_filternchw_avoid_l1m(
+static __attribute__((noinline)) void func_ialigned_filternchw_avoid_l1m(
   const float * __restrict__ pIn,
   const float * __restrict__ pKernel,
   const float * __restrict__ pBias,
@@ -1022,6 +1022,7 @@ static inline void func_ialigned_filternchw_avoid_l1m(
 #pragma clang loop unroll(full)
 	for(int64_t kk=0; kk<nPacked; kk++) {
 	  __vr vrp  = _vel_vshf_vvvsl(vr[2*kk+remain],vr[2*kk+remain+1],VE_VSHUFFLE_YUZU, tvl) ;
+	  _vel_vst_vssl(vrp, 8, filter_u64+kk*9*clen+t, tvl) ;
 	}
 	if( remain ) {
 	  _vel_vstu_vssl(vr[0], 4, filter+(NUMKERNEL-1)*9*clen+t, tvl) ;
@@ -1331,7 +1332,6 @@ static inline void func(
 )
 {
   if(IALIGNED) {
-#if 0 // [bug]
     if( FLAYOUT == VEDNN_FILTER_LAYOUT_NCHW && inChannelGroup >= 64 )
     {
       func_ialigned_filternchw_avoid_l1m<NUMKERNEL, ADDBIAS>(pIn, pKernel, pBias, pOut,
@@ -1346,7 +1346,6 @@ static inline void func(
 	 nY, n, k ) ;
     }
     else
-#endif
     {
       func_ialigned<FLAYOUT, NUMKERNEL, ADDBIAS>(pIn, pKernel, pBias, pOut,
 	 inChannel, inWidth, inHeight,
@@ -1361,7 +1360,6 @@ static inline void func(
     }
   }
   else {
-#if 0
     if( FLAYOUT == VEDNN_FILTER_LAYOUT_NCHW && inChannelGroup >= 64 )
     {
       func_inoaligned_filternchw_avoid_l1m<NUMKERNEL, ADDBIAS>(pIn, pKernel, pBias, pOut,
@@ -1376,7 +1374,6 @@ static inline void func(
 	 nY, n, k ) ;
     }
     else
-#endif
     {
       func_inoaligned<FLAYOUT, NUMKERNEL, ADDBIAS>(pIn, pKernel, pBias, pOut,
 	 inChannel, inWidth, inHeight,
