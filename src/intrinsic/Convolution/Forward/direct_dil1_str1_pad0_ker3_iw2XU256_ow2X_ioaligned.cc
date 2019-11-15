@@ -36,46 +36,25 @@ static inline void func(
   const int64_t k
 )
 {
+
   int64_t outIndex = outGroupOffset + (n * outChannel + k  ) * outHeight*outWidth ;
 
-  const int64_t bias0 = ADDBIAS ?  _vel_pack_f32a(pBias+biasGroupOffset+k+ 0) : 0UL ;
-  const int64_t bias1 = ADDBIAS ?  _vel_pack_f32a(pBias+biasGroupOffset+k+ 1) : 0UL ;
-  const int64_t bias2 = ADDBIAS ?  _vel_pack_f32a(pBias+biasGroupOffset+k+ 2) : 0UL ;
-  const int64_t bias3 = ADDBIAS ?  _vel_pack_f32a(pBias+biasGroupOffset+k+ 3) : 0UL ;
-  const int64_t bias4 = ADDBIAS ?  _vel_pack_f32a(pBias+biasGroupOffset+k+ 4) : 0UL ;
-  const int64_t bias5 = ADDBIAS ?  _vel_pack_f32a(pBias+biasGroupOffset+k+ 5) : 0UL ;
-  const int64_t bias6 = ADDBIAS ?  _vel_pack_f32a(pBias+biasGroupOffset+k+ 6) : 0UL ;
-  const int64_t bias7 = ADDBIAS ?  _vel_pack_f32a(pBias+biasGroupOffset+k+ 7) : 0UL ;
-  const int64_t bias8 = ADDBIAS ?  _vel_pack_f32a(pBias+biasGroupOffset+k+ 8) : 0UL ;
-  const int64_t bias9 = ADDBIAS ?  _vel_pack_f32a(pBias+biasGroupOffset+k+ 9) : 0UL ;
-  const int64_t biasA = ADDBIAS ?  _vel_pack_f32a(pBias+biasGroupOffset+k+10) : 0UL ;
-  const int64_t biasB = ADDBIAS ?  _vel_pack_f32a(pBias+biasGroupOffset+k+11) : 0UL ;
-  const int64_t biasC = ADDBIAS ?  _vel_pack_f32a(pBias+biasGroupOffset+k+12) : 0UL ;
-  const int64_t biasD = ADDBIAS ?  _vel_pack_f32a(pBias+biasGroupOffset+k+13) : 0UL ;
-  const int64_t biasE = ADDBIAS ?  _vel_pack_f32a(pBias+biasGroupOffset+k+14) : 0UL ;
-  const int64_t biasF = ADDBIAS ?  _vel_pack_f32a(pBias+biasGroupOffset+k+15) : 0UL ;
+  int64_t bias[NUMKERNEL] ;
+#pragma clang loop unroll(full)
+  for(int64_t kk=0; kk<NUMKERNEL; kk++) {
+    bias[kk] = ADDBIAS ?  _vel_pack_f32a(pBias+biasGroupOffset+k+kk) : 0UL ;
+  }
 
   for (int64_t y=0; y<outHeight; y+=nY) {
     const int64_t vl0 = inWidthHalf * (outHeight - y < nY ? outHeight - y : nY) ;
     const int64_t vl1 = outWidthHalf * (outHeight - y < nY ? outHeight - y : nY) ;
     const int64_t op = y * outWidth ;
 
-    __vr vrsum0 = _vel_vbrdl_vsl(bias0, vl1) ;
-    __vr vrsum1 = _vel_vbrdl_vsl(bias1, vl1) ;
-    __vr vrsum2 = _vel_vbrdl_vsl(bias2, vl1) ;
-    __vr vrsum3 = _vel_vbrdl_vsl(bias3, vl1) ;
-    __vr vrsum4 = _vel_vbrdl_vsl(bias4, vl1) ;
-    __vr vrsum5 = _vel_vbrdl_vsl(bias5, vl1) ;
-    __vr vrsum6 = _vel_vbrdl_vsl(bias6, vl1) ;
-    __vr vrsum7 = _vel_vbrdl_vsl(bias7, vl1) ;
-    __vr vrsum8 = _vel_vbrdl_vsl(bias8, vl1) ;
-    __vr vrsum9 = _vel_vbrdl_vsl(bias9, vl1) ;
-    __vr vrsumA = _vel_vbrdl_vsl(biasA, vl1) ;
-    __vr vrsumB = _vel_vbrdl_vsl(biasB, vl1) ;
-    __vr vrsumC = _vel_vbrdl_vsl(biasC, vl1) ;
-    __vr vrsumD = _vel_vbrdl_vsl(biasD, vl1) ;
-    __vr vrsumE = _vel_vbrdl_vsl(biasE, vl1) ;
-    __vr vrsumF = _vel_vbrdl_vsl(biasF, vl1) ;
+    __vr vrsum[NUMKERNEL] ;
+#pragma clang loop unroll(full)
+    for(int64_t kk=0; kk<NUMKERNEL; kk++) {
+      vrsum[kk] = _vel_vbrdl_vsl(bias[kk], vl1) ;
+    }
 
     for (int64_t c = 0; c < inChannelGroup; c++) {
 
@@ -98,73 +77,14 @@ static inline void func(
 
 
 #define FILTER_OFFSET(k,c,r,s) ( kernGroupOffset + filter_index<FLAYOUT>(k,c,r,s, inChannelGroup, outChannelGroup, kernHeight, kernWidth) )
-#define VFADD(VRIN, R, S) 								\
-{											\
-  if(NUMKERNEL>= 1) {									\
-    const uint64_t kerValue0 = _vel_pack_f32a(pKernel+ FILTER_OFFSET(k+ 0,c,R,S)) ;	\
-    vrsum0 = _vel_pvfmad_vvsvl(vrsum0, kerValue0, VRIN, vl1) ;				\
-  }											\
-  if(NUMKERNEL>= 2) {									\
-    const uint64_t kerValue1 = _vel_pack_f32a(pKernel+ FILTER_OFFSET(k+ 1,c,R,S)) ;	\
-    vrsum1 = _vel_pvfmad_vvsvl(vrsum1, kerValue1, VRIN, vl1) ;				\
-  }											\
-  if(NUMKERNEL>= 3) {									\
-    const uint64_t kerValue2 = _vel_pack_f32a(pKernel+ FILTER_OFFSET(k+ 2,c,R,S)) ;	\
-    vrsum2 = _vel_pvfmad_vvsvl(vrsum2, kerValue2, VRIN, vl1) ;				\
-  }											\
-  if(NUMKERNEL>= 4) {									\
-    const uint64_t kerValue3 = _vel_pack_f32a(pKernel+ FILTER_OFFSET(k+ 3,c,R,S)) ;	\
-    vrsum3 = _vel_pvfmad_vvsvl(vrsum3, kerValue3, VRIN, vl1) ;				\
-  }											\
-  if(NUMKERNEL>= 5) {									\
-    const uint64_t kerValue4 = _vel_pack_f32a(pKernel+ FILTER_OFFSET(k+ 4,c,R,S)) ;	\
-    vrsum4 = _vel_pvfmad_vvsvl(vrsum4, kerValue4, VRIN, vl1) ;				\
-  }											\
-  if(NUMKERNEL>= 6) {									\
-    const uint64_t kerValue5 = _vel_pack_f32a(pKernel+ FILTER_OFFSET(k+ 5,c,R,S)) ;	\
-    vrsum5 = _vel_pvfmad_vvsvl(vrsum5, kerValue5, VRIN, vl1) ;				\
-  }											\
-  if(NUMKERNEL>= 7) {									\
-    const uint64_t kerValue6 = _vel_pack_f32a(pKernel+ FILTER_OFFSET(k+ 6,c,R,S)) ;	\
-    vrsum6 = _vel_pvfmad_vvsvl(vrsum6, kerValue6, VRIN, vl1) ;				\
-  }											\
-  if(NUMKERNEL>= 8) {									\
-    const uint64_t kerValue7 = _vel_pack_f32a(pKernel+ FILTER_OFFSET(k+ 7,c,R,S)) ;	\
-    vrsum7 = _vel_pvfmad_vvsvl(vrsum7, kerValue7, VRIN, vl1) ;				\
-  }											\
-  if(NUMKERNEL>= 9) {									\
-    const uint64_t kerValue8 = _vel_pack_f32a(pKernel+ FILTER_OFFSET(k+ 8,c,R,S)) ;	\
-    vrsum8 = _vel_pvfmad_vvsvl(vrsum8, kerValue8, VRIN, vl1) ;				\
-  }											\
-  if(NUMKERNEL>=10) {									\
-    const uint64_t kerValue9 = _vel_pack_f32a(pKernel+ FILTER_OFFSET(k+ 9,c,R,S)) ;	\
-    vrsum9 = _vel_pvfmad_vvsvl(vrsum9, kerValue9, VRIN, vl1) ;				\
-  }											\
-  if(NUMKERNEL>=11) {									\
-    const uint64_t kerValueA = _vel_pack_f32a(pKernel+ FILTER_OFFSET(k+10,c,R,S)) ;	\
-    vrsumA = _vel_pvfmad_vvsvl(vrsumA, kerValueA, VRIN, vl1) ;				\
-  }											\
-  if(NUMKERNEL>=12) {									\
-    const uint64_t kerValueB = _vel_pack_f32a(pKernel+ FILTER_OFFSET(k+11,c,R,S)) ;	\
-    vrsumB = _vel_pvfmad_vvsvl(vrsumB, kerValueB, VRIN, vl1) ;				\
-  }											\
-  if(NUMKERNEL>=13) {									\
-    const uint64_t kerValueC = _vel_pack_f32a(pKernel+ FILTER_OFFSET(k+12,c,R,S)) ;	\
-    vrsumC = _vel_pvfmad_vvsvl(vrsumC, kerValueC, VRIN, vl1) ;				\
-  }											\
-  if(NUMKERNEL>=14) {									\
-    const uint64_t kerValueD = _vel_pack_f32a(pKernel+ FILTER_OFFSET(k+13,c,R,S)) ;	\
-    vrsumD = _vel_pvfmad_vvsvl(vrsumD, kerValueD, VRIN, vl1) ;				\
-  }											\
-  if(NUMKERNEL>=15) {									\
-    const uint64_t kerValueE = _vel_pack_f32a(pKernel+ FILTER_OFFSET(k+14,c,R,S)) ;	\
-    vrsumE = _vel_pvfmad_vvsvl(vrsumE, kerValueE, VRIN, vl1) ;				\
-  }											\
-  if(NUMKERNEL>=16) {									\
-    const uint64_t kerValueF = _vel_pack_f32a(pKernel+ FILTER_OFFSET(k+15,c,R,S)) ;	\
-    vrsumF = _vel_pvfmad_vvsvl(vrsumF, kerValueF, VRIN, vl1) ;				\
-  }											\
-}
+#define VFADD(VRIN, R, S) 									\
+      {												\
+	_Pragma("clang loop unroll(full)")							\
+	for(int64_t kk=0; kk<NUMKERNEL; kk++) {							\
+	  const uint64_t kerValue = _vel_pack_f32a(pKernel+ FILTER_OFFSET(k+kk,c,R,S)) ;	\
+	  vrsum[kk] = _vel_pvfmad_vvsvl(vrsum[kk], kerValue, VRIN, vl1) ;			\
+	}											\
+      }
 
       VFADD(vrin_r0s0, 0, 0) ;
       VFADD(vrin_r0s1, 0, 1) ;
@@ -180,22 +100,10 @@ static inline void func(
 
     } // inChannel
 
-    if(NUMKERNEL>= 1) _vel_vst_vssl(vrsum0, 8, pOut+outIndex+ 0*outHeight*outWidth, vl1) ;
-    if(NUMKERNEL>= 2) _vel_vst_vssl(vrsum1, 8, pOut+outIndex+ 1*outHeight*outWidth, vl1) ;
-    if(NUMKERNEL>= 3) _vel_vst_vssl(vrsum2, 8, pOut+outIndex+ 2*outHeight*outWidth, vl1) ;
-    if(NUMKERNEL>= 4) _vel_vst_vssl(vrsum3, 8, pOut+outIndex+ 3*outHeight*outWidth, vl1) ;
-    if(NUMKERNEL>= 5) _vel_vst_vssl(vrsum4, 8, pOut+outIndex+ 4*outHeight*outWidth, vl1) ;
-    if(NUMKERNEL>= 6) _vel_vst_vssl(vrsum5, 8, pOut+outIndex+ 5*outHeight*outWidth, vl1) ;
-    if(NUMKERNEL>= 7) _vel_vst_vssl(vrsum6, 8, pOut+outIndex+ 6*outHeight*outWidth, vl1) ;
-    if(NUMKERNEL>= 8) _vel_vst_vssl(vrsum7, 8, pOut+outIndex+ 7*outHeight*outWidth, vl1) ;
-    if(NUMKERNEL>= 9) _vel_vst_vssl(vrsum8, 8, pOut+outIndex+ 8*outHeight*outWidth, vl1) ;
-    if(NUMKERNEL>=10) _vel_vst_vssl(vrsum9, 8, pOut+outIndex+ 9*outHeight*outWidth, vl1) ;
-    if(NUMKERNEL>=11) _vel_vst_vssl(vrsumA, 8, pOut+outIndex+10*outHeight*outWidth, vl1) ;
-    if(NUMKERNEL>=12) _vel_vst_vssl(vrsumB, 8, pOut+outIndex+11*outHeight*outWidth, vl1) ;
-    if(NUMKERNEL>=13) _vel_vst_vssl(vrsumC, 8, pOut+outIndex+12*outHeight*outWidth, vl1) ;
-    if(NUMKERNEL>=14) _vel_vst_vssl(vrsumD, 8, pOut+outIndex+13*outHeight*outWidth, vl1) ;
-    if(NUMKERNEL>=15) _vel_vst_vssl(vrsumE, 8, pOut+outIndex+14*outHeight*outWidth, vl1) ;
-    if(NUMKERNEL>=16) _vel_vst_vssl(vrsumF, 8, pOut+outIndex+15*outHeight*outWidth, vl1) ;
+#pragma clang loop unroll(full)
+    for(int64_t kk=0; kk<NUMKERNEL; kk++) {
+      _vel_vst_vssl(vrsum[kk], 8, pOut+outIndex+kk*outHeight*outWidth, vl1) ;
+    }
 
     outIndex += 2*vl1 ;
   } // outPixels
