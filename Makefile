@@ -57,11 +57,20 @@ test: build
 		./vednn_conv_test -H 8e8 -p params/conv/alexnet.txt -T ConvForward; ftrace; \
 		./vednn_linear_test -H 0.8e9 -p params/linear/alexnet.txt -T LinearForward; ftrace; \
 		./vednn_pool_test   -H 0.8e9 -p params/pool/alexnet.txt   -T MaxPoolForward; ftrace; \
-		} && { echo "resnext via Makefile.big..."; \
-		make VERBOSE=1 -f Makefile.big jitconv resnext-t8.log || { echo "OHOH: test/resnext.log!"; false; } \
+		} && { \
+		make VERBOSE=1 -f Makefile.big jitconv && ./jitconv -t 8 mb8 >& t8mb8.log \
+		&& echo "GOOD: test/t8mb8.log!" \
+		|| { echo "OHOH: test/t8mb8.log!" && false; } \
+		} && echo "resnext via Makefile.big..." \
+		&& { make VERBOSE=1 -f Makefile.big jitconv resnext-t8.log \
+		&& echo "GOOD: test/resnext-t8.log!" \
+		|| { echo "OHOH: test/resnext-t8.log!" && false; } \
+	       	} && { make VERBOSE=1 -f Makefile.big jitconv resnext-t8-mb8.log \
+		&& echo "GOOD: test/resnext-t8-mb8.log!" \
+		|| { echo "OHOH: test/resnext-t8-mb8.log!"; false; } \
 		} && echo "vednn make test passed"; \
 	} 2>&1 | tee mk-test.log; ps=($${PIPESTATUS[@]}); \
-	echo "make test ---> mk-test.log, test/resnext-t8.log : PIPESTATUS $${ps[@]}"; \
+	echo "make test ---> mk-test.log, test/{t8mb8,resnext-t8,resnext-t8-mb8}.log : PIPESTATUS $${ps[@]}"; \
 	[ "$${ps[0]}" == "0" ];
 	@echo "make test OK"
 empty-build:

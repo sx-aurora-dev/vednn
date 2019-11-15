@@ -42,7 +42,7 @@ inline int omp_get_thread_num() { return 0; }
 inline int omp_in_parallel() { return 0; }
 #endif
 
-#ifndef PRAGMA_OMP_SIMD // [ejk] pragma macros moved upward to include/mkldnn_os.h
+#ifndef PRAGMA_OMP_SIMD // [ejk] pragma macros moved include/mkldnn_os.h
 /* MSVC still supports omp 2.0 only */
 #   if defined(_MSC_VER) && !defined(__clang__) && !defined(__INTEL_COMPILER)
 #      define collapse(x)

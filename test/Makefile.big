@@ -44,7 +44,7 @@ TARGETS:=vejit-unpack cjitConv00-x86 cjitConv01-x86
 
 ifeq ($(COMPILE_TYPE),ncc)
 TARGETS+=vednn_conv_test vednn_linear_test vednn_pool_test
-TARGETS+=cjitConv01# vejit demo
+#TARGETS+=cjitConv01# vejit demo # REMOVED (uses veintrin.h)
 # The following were all affected by the API change (filterLayout_t)
 TARGETS+=ve_simpleconv
 TARGETS+=ve_cmpconv
@@ -625,35 +625,39 @@ jitconv-dev: jitconv.o d1s1pSB.o $(CONVGEMM).o libcjitConv-ve.so conv_test_param
 		${LDLIBS} -ldl
 resnext-t%.log: jitconv
 	@# NOTE -k for cachekiller, -r REPS
-	{ cmd='./jitconv -t $* -S resnext -M params/conv/resnext2.txt -r 8'; rm -f ftrace.out \
-	       echo "$$cmd"; time $$cmd; status=$$?; ftrace || true; } >& '$@'; \
-	       if [ "$${status}" != "0" ]; then echo "$@ FAILED"; fi; \
-	       [ "$${status}" == "0" ];
+	{ cmd='./jitconv -t $* -S resnext -M params/conv/resnext2.txt -r 8'; \
+		rm -f ftrace.out; echo "$$cmd >& $@"; \
+		{ LIBC_FATAL_STDERR_=1 time $$cmd; status=$$?; ftrace || true; } >& '$@'; \
+		if [ "$${status}" != "0" ]; then echo "$@ FAILED"; fi; \
+		[ "$${status}" == "0" ]; \
+		}
 	@echo "$@ OK"
 resnext-t%-mb8.log: jitconv
 	@# NOTE -k for cachekiller, -r REPS
-	{ cmd='./jitconv -t $* -S resnext-mb8 -M params/conv/resnext2.txt -r 8 mb8'; rm -f ftrace.out \
-	       echo "$$cmd"; time $$cmd; status=$$?; ftrace || true; } >& '$@'; \
-	       if [ "$${status}" != "0" ]; then echo "$@ FAILED"; fi; \
-	       [ "$${status}" == "0" ];
+	{ cmd='./jitconv -t $* -S resnext-mb8 -M params/conv/resnext2.txt -r 8 mb8'; \
+		rm -f ftrace.out; echo "$$cmd >& $@"; \
+		{ LIBC_FATAL_STDERR_=1 time $$cmd; status=$$?; ftrace || true; } >& '$@'; \
+		if [ "$${status}" != "0" ]; then echo "$@ FAILED"; fi; \
+		[ "$${status}" == "0" ]; \
+		}
 	@echo "$@ OK"
 resnext: jitconv
 	{ cmd='./jitconv -k -t 8 -M params/conv/resnext2.txt'; rm -f ftrace.out \
-	       echo "$$cmd"; time $$cmd; ftrace || true; } >& resnext-t8.log
+	       echo "$$cmd"; LIBC_FATAL_STDERR_=1 time $$cmd; ftrace || true; } >& resnext-t8.log
 	{ cmd='./jitconv -k -t 4 -M params/conv/resnext2.txt'; rm -f ftrace.out \
-	       echo "$$cmd"; time $$cmd; ftrace || true; } >& resnext-t4.log
+	       echo "$$cmd"; LIBC_FATAL_STDERR_=1 time $$cmd; ftrace || true; } >& resnext-t4.log
 	{ cmd='./jitconv -k -t 2 -M params/conv/resnext2.txt'; rm -f ftrace.out \
-	       echo "$$cmd"; time $$cmd; ftrace || true; } >& resnext-t2.log
+	       echo "$$cmd"; LIBC_FATAL_STDERR_=1 time $$cmd; ftrace || true; } >& resnext-t2.log
 	{ cmd='./jitconv -k -t 1 -M params/conv/resnext2.txt'; rm -f ftrace.out \
-	       echo "$$cmd"; time $$cmd; ftrace || true; } >& resnext-t1.log
+	       echo "$$cmd"; LIBC_FATAL_STDERR_=1 time $$cmd; ftrace || true; } >& resnext-t1.log
 	{ cmd='./jitconv -k -t 8 -M params/conv/resnext2.txt -mb8'; rm -f ftrace.out \
-	       echo "$$cmd"; time $$cmd; ftrace || true; } >& resnext-t8-mb8.log
+	       echo "$$cmd"; LIBC_FATAL_STDERR_=1 time $$cmd; ftrace || true; } >& resnext-t8-mb8.log
 	{ cmd='./jitconv -k -t 4 -M params/conv/resnext2.txt -mb8'; rm -f ftrace.out \
-	       echo "$$cmd"; time $$cmd; ftrace || true; } >& resnext-t4-mb8.log
+	       echo "$$cmd"; LIBC_FATAL_STDERR_=1 time $$cmd; ftrace || true; } >& resnext-t4-mb8.log
 	{ cmd='./jitconv -k -t 2 -M params/conv/resnext2.txt -mb8'; rm -f ftrace.out \
-	       echo "$$cmd"; time $$cmd; ftrace || true; } >& resnext-t2-mb8.log
+	       echo "$$cmd"; LIBC_FATAL_STDERR_=1 time $$cmd; ftrace || true; } >& resnext-t2-mb8.log
 	{ cmd='./jitconv -k -t 1 -M params/conv/resnext2.txt -mb8'; rm -f ftrace.out \
-	       echo "$$cmd"; time $$cmd; ftrace || true; } >& resnext-t1-mb8.log
+	       echo "$$cmd"; LIBC_FATAL_STDERR_=1 time $$cmd; ftrace || true; } >& resnext-t1-mb8.log
 	echo 'YAY: made resnext-*.log'
 
 y.log: force

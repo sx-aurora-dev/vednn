@@ -6,6 +6,8 @@
 
 using namespace std;
 
+typedef long unsigned lu;
+
 namespace {
 struct IdxAZ{
     size_t idx, first;
@@ -247,8 +249,9 @@ static void print_wins(struct TestData const* test_data, size_t const a, size_t 
     }
     // now wins[ii][jj] counts when impl (a+ii) clearly wins agains (a+jj)
     // print legend (impl --> name)
-    printf("\n Legend : impl     -->   avg_t (ms) name\n");
+    printf("\n Legend : impl     -->   avg_t (ms)    ops    name\n");
     char const** impl_names = (char const**)malloc(ni*sizeof(char*));
+    uint64_t* impl_ops = (uint64_t*)malloc(ni*sizeof(uint64_t));
     {
         for(size_t imp=0; imp<ni; ++imp){
             size_t test=~0U;
@@ -261,12 +264,13 @@ static void print_wins(struct TestData const* test_data, size_t const a, size_t 
             }
             assert( test != ~0U );
             impl_names[imp] = test_data[test].impl_name;
+            impl_ops[imp] = test_data[test].ops;
 
             double avg_t = (n_t[imp]? sum_t[imp] / n_t[imp]: 0.0);
             double const f = 1.0e3 / HZ;
             double ms = avg_t * f;
-            printf("          imp %4u --> %12.3f %s\n",
-                    (unsigned)imp, ms, impl_names[imp]);
+            printf("          imp %4u --> %12.3f %12lu %s\n",
+                    (unsigned)imp, ms, (lu)impl_ops[imp], impl_names[imp]);
         }
     }
     // a vs b battle count table:
@@ -353,6 +357,7 @@ static void print_wins(struct TestData const* test_data, size_t const a, size_t 
     free(sum_t);
     free(speedup);
     free(impl_names);
+    free(impl_ops);
     free(wins);
     free(battles);
 }

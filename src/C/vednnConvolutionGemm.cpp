@@ -2,7 +2,8 @@
 
 #include "vednn.h"
 #include "vednn-def.hpp" // vednn.h + C++ scratchpad API (C++ can inline one call)
-#include "gen-dnn/mkldnn_thread.hpp" // OMP pragmas
+#include "gen-dnn/mkldnn_os.h"      // OMP pragmas (part of mkldnn_thread now?)
+#include "gen-dnn/mkldnn_thread.hpp"  // omp_get_xxx stubs (if nec), parallel_nd
 #include "gen-dnn/utils.hpp"
 
 #include <stdio.h>
@@ -10,7 +11,14 @@
 #include <string.h> // memset
 #include <stdint.h>
 
-/** 0=malloc+free, 1=vednn_scratchpad_shared, 2=vednn_scratchpadTLS */
+/** 0=malloc+free, 1=vednn_scratchpad_shared, 2=vednn_scratchpadTLS.
+ * - '0' is dumb and safe
+ * - '1' works, but needs care when client code is itself multi-threaded,
+ *              (and needs care if trying 'outer threading' around im2col)
+ * - '2' was ok for mb=1, but may have malloc issues when mb=8 ?
+ *
+ * - really want `omp threadprivate`, but not available for Aurora yet
+ */
 #ifndef SCRATCHPAD
 #define SCRATCHPAD 2
 #endif
@@ -28,22 +36,46 @@
 
 #define SGEMM   sgemm_
 
+#if 0
+#define DBG(...) do{printf(__VA_ARGS__);fflush(stdout);}while(0)
+#else
+#define DBG(...)
+#endif
+
 /** local scratchpad alloc via \c SCRATCHPAD method */
-static inline float* restrict getScratch( size_t nBytes ){
 #if SCRATCHPAD==0
+static inline float* restrict getScratch( size_t nBytes ){
   float * restrict ret = (float*) malloc(nBytes);
+  return ret;
+}
+static inline void freeScratch(void* scratch){
+  free(scratch);
+}
 #elif SCRATCHPAD==1
-  //printf(" dirGemmA: scratchpad_shared!"); fflush(stdout);
+static inline float* restrict getScratch( size_t nBytes ){
+  //printf(" dirGemmA: scratchpad_shared(%lu)!",(long unsigned)nBytes)); fflush(stdout);
   using vednn::scratchpad::vednn_scratchpad_shared;
   float * restrict ret = (float*)(void*)
     vednn_scratchpad_shared(nBytes);
+  return ret;
+}
+static inline void freeScratch(void* scratch){
+  (void)scratch;
+  //printf(" dirGemmA: free scratchpad_shared!"); fflush(stdout);
+}
 #else // 2... TLS
+static inline float* restrict getScratch( size_t nBytes ){
+  //printf(" dirGemmA: scratchpadTLS(%lu)!",(long unsigned)nBytes)); fflush(stdout);
   using vednn::scratchpad::vednn_scratchpadTLS;
   float * restrict ret = (float*)(void*)
     vednn_scratchpadTLS(nBytes);
-#endif
   return ret;
 }
+static inline void freeScratch(void* scratch){
+  (void)scratch;
+  //printf(" dirGemmA: free scratchpad_shared!"); fflush(stdout);
+}
+#endif
 
 typedef long unsigned lu;
 
@@ -132,7 +164,7 @@ void krn_i2c_sw1( int64_t const kernel_row, int64_t kernel_col,
       for(int i=0; i<256; ++i) ic_sw[i] += 256*1;
     }//outWidth Blocking
   }
-  //printf(" outOffset=%lu",(u64)outOffset); // output_h * output_w
+  DBG(" outOffset=%lu",(u64)outOffset); // output_h * output_w
 }
 
 /** data_col size to hold float[ic*kw*kh*ow*oh]. */
@@ -157,6 +189,7 @@ vednn_im2col(const float * restrict data_im, const int64_t channels,
   //if( collapse_2_loops ) // [channels,kernel_h]
   if( channels < 2*threads && channels%threads && channels*kernel_h > 1 ){
     if(stride_w==1){
+      DBG(" omp2str1 ");
       OMP(parallel for collapse(2))//;
       for (int64_t channel = 0 ; channel < channels; ++channel) {       // inChannel
         for (int64_t kernel_row = 0; kernel_row < kernel_h; ++kernel_row) {   // kernHeight
@@ -171,6 +204,7 @@ vednn_im2col(const float * restrict data_im, const int64_t channels,
             outOffset += output_hw;
           } } }
     }else{ //stride_w>1
+      DBG(" omp2str>1 ");
       OMP(parallel for collapse(2))//;
       for (int64_t channel = 0 ; channel < channels; ++channel) {       // inChannel
         for (int64_t kernel_row = 0; kernel_row < kernel_h; ++kernel_row) {   // kernHeight
@@ -219,7 +253,8 @@ vednn_im2col(const float * restrict data_im, const int64_t channels,
     }
   }else{ // collapse just one outer [channels] loop
     if(stride_w==1){
-      OMP(parallel for collapse(2))//;
+      DBG(" omp1str1 ");
+      OMP(parallel for)//;
       for (int64_t channel = 0 ; channel < channels; ++channel) {       // inChannel
         for (int64_t kernel_row = 0; kernel_row < kernel_h; ++kernel_row) {   // kernHeight
           int64_t const inOffset = channel * channel_size;
@@ -233,7 +268,7 @@ vednn_im2col(const float * restrict data_im, const int64_t channels,
             outOffset += output_hw;
           } } }
     }else{ //stride_w>1
-      //printf(" omp1str>1 ");
+      DBG(" omp1str>1 ");
       OMP(parallel for)//;
       for (int64_t channel = 0 ; channel < channels; ++channel) {       // inChannel
         int64_t i_x_stride_w[256]; // const
@@ -287,7 +322,7 @@ vednn_im2col(const float * restrict data_im, const int64_t channels,
         int64_t inOffset = channel * channel_size;
         int64_t outOffset = channel * workPerChannel;
         for (int64_t kernel_row = 0; kernel_row < kernel_h; kernel_row++) {   // kernHeight
-          //if(channel==0) printf("inOffset=%-8lu outOffset=%-8lu\n",(lu)inOffset,(lu)outOffset);
+          //if(channel==0) DBG("inOffset=%-8lu outOffset=%-8lu\n",(lu)inOffset,(lu)outOffset);
           for (int64_t kernel_col = 0; kernel_col < kernel_w; kernel_col++) {   // kernWidth
             int64_t input_row = -pad_h + kernel_row * dilation_h;
             for (int64_t const input_row_max = input_row + output_h*stride_h;
@@ -318,7 +353,7 @@ vednn_im2col_k1p0_str(const float * restrict data_im, const int64_t channels,
     /* dilation irrelevant for 1x1 kernel : const int64_t dilation_h, const int64_t dilation_w, */
     float * restrict data_col, int const nThreads)
 {
-  LFTRACE_BEGIN("vednn_im2col_k1p0_str");
+  DBG(" vednn_im2col_k1p0_str ");
   const int64_t output_h = (height - 1) / stride_h + 1;
   const int64_t output_w = (width  - 1) / stride_w + 1;
   const int64_t channel_size = height * width;
@@ -326,6 +361,7 @@ vednn_im2col_k1p0_str(const float * restrict data_im, const int64_t channels,
 
   if( channels < 2*nThreads && channels%nThreads && channels*output_h > 1 )
   {
+    LFTRACE_BEGIN("vednn_im2col_k1p0_str-collapse(1)");
 #pragma omp for collapse(2) // no effect of collapse(2) ?
     for (int64_t channel = 0u ; channel < channels; ++channel) {       // inChannel
       for(int64_t output_row = 0; output_row < output_h; ++output_row){
@@ -334,18 +370,20 @@ vednn_im2col_k1p0_str(const float * restrict data_im, const int64_t channels,
           data_col[channel*output_hw  + output_row          * output_w + output_col]
             = data_im[channel*channel_size + output_row*stride_h * width    + output_col*stride_w];
         } } }
+    LFTRACE_END("vednn_im2col_k1p0_str-collapse(1)");
   }else{
+    LFTRACE_BEGIN("vednn_im2col_k1p0_str-collapse(2)");
 #pragma omp parallel for
-  for (int64_t channel = 0u ; channel < channels; ++channel) {       // inChannel
-    int64_t inOffset = channel * channel_size;
-    // __builtin_vprefetch( &data_im[inOffset], output_hw*sizeof(float) );
-    int64_t outOffset = channel * output_hw;
-    for(int64_t input_row = 0; input_row < output_h*stride_h; input_row += stride_h){
-      for(int64_t input_col = 0; input_col < output_w*stride_w; input_col += stride_w){
-        data_col[outOffset++] = data_im[inOffset + input_row * width + input_col];
-      } } }
+    for (int64_t channel = 0u ; channel < channels; ++channel) {       // inChannel
+      int64_t inOffset = channel * channel_size;
+      // __builtin_vprefetch( &data_im[inOffset], output_hw*sizeof(float) );
+      int64_t outOffset = channel * output_hw;
+      for(int64_t input_row = 0; input_row < output_h*stride_h; input_row += stride_h){
+        for(int64_t input_col = 0; input_col < output_w*stride_w; input_col += stride_w){
+          data_col[outOffset++] = data_im[inOffset + input_row * width + input_col];
+        } } }
+    LFTRACE_END("vednn_im2col_k1p0_str-collapse(2)");
   }
-  LFTRACE_END("vednn_im2col_k1p0_str");
 }
 
   static void
@@ -415,6 +453,8 @@ vednnConvFwd_gemm(
     const float * restrict pOne,  float * restrict pColBuf,
     const vednnConvolutionParam_t * restrict pParamConv )
 {
+  DBG(" vednnConvFwd_gemm pDataIn@%p pDataKernel@%p pDataBias@%p pDataOut@%p pOne@%p pColBuf@%p\n",
+      (void*)pDataIn, (void*)pDataKernel, (void*)pDataBias, (void*)pDataOut, (void*)pOne, (void*)pColBuf);
   LFTRACE_BEGIN("vednnConvFwd_gemm");
   int n, g;
 
@@ -436,8 +476,8 @@ vednnConvFwd_gemm(
   int dilationWidth   = pParamConv->dilationWidth;
   int dilationHeight  = pParamConv->dilationHeight;
 
-  int inChannelGroup  = inChannel  / group;   // pParamKernel->inChannel と同じ
-  int outChannelGroup = outChannel / group;   // pParamKernel->outChannel と同じ
+  int inChannelGroup  = inChannel  / group;   // pParamKernel->inChannel
+  int outChannelGroup = outChannel / group;   // pParamKernel->outChannel
 
   const float * restrict pIn     = (const float*)pDataIn;
   const float * restrict pBias   = (const float*)pDataBias;
@@ -448,6 +488,7 @@ vednnConvFwd_gemm(
   //chkThreads();
 
   if (no_im2col) {
+    DBG(" noim2col ");
     for (n = 0; n < batch; n++) { // this->num_
       int inBatchOffset  = n * inChannel  * inWidth  * inHeight;
       int outBatchOffset = n * outChannel * outWidth * outHeight;
@@ -480,6 +521,7 @@ vednnConvFwd_gemm(
       } // group
     } // batch
   }else if( kernHeight+kernWidth==2 && padHeight+padWidth==0 && strideHeight+strideWidth>2 ){
+    DBG(" k1p0_str ");
     for (n = 0; n < batch; n++) { // this->num_
       int inBatchOffset  = n * inChannel  * inWidth  * inHeight;
       int outBatchOffset = n * outChannel * outWidth * outHeight;
@@ -525,6 +567,7 @@ vednnConvFwd_gemm(
     // ... existing code, above, good for ic=3 input layers
 
   }else{ // generic im2col
+    DBG(" im2col ");
     for (n = 0; n < batch; n++) { // this->num_
       int inBatchOffset  = n * inChannel  * inWidth  * inHeight;
       int outBatchOffset = n * outChannel * outWidth * outHeight;
@@ -673,8 +716,8 @@ vednnConvBkF_gemm(
   int dilationWidth   = pParamConv->dilationWidth;
   int dilationHeight  = pParamConv->dilationHeight;
 
-  int inChannelGroup  = inChannel  / group;   // pParamKernel->inChannel と同じ
-  int outChannelGroup = outChannel / group;   // pParamKernel->outChannel と同じ
+  int inChannelGroup  = inChannel  / group;   // pParamKernel->inChannel
+  int outChannelGroup = outChannel / group;   // pParamKernel->outChannel
 
   const float * restrict pIn     = (float const*)pDataIn;
   const float * restrict pOut    = (float const*)pDataGradOut;
@@ -727,6 +770,7 @@ vednnConvBkF_gemm(
   return VEDNN_SUCCESS;
 }
 
+#if 0 // old API, without bias
 vednnError_t
 vednnConvolutionForward_direct_gemm(
     const vednnTensorParam_t * restrict         pParamIn,
@@ -737,12 +781,18 @@ vednnConvolutionForward_direct_gemm(
     const vednnTensorParam_t * restrict         pParamOut,
     void * restrict                             pDataOut
     ){
+  DBG(" vednnConvolutionForward_direct_gemm ");
+  DBG(" pDataIn@%p pDataKernel@%p pParamConv@%p pParamOut@%p pDataOut@%p\n",
+      (void*)pDataIn, (void*)pDataKernel, (void*)pParamConv, (void*)pParamOut, (void*)pDataOut);
   size_t pColrows = pParamKernel->inChannel * pParamKernel->width * pParamKernel->height;
   size_t pColcols = pParamOut->width * pParamOut->height;
-  // This buffer is only used for bias term
+#if 1
+  // This buffer is only used for bias term ONLY
   float * restrict pOnes = nullptr;
-  //float const* restrict pOnes = (float const*)
-  //    (void*)vednn_scratchpad_float_ones(pColcols); // ow * oh float 1.0f
+#else
+  float const* restrict pOnes = (float const*)
+      (void*)vednn_scratchpad_float_ones(pColcols); // ow * oh float 1.0f
+#endif
 
   // This buffer is used for a monolithic im2col
   // (could use a smaller buffer if im2col were done "as-needed")
@@ -757,13 +807,15 @@ vednnConvolutionForward_direct_gemm(
       nullptr, nullptr/*avoids bias gemm call*/ ,
       pParamOut, pDataOut/*output*/,
       pOnes, pColBuf, pParamConv );
-#if SCRATCHPAD==0
-  free(pColBuf);
-#endif
+  freeScratch(pColBuf);
   return ret;
 } 
+#endif
+// Now ALL forward covnolutions include bias, which can be nullptr
   vednnError_t
-vednnConvolutionForwardAddBias_direct_gemm(
+//vednnConvolutionForwardAddBias_direct_gemm
+vednnConvolutionForward_direct_gemm
+(
     const vednnTensorParam_t * restrict         pParamIn,
     const void * restrict                       pDataIn,
     const vednnFilterParam_t * restrict         pParamKernel,
@@ -775,6 +827,9 @@ vednnConvolutionForwardAddBias_direct_gemm(
     void * restrict                             pDataOut
     )
 {
+  DBG(" vednnConvolutionForward_direct_gemm ");
+  DBG(" pDataIn@%p pDataKernel@%p pParamConv@%p pParamOut@%p pDataOut@%p\n",
+      (void*)pDataIn, (void*)pDataKernel, (void*)pParamConv, (void*)pParamOut, (void*)pDataOut);
   size_t pColrows = pParamKernel->inChannel * pParamKernel->width * pParamKernel->height;
   size_t pColcols = pParamOut->width * pParamOut->height;
 
@@ -802,10 +857,8 @@ vednnConvolutionForwardAddBias_direct_gemm(
       pParamBias, pDataBias,
       pParamOut, pDataOut/*output*/,
       pOnes, pColBuf, pParamConv );
-#if SCRATCHPAD==0
-  free(pOnes);
-  free(pColBuf);
-#endif
+  freeScratch((void*)pOnes);
+  freeScratch(pColBuf);
   return ret;
 }
 vednnError_t
@@ -835,9 +888,7 @@ vednnConvolutionBackwardFilter_direct_gemm(
       pParamGradOut, pDataGradOut,
       pParamGradKernel, pDataGradKernel/*output*/,
       pColBuf, pParamConv );
-#if SCRATCHPAD==0
-  free(pColBuf);
-#endif
+  freeScratch(pColBuf);
   return ret;
 }
 
@@ -863,9 +914,7 @@ vednnConvolutionBackwardData_direct_gemm(
       pParamKernel, pDataKernel,
       pParamGradIn, pDataGradIn/*output*/,
       pColBuf, pParamConv );
-#if SCRATCHPAD==0
-  free(pColBuf);
-#endif
+  freeScratch(pColBuf);
   return ret;
 }
 

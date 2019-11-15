@@ -368,7 +368,9 @@ struct PreConvFwd1q mkPreConvFwd1q( struct param const* const p,
             if( (outChannelGroup & kBy) != 0 ) kMax = k+kBy;
             if ( kBy == kByMax || kMax>outChannelGroup ) kMax = outChannelGroup;
             auto const k2_0 = pre.krn_gkrsc.size();
+#ifndef NDEBUG
             auto const k0 = k;
+#endif
             cout<<" g"<<g<<" k"<<k<<" k2@"<<k2_0<<endl;
             assert( k2_0 == g * ((kMax-k)/kBy) * (kernHW*inChannelGroup) );
             for( ; k<kMax; k+=kBy){ // loop_k
@@ -384,7 +386,9 @@ struct PreConvFwd1q mkPreConvFwd1q( struct param const* const p,
             if( (outChannelGroup & kBy) != 0 ) kMax = k+kBy;
             if ( kBy == kByMax || kMax>outChannelGroup ) kMax = outChannelGroup;
             auto const k4_0 = pre.krn_gkrsc.size();
+#ifndef NDEBUG
             auto const k0 = k;
+#endif
             assert( k4_0 == g * ((kMax-k)/kBy) * (kernHW*inChannelGroup) );
             for( ; k<kMax; k+=kBy){ // loop_k
                 pKern_gk = pKernel + kernGroupOffset + (k * inChannelGroup + 0/*c*/) * kernHW;
@@ -397,9 +401,11 @@ struct PreConvFwd1q mkPreConvFwd1q( struct param const* const p,
             kBy = 8;
             assert( kByMax == 8 );
             kMax = outChannelGroup;
+#ifndef NDEBUG
             auto const k8_0 = pre.krn_gkrsc.size();
             auto const k0 = k;
             assert( k8_0 == g * ((kMax-k)/kBy) * (kernHW*inChannelGroup) );
+#endif
             for( ; k<kMax; k+=kBy){ // loop_k
                 pKern_gk = pKernel + kernGroupOffset + (k * inChannelGroup + 0/*c*/) * kernHW;
                 krn_rsc_kBy_gt_1();
@@ -640,7 +646,9 @@ std::pair<string,string> strCPreConvFwd1q( struct param const* const p, int cons
             kBy = 2;
             if( (outChannelGroup & kBy) != 0 ) kMax = k+kBy;
             if ( kBy == kByMax || kMax>outChannelGroup ) kMax = outChannelGroup;
+#ifndef NDEBUG
             auto const k0 = k;
+#endif
             for( ; k<kMax; k+=kBy){ // loop_k
                 for (int64_t rs = 0; rs < kernHW; ++rs){ // loop_r, loop_s (krn data packed in rs)
                     for (int64_t c = 0; c < inChannelGroup; ++c){ // loop_c

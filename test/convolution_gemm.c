@@ -16,6 +16,8 @@
 #define LFTRACE_IF(...) do{}while(0)
 #endif // LOCAL_FTRACE
 
+// Scratchpad: none -- hardwired to malloc/free im2col buffers
+
 #define SGEMM	sgemm_
 void sgemm_(char *TRANSA, char *TRANSB, int *M, int *N, int *K,
     float *ALPHA, float *A,  int *LDA, float *B, int *LDB,
@@ -173,8 +175,8 @@ convolution_forward_gemm(
     int dilationWidth	= pParamConv->dilationWidth;
     int dilationHeight	= pParamConv->dilationHeight;
 
-    int inChannelGroup	= inChannel  / group;	// pParamKernel->inChannel と同じ
-    int outChannelGroup	= outChannel / group;	// pParamKernel->outChannel と同じ
+    int inChannelGroup	= inChannel  / group;	// pParamKernel->inChannel
+    int outChannelGroup	= outChannel / group;	// pParamKernel->outChannel
 
     int no_im2col = (kernWidth == 1 && kernHeight == 1 && strideWidth == 1 && strideHeight == 1 && padWidth == 0 && padHeight == 0);
 
@@ -397,8 +399,8 @@ convolution_backward_filter_gemm(
     int dilationWidth	= pParamConv->dilationWidth;
     int dilationHeight	= pParamConv->dilationHeight;
 
-    int inChannelGroup	= inChannel  / group;	// pParamKernel->inChannel と同じ
-    int outChannelGroup	= outChannel / group;	// pParamKernel->outChannel と同じ
+    int inChannelGroup	= inChannel  / group;	// pParamKernel->inChannel
+    int outChannelGroup	= outChannel / group;	// pParamKernel->outChannel
 
     int no_im2col = (kernWidth == 1 && kernHeight == 1 && strideWidth == 1 && strideHeight == 1 && padWidth == 0 && padHeight == 0);
 
