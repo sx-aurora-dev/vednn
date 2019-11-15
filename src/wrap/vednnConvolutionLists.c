@@ -22,27 +22,39 @@ extern "C" {
 #endif
 
 #define IMPL_FNS(BASENAME,STR)    IMPL_FNS_(BASENAME,STR)
-#define IMPL_WRAPNONE_FNS(BASENAME,STR) IMPL_WRAPNONE_FNS_(BASENAME,STR)
 #define IMPL_RTFNS(BASENAME,STR)  IMPL_RTFNS_(BASENAME,STR)
 #define JIT_FNS(BASENAME,STR)     JIT_FNS_(BASENAME,STR)
 
 #define IMPL_FNS_(BASENAME,STR) \
     { BASENAME, #BASENAME, STR, VEDNN_WRAP_DEFAULT, BASENAME##_ok, NULL, NULL, NULL }
-#define IMPL_WRAPNONE_FNS_(BASENAME,STR) \
-    { BASENAME, #BASENAME, STR, VEDNN_WRAP_NONE,    BASENAME##_ok, NULL, NULL, NULL }
 #define IMPL_RTFNS_(BASENAME,STR) \
     { BASENAME, #BASENAME, STR, VEDNN_WRAP_DEFAULT, BASENAME##_ok, BASENAME##_rtok, NULL, NULL }
 #define JIT_FNS_(BASENAME,STR) \
     { BASENAME, #BASENAME, STR, VEDNN_WRAP_DEFAULT, BASENAME##_ok, NULL, BASENAME##_pd, NULL}
 
+// original version of IMPL_WRAPNONE_FNS not quite correct for BackwardFilter low-level impls
+//#define IMPL_WRAPNONE_EASY_FNS(BASENAME,STR) IMPL_WRAPNONE_EASY_FNS_(BASENAME,STR)
+//#define IMPL_WRAPNONE_EASY_FNS_(BASENAME,STR) \
+//    { BASENAME, #BASENAME, STR, VEDNN_WRAP_NONE,    BASENAME##_ok, NULL, NULL, NULL }
+
+// low-level impl may have extra omp args, so
+//    FUNC_nowrap_t and FUNC_t may be different types
+#define IMPL_WRAPNONE_FNS( DIRN, IMPL, STR) IMPL_WRAPNONE_FNS_(DIRN, IMPL, STR)
+#define IMPL_WRAPNONE_FNS_(DIRN, IMPL, STR) { \
+    /* func w/o omp args    */ (vednnConv##DIRN##_t)vednnConvolution##DIRN##_direct_##IMPL, \
+    /* func C symbol name                      */ "vednnConvolution" #DIRN "_direct_" #IMPL,  \
+    /* short name           */ STR, \
+    /*                      */ VEDNN_WRAP_NONE, \
+    /* _ok, _rtok, _pd, TBD */ vednnConvolution##DIRN##_direct_##IMPL##_ok, NULL, NULL, NULL }
 
 // try to put most specialized first, because they are likely fastest
 static vednnConvForwardImpls vednnConvForwardList_[] = {
     // k1 NOTE: dil1 is irrelevant for ker1 (should remove from name/files)
+    IMPL_FNS(vednnConvolutionForward_direct_dil1_str2_pad1_ker3_owU128,"cnvFwd-d1s2pSk3_owU128"),
     // d1s1pS
     IMPL_FNS(vednnConvolutionForward_direct_dil1_str1_padsame_ker3_c1_owU128,"cnvFwd-d1s1pSk3c1owU128"),
     IMPL_FNS(vednnConvolutionForward_direct_dil1_str1_padsame_ker3_c1,"cnvFwd-d1s1pSk3_c1"),
-    //IMPL_WRAPNONE_FNS(vednnConvolutionForward_direct_dil1_str1_padsame_ker3_T,"cnvFwd-d1s1pSk3_T"),
+    //IMPL_WRAPNONE_EASY_FNS(vednnConvolutionForward_direct_dil1_str1_padsame_ker3_T,"cnvFwd-d1s1pSk3_T"),
     IMPL_FNS(vednnConvolutionForward_direct_dil1_str1_padsame_ker3,"cnvFwd-d1s1pSk3"),
     IMPL_FNS(vednnConvolutionForward_direct_dil1_str1_padsame_ker5_owU128,"cnvFwd-d1s1pSk5owU128"),
     IMPL_FNS(vednnConvolutionForward_direct_dil1_str1_padsame_ker5,"cnvFwd-d1s1pSk5"),
@@ -63,9 +75,10 @@ static vednnConvForwardImpls vednnConvForwardList_[] = {
     IMPL_FNS(vednnConvolutionForward_direct_vecC,"cnvFwd-vecC"),
     IMPL_FNS(vednnConvolutionForward_direct_default,"cnvFwd-def"),
     // customizations (stable, working, but win in isolated circumstances)
-    IMPL_WRAPNONE_FNS(vednnConvolutionForward_direct_gemm,"cnvFwd-gemm"),
+    //IMPL_WRAPNONE_EASY_FNS(vednnConvolutionForward_direct_gemm,"cnvFwd-gemm"),
+    IMPL_WRAPNONE_FNS(Forward, gemm,"cnvFwd-gemm"),
     // WIP 
-    //IMPL_WRAPNONE_FNS(vednnConvolutionForward_direct_gendnn,"cnvFwd-gendnn"), // scratchpad issues?
+    //IMPL_WRAPNONE_EASY_FNS(vednnConvolutionForward_direct_gendnn,"cnvFwd-gendnn"), // scratchpad issues?
     // older impls
     //IMPL_FNS(vednnConvolutionForward_direct_dil1_str1_pad0_ker1_c1024x,"cnvFwd-d1s1p0k1c1024x"),
     //IMPL_FNS(vednnConvolutionForward_direct_dil1_str1_padsame_ker3_c1_owU128A,"cnvFwd-d1s1pSk3c1owU128A"),
@@ -99,33 +112,34 @@ static vednnConvForwardImpls vednnConvForwardList_[] = {
     {NULL,"NULL","null",NULL, NULL, NULL, NULL}
 };
 
-#if 0
-static vednnConvForwardAddBiasImpls vednnConvForwardAddBiasList_[] = {
-    IMPL_FNS(VEDNN_FUNC_CNVFWB(dil1_str1_pad0_ker1_c1024x),         "cnvFwB-d1s1p0k1c1024x"),
-    IMPL_FNS(VEDNN_FUNC_CNVFWB(dil1_str1_pad0_ker1),                "cnvFwB-d1s1p0k1"),
-    IMPL_FNS(VEDNN_FUNC_CNVFWB(dil1_str1_padsame_ker3_c1_owU128),   "cnvFwB-d1s1pSk3c1owU128"),
-    IMPL_FNS(VEDNN_FUNC_CNVFWB(dil1_str1_padsame_ker3_c1024x),      "cnvFwB-d1s1pSk3_c1024x"),
-    IMPL_FNS(VEDNN_FUNC_CNVFWB(dil1_str1_padsame_ker3_c1),          "cnvFwB-d1s1pSk3c1"),
-    IMPL_FNS(VEDNN_FUNC_CNVFWB(dil1_str1_padsame_ker3),             "cnvFwB-d1s1pSk3"),
-    IMPL_FNS(VEDNN_FUNC_CNVFWB(dil1_str1_padsame),                  "cnvFwB-d1s1pS"),
-    IMPL_FNS(VEDNN_FUNC_CNVFWB(default),                            "cnvFwB-def"),
-    IMPL_FNS(VEDNN_FUNC_CNVFWB(default2),                           "cnvFwB-def2"),
-    {NULL}
-};
-#endif
-
 static vednnConvBackwardDataImpls vednnConvBackwardDataList_[] = {
-    IMPL_FNS(vednnConvolutionBackwardData_direct_dil1_str1_padsame,"cnvBkD-d1s1pS"), //1st?
+    IMPL_FNS(vednnConvolutionBackwardData_direct_vecC,"cnvBkD-vecC"),
+    IMPL_FNS(vednnConvolutionBackwardData_direct_dil1_pad0_ker1_owU128,"cnvBkD-k1-owU128"),
+    IMPL_FNS(vednnConvolutionBackwardData_direct_dil1_str1_padsame_ker1,"cnvBkD-s1-k1"),
+    IMPL_FNS(vednnConvolutionBackwardData_direct_dil1_str1_padsame_ker2,"cnvBkD-s1pS-k2"),
+    // k3
     IMPL_RTFNS(vednnConvolutionBackwardData_direct_dil1_str1_pad0_ker3_iw2XU32_ow2X_ioaligned,
             "cnvBkD-d1s1p0k3iw2XU32_ow2X_ioaligned"),
     IMPL_RTFNS(vednnConvolutionBackwardData_direct_dil1_str1_pad0_ker3_iw2XU256_ow2X_ioaligned,
             "cnvBkD-d1s1p0k3iw2XU256_ow2X_ioaligned"),
+    IMPL_FNS(vednnConvolutionBackwardData_direct_dil1_str2_pad1_ker3_iwU256,"cnvBkD-d1s2p1-k3-iwU256"),
+    IMPL_FNS(vednnConvolutionBackwardData_direct_dil1_str2_ker3_iwU256,"cnvBkD-d1s2-k3-iwU256"),
     IMPL_FNS(vednnConvolutionBackwardData_direct_dil1_str1_pad0_ker3_iwU128,"cnvBkD-d1s1p0k3_iwU128"),
-    IMPL_FNS(vednnConvolutionBackwardData_direct_dil1_str1_iwU128,"cnvBkD-d1s1_iwU128"),
+    IMPL_FNS(vednnConvolutionBackwardData_direct_dil1_str1_padsame_ker3,"cnvBkD-d1s1pS-k3"),
+    IMPL_FNS(vednnConvolutionBackwardData_direct_ker3_iwU128,"cnvBkD-k3-iwU128"),
+    // k5
+    IMPL_FNS(vednnConvolutionBackwardData_direct_dil1_str2_pad2_ker5_iwU128,"cnvBkD-d1s2p2-k5-iwU128"),
+    IMPL_FNS(vednnConvolutionBackwardData_direct_dil1_str2_pad2_ker5,   "cnvBkD-d1s2p2-k5"),
+    IMPL_FNS(vednnConvolutionBackwardData_direct_dil1_str1_padsame_ker5,"cnvBkD-d1s1pS-k5"),
+    IMPL_FNS(vednnConvolutionBackwardData_direct_ker5_iwU128,"cnvBkD-k5-iwU128"),
+    IMPL_FNS(vednnConvolutionBackwardData_direct_ker5,       "cnvBkD-k5"),
+    IMPL_FNS(vednnConvolutionBackwardData_direct_dil1_str1_padsame,"cnvBkD-d1s1pS"),
+    IMPL_FNS(vednnConvolutionBackwardData_direct_dil1_str1_iwU128, "cnvBkD-d1s1_iwU128"),
     IMPL_FNS(vednnConvolutionBackwardData_direct_dil1_str1,"cnvBkD-d1s1"),
     IMPL_FNS(vednnConvolutionBackwardData_direct_iwU128,"cnvBkD-iwU128"),
     IMPL_FNS(vednnConvolutionBackwardData_direct_default,"cnvBkD-def"),
-    IMPL_WRAPNONE_FNS(vednnConvolutionBackwardData_direct_gemm,"cnvBkD-gemm"),
+    //IMPL_WRAPNONE_EASY_FNS(vednnConvolutionBackwardData_direct_gemm,"cnvBkD-gemm"),
+    IMPL_WRAPNONE_FNS(BackwardData, gemm,"cnvBkD-gemm"),
     // extras...
     //IMPL_FNS(vednnConvolutionBackwardData_direct_default2,"cnvBkD-def2"),
     //IMPL_FNS(vednnConvolutionBackwardData_direct_gendnn,"cnvBkD-gendnn"), // check if implemented XXX
@@ -154,8 +168,10 @@ static vednnConvBackwardFilterImpls vednnConvBackwardFilterList_[] = {
     IMPL_FNS(vednnConvolutionBackwardFilter_direct_dil1_pad0,"cnvBkF-d1p0"),
     IMPL_FNS(vednnConvolutionBackwardFilter_direct_owU128,"cnvBkF-owU128"),
     IMPL_FNS(vednnConvolutionBackwardFilter_direct_default,"cnvBkF-def"),
-    // ouch. perhaps 'impl' should be a union with normal and _nowrap function ptrs?
-    IMPL_WRAPNONE_FNS((vednnConvBackwardFilter_t)(void*)vednnConvolutionBackwardFilter_direct_gemm,"cnvBkF-gemm"),
+    // Neither of the following work, because low-level impl may have "extra" args!
+    //IMPL_WRAPNONE_EASY_FNS((vednnConvBackwardFilter_t)(void*)vednnConvolutionBackwardFilter_direct_gemm,"cnvBkF-gemm"),
+    //IMPL_WRAPNONE_EASY_FNS(vednnConvolutionBackwardFilter_direct_gemm,"cnvBkF-gemm"),
+    IMPL_WRAPNONE_FNS( BackwardFilter, gemm, "cnvBkF-gemm" ),
     // extras...
     //IMPL_FNS(vednnConvolutionBackwardData_direct_gendnn,"cnvBkD-gendnn"), // check if implemented XXX
     {NULL}

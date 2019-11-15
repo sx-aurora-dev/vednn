@@ -36,15 +36,12 @@ void ScratchpadTLS::freeme(){
     // vednn TLS scratchpad is almost never freed (usual to leak)
 #pragma omp critical
     {
-        //vednn::mcheck();
         if (scratchpad_ != nullptr){
             VEDNN_SCRATCH_DBG(" free...");
             vednn::free( (char*)scratchpad_ - pad() );
             scratchpad_ = nullptr;
         }
         size_ = 0U;
-        VEDNN_SCRATCH_DBG(" check...");
-        //vednn::mcheck();
         VEDNN_SCRATCH_DBG(" vednn-ompthr %d ~ScratchpadTLS DESTROYED\n\n", get_thread_num());
         reference_count_ = 0;
     }
@@ -61,7 +58,6 @@ void ScratchpadTLS::free_malloc(size_t const bytes){
     {
         VEDNN_SCRATCH_DBG("\n\n vednn-ompthr %d ScratchpadTLS resize [ %lu bytes--> %lu ]\n",
                 get_thread_num(), (long unsigned)size_, (long unsigned)bytes);
-        //vednn::mcheck();
         VEDNN_SCRATCH_DBG(" free... ");
         if (scratchpad_ != nullptr) vednn::free(scratchpad_);
         size_ = bytes;
@@ -70,7 +66,6 @@ void ScratchpadTLS::free_malloc(size_t const bytes){
         VEDNN_SCRATCH_DBG(" malloc... ");
         scratchpad_ = vednn::malloc(bytes, page_size);
         VEDNN_SCRATCH_DBG(" check..." );
-        //vednn::mcheck();
         if(size_) ScratchpadBase::checkNonNULL(scratchpad_,__FILE__,__LINE__);
     }
 #endif

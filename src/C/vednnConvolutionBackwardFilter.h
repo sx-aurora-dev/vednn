@@ -47,10 +47,6 @@ const int64_t nOChannel      /* openmp only */
 
 typedef
 vednnError_t (*vednnConvBackwardFilter_t) ( VEDNN_CONVBKF_OMPARGS );
-
-/** NEW: for vednnx impls that avoid the default OpenMP wrapper,
- * we cast to the \e wrapperless function signature, which is
- * different for ConvBackwardFilter. */
 typedef
 vednnError_t (*vednnConvBackwardFilter_nowrap_t) ( VEDNN_CONVBKF_ARGS );
 
@@ -86,8 +82,6 @@ VEDNN_CONVBKF_DECL(dil1_str2_pad1_ker3_owU128);
 VEDNN_CONVBKF_DECL(ker3_owU128) ;
 // extra
 //VEDNN_CONVBKF_DECL(default2);
-//VEDNN_CONVBKF_DECL(dil1_pad0_owU128);
-//VEDNN_CONVBKF_DECL(dil1_pad0_ker3_owU32);
 #ifdef __cplusplus
 }//extern "C"
 #endif

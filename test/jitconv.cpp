@@ -168,13 +168,17 @@ void testForward(struct param *pNetwork, int nEntry, double HZ, int flagBias, in
         printf(" allsyms : loaded forward convolution jit impls from libcjitConv.so\n");
     }
 
+    cout<<" testForward vednn thr="<<vednn_get_num_threads()<<"="<<omp_get_num_threads()<<"/"<<omp_get_max_threads()<<endl;
+
     TestDataRepo tdRepo(HZ);
     CacheKiller cacheKiller;
 
     // NEW approach (save memory if large number of convs
     // TODO cache-killer routine between timing measurements
     for (t=0; t<nEntry; ++t) {
-        cout<<"+++ entry "<<t<<" of nEntry="<<nEntry<<endl;;
+        cout<<"+++ entry "<<t<<" of nEntry="<<nEntry
+            <<" testForward vednn thr="<<vednn_get_num_threads()<<"="<<omp_get_num_threads()<<"/"<<omp_get_max_threads()
+            <<endl;;
         if(check_control_c()>0){
             char const *control_c_msg="\n\nOh, Control-C detected.  Trying to quit nicely with final summary.";
             cout<<control_c_msg<<endl;
@@ -183,13 +187,14 @@ void testForward(struct param *pNetwork, int nEntry, double HZ, int flagBias, in
         }
         struct param *pNw = &pNetwork[t];
         OneConvForward wrk( pNw, flagBias, filter_layout, 1/*verbose*/ ); // this allocates and initializes too (ease-of-use)
+        cout<<" OneConvForward vednn thr="<<vednn_get_num_threads()<<"="<<omp_get_num_threads()<<"/"<<omp_get_max_threads()<<endl;
         testconvForward *pConv = &wrk.conv;
         char pNw_param_cstr[100];
         param_cstr_short(pNw,pNw_param_cstr,100);
         cout<<"layer "<<&pNw_param_cstr[0]<<"    ops="<<pConv->ops<<endl;
 
         if(doRef){
-            cout<<" doRef vednn thr="<<vednn_get_num_threads()<<"="<<omp_get_num_threads()<<endl;
+            cout<<" doRef vednn thr="<<vednn_get_num_threads()<<"="<<omp_get_num_threads()<<"/"<<omp_get_max_threads()<<endl;
             //wrk.doRef();
             // OK, now do some timing runs for ref (gemm) calculation
             TestData td( t, pConv->ref_region, (size_t)0/*impl_idx*/, "gemm-Ref",
@@ -204,6 +209,7 @@ void testForward(struct param *pNetwork, int nEntry, double HZ, int flagBias, in
             }
             double mintime = 0;
             double maxtime = 0;
+            cout<<" doRef-reps vednn thr="<<vednn_get_num_threads()<<"="<<omp_get_num_threads()<<"/"<<omp_get_max_threads()<<endl;
             for(int r=0; r < reps; ++r){
                 if(cacheKiller){
                     printf(" cacheKiller!");
@@ -246,14 +252,15 @@ void testForward(struct param *pNetwork, int nEntry, double HZ, int flagBias, in
             }
             tdRepo.append(td,1/*verbose*/);
             printf("Good, finished doRef, %d reps\n", (int)reps);
+            cout<<" Good, finished doRef, "<<reps<<" reps. "
+                <<" vednn thr="<<vednn_get_num_threads()<<"="<<omp_get_num_threads()<<"/"<<omp_get_max_threads() <<endl;
             printf(" max DIFF = %f\n",max_diff);
         }
 
         // run test Convolution, libvednn API
         if(doStd){
-            cout<<"doStd pConv->region is "<<pConv->region
-                <<"   layer "<<pNw_param_cstr
-                <<"   thr="<<vednn_get_num_threads()<<"="<<omp_get_num_threads()<<endl;
+            cout<<"doStd pConv->region is "<<pConv->region<<"   layer "<<pNw_param_cstr
+                <<"   thr="<<vednn_get_num_threads()<<"="<<omp_get_num_threads()<<"/"<<omp_get_max_threads()<<endl;
             TestData td( t, pConv->region, (size_t)0/*impl_idx*/, "libvednn-std",
                     0/*doStd*/, pNw_param_cstr/*test-wide descr*/ );
 
@@ -270,6 +277,7 @@ void testForward(struct param *pNetwork, int nEntry, double HZ, int flagBias, in
                 pConv->maxcycle = 0;
                 pConv->reps = 0;
             }
+            cout<<" doStd pre-reps thr="<<vednn_get_num_threads()<<"="<<omp_get_num_threads()<<"/"<<omp_get_max_threads()<<endl;
             for(int r=0; r < reps; ++r){
                 if(cacheKiller){
                     cacheKiller();
@@ -306,11 +314,12 @@ void testForward(struct param *pNetwork, int nEntry, double HZ, int flagBias, in
                 }
                 printf("doStd rep %u/%u : TIME = %9.3f msec. max DIFF = %f\n",
                         (unsigned)td.reps, (unsigned)(reps+1),
-                        td.sum_times*(1.0e3/HZ)/td.reps, max_diff);
+                        (1.0e3/HZ)*(c[1]-c[0]), max_diff);
                 fflush(stdout);
             }
             printf("test %u doStd %d reps : avg TIME = %9.3f msec. max DIFF = %f\n",
                     (unsigned)t, td.reps, td.sum_times*(1.0e3/HZ)/td.reps, max_diff);
+            cout<<" doStd post-reps thr="<<vednn_get_num_threads()<<"="<<omp_get_num_threads()<<"/"<<omp_get_max_threads()<<endl;
             tdRepo.append(td,1/*verbose*/);
         }
         if(doItr){
@@ -323,7 +332,8 @@ void testForward(struct param *pNetwork, int nEntry, double HZ, int flagBias, in
 
             std::vector<TestData> vtd;
             for(int r=0; r<reps; ++r){
-                printf(" doItr-rep-%d",r); fflush(stdout);
+                cout<<" doItr-rep-"<<r
+                    <<" thr="<<vednn_get_num_threads()<<"="<<omp_get_num_threads()<<"/"<<omp_get_max_threads()<<endl;
                 vednnError_t rv;
                 char name[80];
                 {
@@ -347,7 +357,7 @@ void testForward(struct param *pNetwork, int nEntry, double HZ, int flagBias, in
                         // so grep -k11 of ftrace will sort from "best" to "worst" [approx]
                         snprintf(name,80,"%s:%d:%s",pConv->region,iter_cnt,iter->shortname);
                         cout<<" doItr iter name "<<name
-                            <<"   thr="<<vednn_get_num_threads()<<"="<<omp_get_num_threads()<<endl;
+                            <<"   thr="<<vednn_get_num_threads()<<"="<<omp_get_num_threads()<<"/"<<omp_get_max_threads()<<endl;
                         FTRACE_BEGIN("realNext");
                         //printf(" B"); fflush(stdout);
                         vednnConvForwardImpls *actual = vednnConvForward_realNext(
@@ -395,11 +405,11 @@ void testForward(struct param *pNetwork, int nEntry, double HZ, int flagBias, in
                             FTRACE_END(name);
 
                             idx = (actual - vednnConvForwardList);
-                            printf(" idx=%d",idx); fflush(stdout);
+                            printf(" idx=%d out.status=%d time %f ms",(int)idx,(int)out.status,
+                                    (1.0e3/HZ)*(c[1]-c[0])); fflush(stdout);
                             if( idx >= 0 && idx < maxImpls ) { sum_times[idx] += c[1] - c[0]; ++rep_times[idx]; }
                             assert( out.actual == actual );
                             rv = out.status;
-                            printf(" out.status=%d", out.status);
                         }else{
                             printf(" not run\n");
                             continue;
@@ -451,7 +461,7 @@ void testForward(struct param *pNetwork, int nEntry, double HZ, int flagBias, in
         }
         if(doJit && allsyms)
         {
-            cout<<" doJit thr="<<vednn_get_num_threads()<<"="<<omp_get_num_threads()<<endl;
+            cout<<" doJit thr="<<vednn_get_num_threads()<<"="<<omp_get_num_threads()<<"/"<<omp_get_max_threads()<<endl;
             printf("XXX Assuming all symbols are really vednnConv##Forward##_t impls\n");
             double max_diff = 0.0;
             unsigned long long c[2];
@@ -585,6 +595,8 @@ void testForward(struct param *pNetwork, int nEntry, double HZ, int flagBias, in
                         td.diff = diff;
                         td.ops = pConv->ops;
                     }
+                    printf(" njit=%d status=%d time %d ms",njit,rv,
+                            (1.0e3/HZ)*(c[1]-c[0])); fflush(stdout);
                     TestData& td = vtd.at(njit);
                     td.sum_times += c[1]-c[0];
                     td.reps = r+1;
@@ -607,7 +619,9 @@ void testForward(struct param *pNetwork, int nEntry, double HZ, int flagBias, in
 #undef FWDB_DATA
 #undef FWDB_PARMS
     }
-    cout<<"end tdRepo.size() = "<<tdRepo.size()<<endl;
+    cout<<"end tdRepo.size() = "<<tdRepo.size()
+        <<" testForward vednn thr="<<vednn_get_num_threads()<<"="<<omp_get_num_threads()<<"/"<<omp_get_max_threads()
+        <<endl;
     printf("\n\n libvednn and JIT impls combined...\n");
     //tdRepo.print();
     // Newer API (header lines with layer structure (short string)
@@ -777,7 +791,8 @@ void testBackwardData(struct param *pNetwork, int nEntry, double HZ, int flagCSV
                         c[1] = __cycle();
                         FTRACE_END(name);
                         idx = (actual - vednnConvBackwardDataList);
-                        //printf(" idx=%d",idx);
+                        printf(" idx=%d out.status=%d time %d ms",idx,out.status,
+                                (1.0e3/HZ)*(c[1]-c[0])); fflush(stdout);
                         if( idx>=0 && idx < maxImpls ) {sum_times[idx] += c[1] - c[0]; ++rep_times[idx];}
                         assert( out.actual == actual );
                         rv = out.status;

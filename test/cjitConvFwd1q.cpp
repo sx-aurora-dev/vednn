@@ -385,11 +385,11 @@ struct PreConvFwd1q mkPreConvFwd1q( struct param const* const p,
             kBy = 4;
             if( (outChannelGroup & kBy) != 0 ) kMax = k+kBy;
             if ( kBy == kByMax || kMax>outChannelGroup ) kMax = outChannelGroup;
-            auto const k4_0 = pre.krn_gkrsc.size();
 #ifndef NDEBUG
+            auto const k4_0 = pre.krn_gkrsc.size();
             auto const k0 = k;
-#endif
             assert( k4_0 == g * ((kMax-k)/kBy) * (kernHW*inChannelGroup) );
+#endif
             for( ; k<kMax; k+=kBy){ // loop_k
                 pKern_gk = pKernel + kernGroupOffset + (k * inChannelGroup + 0/*c*/) * kernHW;
                 krn_rsc_kBy_gt_1();

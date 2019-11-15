@@ -18,7 +18,6 @@
 #else
 #include <stdlib.h> // posix_memalign
 #endif
-#include <mcheck.h>
 
 // I find no easy way to get an integer thread id (without operator <<)
 //#include <thread>   // C++ get_id() [vs threads.h thrd_current()]
