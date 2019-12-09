@@ -8,6 +8,7 @@ add_library(vednn_intrinsic_convolution_backward_data OBJECT
     direct_dil1_str1_pad0_ker3_iw2XU256_ow2X_ioaligned.cc
     direct_dil1_str1_pad0_ker3_iw2XU32_ow2X_ioaligned.cc
     direct_dil1_str1_pad0_ker3_iwU128.cc
+    direct_dil1_str1_pad0_ker4_iwU128.cc
     direct_dil1_str1_padsame.cc
     direct_dil1_str1_padsame_ker3.cc
     direct_dil1_str1_padsame_ker5.cc

@@ -121,6 +121,9 @@ vednnError_t vednnConvolutionBackwardData(
           if( pParamConv->padHeight == 0 && pParamConv->padWidth == 0
               && pParamKernel->height == 3 && pParamKernel->width == 3 )
             OMPWRAP(dil1_str1_pad0_ker3_iwU128);
+          else if( pParamConv->padHeight == 0 && pParamConv->padWidth == 0
+              && pParamKernel->height == 4 && pParamKernel->width == 4 )
+            OMPWRAP(dil1_str1_pad0_ker4_iwU128);
           else
             OMPWRAP(dil1_str1_iwU128);
         }
