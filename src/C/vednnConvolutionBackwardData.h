@@ -36,6 +36,7 @@ VEDNN_CONVBKD_DECL(iwU128);
 VEDNN_CONVBKD_DECL(dil1_str1);
 VEDNN_CONVBKD_DECL(dil1_str1_iwU128);
 VEDNN_CONVBKD_DECL(dil1_str1_pad0_ker3_iwU128);
+VEDNN_CONVBKD_DECL(dil1_str1_pad0_ker4_iwU128);
 VEDNN_CONVBKD_DECL(dil1_str1_pad0_ker3_iw2XU256_ow2X_ioaligned);
 VEDNN_CONVBKD_DECL(dil1_str1_pad0_ker3_iw2XU32_ow2X_ioaligned);
 VEDNN_CONVBKD_DECL(dil1_str1_padsame);
