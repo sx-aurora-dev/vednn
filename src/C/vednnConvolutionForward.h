@@ -55,6 +55,7 @@ VEDNN_DECL_CONVFWD(dil1_str1_padsame_ker3_c1_owU128);
 VEDNN_DECL_CONVFWD(dil1_str1_padsame_ker5);
 VEDNN_DECL_CONVFWD(dil1_str1_padsame_ker5_owU128);
 VEDNN_DECL_CONVFWD(dil1_str2_pad1_ker3_owU128);
+VEDNN_DECL_CONVFWD(dil1_str2_pad1_ker4_owU128);
 //VEDNN_DECL_CONVFWD(dil1_str1_padsame_ker3_c1024x);
 //VEDNN_DECL_CONVFWD(gendnn);
 //VEDNN_DECL_CONVFWD(alt);

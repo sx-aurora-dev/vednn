@@ -134,12 +134,18 @@ vednnError_t vednnConvolutionForwardBody(
         else
           OMPWRAP(dil1_pad0);
       }
-    }else if (pParamConv->strideHeight == 2 && pParamConv->strideWidth == 2
+    } else if (pParamConv->strideHeight == 2 && pParamConv->strideWidth == 2
         && pParamConv->dilationHeight == 1 && pParamConv->dilationWidth == 1
         && pParamConv->padHeight == 1 && pParamConv->padWidth == 1
         && pParamKernel->height == 3 && pParamKernel->width == 3
         && pParamOut->width <= 128 )
       OMPWRAP(dil1_str2_pad1_ker3_owU128); // N/A
+    else if (pParamConv->strideHeight == 2 && pParamConv->strideWidth == 2
+           && pParamConv->dilationHeight == 1 && pParamConv->dilationWidth == 1
+           && pParamConv->padHeight == 1 && pParamConv->padWidth == 1
+           && pParamKernel->height == 4 && pParamKernel->width == 4
+           && pParamOut->width <= 128 )
+         OMPWRAP(dil1_str2_pad1_ker4_owU128); // N/A
     else{
       if (pParamOut->width <= 128)
         OMPWRAP(owU128);
