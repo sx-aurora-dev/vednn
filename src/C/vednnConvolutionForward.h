@@ -46,6 +46,7 @@ VEDNN_DECL_CONVFWD(dil1_pad0_owU128_ker1);
 VEDNN_DECL_CONVFWD(dil1_str1_pad0);
 VEDNN_DECL_CONVFWD(dil1_str1_pad0_ker1);
 VEDNN_DECL_CONVFWD(dil1_str1_pad0_ker3_iw2XU256_ow2X_ioaligned);
+VEDNN_DECL_CONVFWD(dil1_str1_pad0_ker4_iwU256);
 VEDNN_DECL_CONVFWD(dil1_str1_pad0_owU128);
 VEDNN_DECL_CONVFWD(dil1_str1_padsame);
 VEDNN_DECL_CONVFWD(dil1_str1_padsame_ker2);

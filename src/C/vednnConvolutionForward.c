@@ -119,11 +119,13 @@ vednnError_t vednnConvolutionForwardBody(
             && (pParamIn->width & 0x1) == 0  && (((uint64_t)pDataIn) & 0x7) == 0
             && (pParamOut->width & 0x1) == 0 && (((uint64_t)pDataOut) & 0x7) == 0 )
           OMPWRAP(dil1_str1_pad0_ker3_iw2XU256_ow2X_ioaligned);
+        else if ( pParamKernel->height == 4 && pParamKernel->width == 4  && (pParamIn->width <= 256) )
+          OMPWRAP(dil1_str1_pad0_ker4_iwU256);
         else if (pParamOut->width <= 128)
           OMPWRAP(dil1_str1_pad0_owU128);
         else
           OMPWRAP(dil1_str1_pad0);
-      }else if( pParamKernel->width == 1 && pParamKernel->height == 1 ){
+      } else if( pParamKernel->width == 1 && pParamKernel->height == 1 ){
         if (pParamOut->width <= 128)
           OMPWRAP(dil1_pad0_owU128_ker1);
         else
@@ -145,7 +147,7 @@ vednnError_t vednnConvolutionForwardBody(
            && pParamConv->padHeight == 1 && pParamConv->padWidth == 1
            && pParamKernel->height == 4 && pParamKernel->width == 4
            && pParamOut->width <= 128 )
-         OMPWRAP(dil1_str2_pad1_ker4_owU128); // N/A
+      OMPWRAP(dil1_str2_pad1_ker4_owU128);
     else{
       if (pParamOut->width <= 128)
         OMPWRAP(owU128);
