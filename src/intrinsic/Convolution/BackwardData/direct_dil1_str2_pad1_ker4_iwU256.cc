@@ -138,7 +138,7 @@ static inline void func(
       __vr vrgout_k0_r3 = _vel_vgtu_vvssml(vrgout_ptr_k0_r3, 0, 0, vmy_r3, vl) ;
 
 
-#define FILTER_OFFSET(k,c,r,s) ( kernGroupOffset + filter_index<FLAYOUT>(k,c,r,s, gInChannelGroup, gOutChannelGroup, kernHeight, kernWidth) )
+#define FILTER_OFFSET(k,c,r,s) ( kernGroupOffset + filter_index<FLAYOUT>(k,c,r,s, gInChannelGroup, gOutChannelGroup, 4, 4) )
 
 #define VFADD(VRGOUT, VRSUM, VRSUM0, K,R,S) {								\
 	__vr vrgoutP = _vel_vshf_vvvsl(VRGOUT, VRGOUT, VE_VSHUFFLE_YUZU, vl) ;			\
