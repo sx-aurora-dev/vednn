@@ -219,6 +219,16 @@ vednnError_t vednnConvolutionBackwardFilter(
 	OMPWRAP(ker3_owU128) ;
       }
     }
+    else if(pParamGradKernel->height == 4 && pParamGradKernel->width == 4
+	    && pParamGradOut->width <= 128 )
+    {
+      if (pParamConv->strideHeight == 2 && pParamConv->strideWidth == 2
+      	&& pParamConv->dilationHeight == 1 && pParamConv->dilationWidth == 1
+      	&& pParamConv->padHeight == 1 && pParamConv->padWidth == 1 )
+      {
+	OMPWRAP(dil1_str2_pad1_ker4_owU128) ;
+      }
+    }
     else {
       if (pParamGradOut->width <= 128)
         OMPWRAP(owU128);
