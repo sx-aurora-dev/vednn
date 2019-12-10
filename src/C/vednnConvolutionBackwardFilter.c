@@ -187,6 +187,11 @@ vednnError_t vednnConvolutionBackwardFilter(
         else
           OMPWRAP(dil1_pad0_ker3_owU128);
       }
+      else if (pParamGradOut->width <= 128 && pParamGradKernel->height == 4 && pParamGradKernel->width == 4
+	  && pParamConv->strideHeight == 1 && pParamConv->strideWidth == 1 )
+      {
+	OMPWRAP(dil1_str1_pad0_ker4_owU128);
+      }
       else if (pParamGradKernel->height == 1 && pParamGradKernel->width == 1) {
         if (pParamGradOut->height * pParamGradOut->width <= 64 )
           OMPWRAP(dil1_pad0_ker1_ohwU64);
@@ -212,6 +217,16 @@ vednnError_t vednnConvolutionBackwardFilter(
       }
       else {
 	OMPWRAP(ker3_owU128) ;
+      }
+    }
+    else if(pParamGradKernel->height == 4 && pParamGradKernel->width == 4
+	    && pParamGradOut->width <= 128 )
+    {
+      if (pParamConv->strideHeight == 2 && pParamConv->strideWidth == 2
+      	&& pParamConv->dilationHeight == 1 && pParamConv->dilationWidth == 1
+      	&& pParamConv->padHeight == 1 && pParamConv->padWidth == 1 )
+      {
+	OMPWRAP(dil1_str2_pad1_ker4_owU128) ;
       }
     }
     else {

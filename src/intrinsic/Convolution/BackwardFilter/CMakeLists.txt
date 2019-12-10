@@ -11,6 +11,7 @@ add_library(vednn_intrinsic_convolution_backward_filter OBJECT
     direct_dil1_pad0_ker3_owU128.cc
     direct_dil1_str1_pad0_ker3_owU128.cc
     direct_dil1_str1_pad0_ker3_ow2X_iw2XU256_igoaligned.cc
+    direct_dil1_str1_pad0_ker4_owU128.cc
     direct_dil1_str1_padsame.cc
     direct_dil1_str1_padsame_ker1.cc
     direct_dil1_str1_padsame_ker3.cc
@@ -22,6 +23,7 @@ add_library(vednn_intrinsic_convolution_backward_filter OBJECT
     direct_dil1_str1_padsame_ker2_owU128.cc
     direct_dil1_str2_pad1_ker3_owU128.cc
 	direct_ker3_owU128.cc
+	direct_dil1_str2_pad1_ker4_owU128.cc
 	direct_owU128.cc
 	direct_vecC.cc
 )
