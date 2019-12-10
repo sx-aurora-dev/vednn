@@ -187,6 +187,11 @@ vednnError_t vednnConvolutionBackwardFilter(
         else
           OMPWRAP(dil1_pad0_ker3_owU128);
       }
+      else if (pParamGradOut->width <= 128 && pParamGradKernel->height == 4 && pParamGradKernel->width == 4
+	  && pParamConv->strideHeight == 1 && pParamConv->strideWidth == 1 )
+      {
+	OMPWRAP(dil1_str1_pad0_ker4_owU128);
+      }
       else if (pParamGradKernel->height == 1 && pParamGradKernel->width == 1) {
         if (pParamGradOut->height * pParamGradOut->width <= 64 )
           OMPWRAP(dil1_pad0_ker1_ohwU64);
