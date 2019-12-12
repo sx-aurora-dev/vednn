@@ -294,8 +294,8 @@ static inline void func_nchw(
     __vm256 vmh1_r3 = _vel_vfmklgt_mvl(_vel_vcmpsl_vsvl(inHeight,vrh_r3, vl1), vl1) ;	// condition(h < inHeight)
     __vm256 vmh_r3  = _vel_andm_mmm(vmh0_r3, vmh1_r3) ;
 
-    for (int64_t c0 = 0; c0 < inChannelGroup; c0+=256) {
-      const int64_t clen = inChannelGroup - c0 < 256 ? inChannelGroup - c0 : 256 ;
+    for (int64_t c0 = 0; c0 < inChannelGroup; c0+=64) {
+      const int64_t clen = inChannelGroup - c0 < 64 ? inChannelGroup - c0 : 64 ;
       const float *pKerValue  = pKernel + kernGroupOffset + ((k * inChannelGroup + c0) * kernHeight ) * kernWidth ;
 
       for(int64_t t=0; t<16*clen; t+=256) {
