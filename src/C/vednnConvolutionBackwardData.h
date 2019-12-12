@@ -44,6 +44,7 @@ VEDNN_CONVBKD_DECL(dil1_str1_padsame_ker1);
 VEDNN_CONVBKD_DECL(dil1_pad0_ker1_owU128);
 VEDNN_CONVBKD_DECL(dil1_str2_pad2_ker5_iwU128);
 VEDNN_CONVBKD_DECL(dil1_str2_pad2_ker5);
+VEDNN_CONVBKD_DECL(dil1_str2_pad1_ker4_iw2xU256);
 VEDNN_CONVBKD_DECL(dil1_str2_pad1_ker4_iwU256);
 VEDNN_CONVBKD_DECL(dil1_str1_padsame_ker2);
 VEDNN_CONVBKD_DECL(dil1_str1_padsame_ker3);

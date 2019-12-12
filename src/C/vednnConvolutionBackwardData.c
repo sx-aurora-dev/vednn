@@ -158,9 +158,12 @@ vednnError_t vednnConvolutionBackwardData(
           && pParamConv->dilationHeight == 1 && pParamConv->dilationWidth == 1
           && pParamConv->strideHeight == 2 && pParamConv->strideWidth == 2
           && pParamConv->padHeight == 1 && pParamConv->padWidth == 1
-          && pParamGradOut->width <= 256 )
+          && pParamGradIn->width <= 256 )
       {
-	OMPWRAP(dil1_str2_pad1_ker4_iwU256);
+	if( (pParamGradIn->width & 0x1) == 0 )
+	  OMPWRAP(dil1_str2_pad1_ker4_iw2xU256);
+	else
+	  OMPWRAP(dil1_str2_pad1_ker4_iwU256);
       }
       if( pParamConv->dilationHeight == 1 && pParamConv->dilationWidth == 1
           && pParamConv->padHeight == 0 && pParamConv->padWidth == 0
