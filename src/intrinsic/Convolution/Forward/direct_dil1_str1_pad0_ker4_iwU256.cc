@@ -217,7 +217,7 @@ static inline void func_nchw(
   const int64_t k
 )
 {
-  float __attribute__ ((aligned(8))) filter[NUMKERNEL*16*256] ;
+  float __attribute__ ((aligned(8))) filter[NUMKERNEL*16*64] ;
   uint64_t* filter_u64 = (uint64_t*) filter ;
 
   int64_t outIndex = outGroupOffset + (n * outChannel + k  ) * outHeight*outWidth ;
