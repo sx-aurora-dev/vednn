@@ -147,38 +147,31 @@ static inline void func(
 					 (unsigned long)(pGOut+gOutIndex), vl) ;
       __vr vrgout_k0_r0_s1 = _vel_vgtu_vvssml(vrgout_ptr_k0_r0_s1, 0, 0, vmy_r0, vl) ;
 
-      VFADD(vrgout_k0_r0_s1, vrsum_s0, vrsum0_s0, vmy_r0, k+0, 0, 0) ;
-      VFADD(vrgout_k0_r0_s1, vrsum_s1, vrsum0_s1, vmy_r0, k+0, 0, 1) ;
-      VFADD(vrgout_k0_r0_s1, vrsum_s2, vrsum0_s2, vmy_r0, k+0, 0, 2) ;
-      VFADD(vrgout_k0_r0_s1, vrsum_s3, vrsum0_s3, vmy_r0, k+0, 0, 3) ;
-
-
-      __vr vrgout_ptr_k0_r1_s1 = _vel_vsfa_vvssl(_vel_vaddsl_vvvl(_vel_vmulsl_vsvl(gOutWidth, vry_r1_half, vl), vrx_s1_half, vl),
+      __vr vrgout_ptr_k0_r12_s1 = _vel_vsfa_vvssl(_vel_vaddsl_vvvl(_vel_vmulsl_vsvl(gOutWidth, vry_r1_half, vl), vrx_s1_half, vl),
 					 2,
 					 (unsigned long)(pGOut+gOutIndex), vl) ;
-      __vr vrgout_k0_r1_s1 = _vel_vgtu_vvssml(vrgout_ptr_k0_r1_s1, 0, 0, vmy_r1, vl) ;
-
-      VFADD(vrgout_k0_r1_s1, vrsum_s0, vrsum0_s0, vmy_r1, k+0, 1, 0) ;
-      VFADD(vrgout_k0_r1_s1, vrsum_s1, vrsum0_s1, vmy_r1, k+0, 1, 1) ;
-      VFADD(vrgout_k0_r1_s1, vrsum_s2, vrsum0_s2, vmy_r1, k+0, 1, 2) ;
-      VFADD(vrgout_k0_r1_s1, vrsum_s3, vrsum0_s3, vmy_r1, k+0, 1, 3) ;
-
-
-      __vr vrgout_ptr_k0_r2_s1 = _vel_vsfa_vvssl(_vel_vaddsl_vvvl(_vel_vmulsl_vsvl(gOutWidth, vry_r2_half, vl), vrx_s1_half, vl),
-					 2,
-					 (unsigned long)(pGOut+gOutIndex), vl) ;
-      __vr vrgout_k0_r2_s1 = _vel_vgtu_vvssml(vrgout_ptr_k0_r2_s1, 0, 0, vmy_r2 , vl) ;
-
-      VFADD(vrgout_k0_r2_s1, vrsum_s0, vrsum0_s0, vmy_r2, k+0, 2, 0) ;
-      VFADD(vrgout_k0_r2_s1, vrsum_s1, vrsum0_s1, vmy_r2, k+0, 2, 1) ;
-      VFADD(vrgout_k0_r2_s1, vrsum_s2, vrsum0_s2, vmy_r2, k+0, 2, 2) ;
-      VFADD(vrgout_k0_r2_s1, vrsum_s3, vrsum0_s3, vmy_r2, k+0, 2, 3) ;
+      __vr vrgout_k0_r12_s1 = _vel_vgtu_vvssl(vrgout_ptr_k0_r12_s1, 0, 0, vl) ;
 
 
       __vr vrgout_ptr_k0_r3_s1 = _vel_vsfa_vvssl(_vel_vaddsl_vvvl(_vel_vmulsl_vsvl(gOutWidth, vry_r3_half, vl), vrx_s1_half, vl),
 					 2,
 					 (unsigned long)(pGOut+gOutIndex), vl) ;
       __vr vrgout_k0_r3_s1 = _vel_vgtu_vvssml(vrgout_ptr_k0_r3_s1, 0, 0, vmy_r3 , vl) ;
+
+      VFADD(vrgout_k0_r0_s1, vrsum_s0, vrsum0_s0, vmy_r0, k+0, 0, 0) ;
+      VFADD(vrgout_k0_r0_s1, vrsum_s1, vrsum0_s1, vmy_r0, k+0, 0, 1) ;
+      VFADD(vrgout_k0_r0_s1, vrsum_s2, vrsum0_s2, vmy_r0, k+0, 0, 2) ;
+      VFADD(vrgout_k0_r0_s1, vrsum_s3, vrsum0_s3, vmy_r0, k+0, 0, 3) ;
+
+      VFADD(vrgout_k0_r12_s1, vrsum_s0, vrsum0_s0, vmy_r1, k+0, 1, 0) ;
+      VFADD(vrgout_k0_r12_s1, vrsum_s1, vrsum0_s1, vmy_r1, k+0, 1, 1) ;
+      VFADD(vrgout_k0_r12_s1, vrsum_s2, vrsum0_s2, vmy_r1, k+0, 1, 2) ;
+      VFADD(vrgout_k0_r12_s1, vrsum_s3, vrsum0_s3, vmy_r1, k+0, 1, 3) ;
+
+      VFADD(vrgout_k0_r12_s1, vrsum_s0, vrsum0_s0, vmy_r2, k+0, 2, 0) ;
+      VFADD(vrgout_k0_r12_s1, vrsum_s1, vrsum0_s1, vmy_r2, k+0, 2, 1) ;
+      VFADD(vrgout_k0_r12_s1, vrsum_s2, vrsum0_s2, vmy_r2, k+0, 2, 2) ;
+      VFADD(vrgout_k0_r12_s1, vrsum_s3, vrsum0_s3, vmy_r2, k+0, 2, 3) ;
 
       VFADD(vrgout_k0_r3_s1, vrsum_s0, vrsum0_s0, vmy_r3, k+0, 3, 0) ;
       VFADD(vrgout_k0_r3_s1, vrsum_s1, vrsum0_s1, vmy_r3, k+0, 3, 1) ;
@@ -241,7 +234,7 @@ static inline void convloop(
 {
   // assert (gOutWidth == gInWidth>>1 ) ;
 
-  const int64_t nH = VLEN / gOutWidth ;
+  const int64_t nH = (VLEN / gInWidth) * 2 ;
 
   for (int64_t n=0; n<batch; n++) {
     for (int64_t g = 0; g < group; g++) {
