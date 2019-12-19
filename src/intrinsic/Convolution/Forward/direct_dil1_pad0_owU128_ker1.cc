@@ -58,7 +58,6 @@ static inline void func(
     if ( (inChannelGroup & 0x01) == 1 ) {
       const float *pInChannel = pIn + inGroupOffset + ((n * inChannel + c) * inHeight * inWidth ) ;
       __vr vrpin_c0 = _vel_vsfa_vvssl(vrij, 2, (uint64_t)(pInChannel+y*strideHeight*inWidth), vl) ;
-
       __vr vrin_c0 = _vel_vgtu_vvssl(vrpin_c0, 0, 0, vl) ;
 
 #define FILTER_OFFSET(K,C) ( kernGroupOffset + filter_index<FLAYOUT>(K,C,0,0, inChannelGroup, outChannelGroup, 1, 1) )
@@ -84,10 +83,10 @@ static inline void func(
     if ( ((inChannelGroup >> 1) & 0x01) == 1 ) {
       const float *pInChannel = pIn + inGroupOffset + ((n * inChannel + c) * inHeight * inWidth ) ;
       __vr vrpin_c0 = _vel_vsfa_vvssl(vrij, 2, (uint64_t)(pInChannel+y*strideHeight*inWidth), vl) ;
-      __vr vrpin_c1 = _vel_vaddul_vsvl(  4*inHeight*inWidth,vrpin_c0, vl) ;
-
       __vr vrin_c0 = _vel_vgtu_vvssl(vrpin_c0, 0, 0, vl) ;
+      __vr vrpin_c1 = _vel_vaddul_vsvl(  4*inHeight*inWidth,vrpin_c0, vl) ;
       __vr vrin_c1 = _vel_vgtu_vvssl(vrpin_c1, 0, 0, vl) ;
+
 
       VFMAD(vrin_c0, c+0) ;
       VFMAD(vrin_c1, c+1) ;
@@ -98,13 +97,12 @@ static inline void func(
     if ( ((inChannelGroup >> 2) & 0x01) == 1 ) {
       const float *pInChannel = pIn + inGroupOffset + ((n * inChannel + c) * inHeight * inWidth ) ;
       __vr vrpin_c0 = _vel_vsfa_vvssl(vrij, 2, (uint64_t)(pInChannel+y*strideHeight*inWidth), vl) ;
-      __vr vrpin_c1 = _vel_vaddul_vsvl(  4*inHeight*inWidth,vrpin_c0, vl) ;
-      __vr vrpin_c2 = _vel_vaddul_vsvl(2*4*inHeight*inWidth,vrpin_c0, vl) ;
-      __vr vrpin_c3 = _vel_vaddul_vsvl(3*4*inHeight*inWidth,vrpin_c0, vl) ;
-
       __vr vrin_c0 = _vel_vgtu_vvssl(vrpin_c0, 0, 0, vl) ;
+      __vr vrpin_c1 = _vel_vaddul_vsvl(  4*inHeight*inWidth,vrpin_c0, vl) ;
       __vr vrin_c1 = _vel_vgtu_vvssl(vrpin_c1, 0, 0, vl) ;
+      __vr vrpin_c2 = _vel_vaddul_vsvl(2*4*inHeight*inWidth,vrpin_c0, vl) ;
       __vr vrin_c2 = _vel_vgtu_vvssl(vrpin_c2, 0, 0, vl) ;
+      __vr vrpin_c3 = _vel_vaddul_vsvl(3*4*inHeight*inWidth,vrpin_c0, vl) ;
       __vr vrin_c3 = _vel_vgtu_vvssl(vrpin_c3, 0, 0, vl) ;
 
       VFMAD(vrin_c0, c+0) ;
@@ -114,24 +112,23 @@ static inline void func(
 
       c+=4 ;
     }
-    for (; c < inChannelGroup; c+=8) {
+    if ( ((inChannelGroup >> 3) & 0x01) == 1 ) {
       const float *pInChannel = pIn + inGroupOffset + ((n * inChannel + c) * inHeight * inWidth ) ;
       __vr vrpin_c0 = _vel_vsfa_vvssl(vrij, 2, (uint64_t)(pInChannel+y*strideHeight*inWidth), vl) ;
-      __vr vrpin_c1 = _vel_vaddul_vsvl(  4*inHeight*inWidth,vrpin_c0, vl) ;
-      __vr vrpin_c2 = _vel_vaddul_vsvl(2*4*inHeight*inWidth,vrpin_c0, vl) ;
-      __vr vrpin_c3 = _vel_vaddul_vsvl(3*4*inHeight*inWidth,vrpin_c0, vl) ;
-      __vr vrpin_c4 = _vel_vaddul_vsvl(4*4*inHeight*inWidth,vrpin_c0, vl) ;
-      __vr vrpin_c5 = _vel_vaddul_vsvl(5*4*inHeight*inWidth,vrpin_c0, vl) ;
-      __vr vrpin_c6 = _vel_vaddul_vsvl(6*4*inHeight*inWidth,vrpin_c0, vl) ;
-      __vr vrpin_c7 = _vel_vaddul_vsvl(7*4*inHeight*inWidth,vrpin_c0, vl) ;
-
       __vr vrin_c0 = _vel_vgtu_vvssl(vrpin_c0, 0, 0, vl) ;
+      __vr vrpin_c1 = _vel_vaddul_vsvl(  4*inHeight*inWidth,vrpin_c0, vl) ;
       __vr vrin_c1 = _vel_vgtu_vvssl(vrpin_c1, 0, 0, vl) ;
+      __vr vrpin_c2 = _vel_vaddul_vsvl(2*4*inHeight*inWidth,vrpin_c0, vl) ;
       __vr vrin_c2 = _vel_vgtu_vvssl(vrpin_c2, 0, 0, vl) ;
+      __vr vrpin_c3 = _vel_vaddul_vsvl(3*4*inHeight*inWidth,vrpin_c0, vl) ;
       __vr vrin_c3 = _vel_vgtu_vvssl(vrpin_c3, 0, 0, vl) ;
+      __vr vrpin_c4 = _vel_vaddul_vsvl(4*4*inHeight*inWidth,vrpin_c0, vl) ;
       __vr vrin_c4 = _vel_vgtu_vvssl(vrpin_c4, 0, 0, vl) ;
+      __vr vrpin_c5 = _vel_vaddul_vsvl(5*4*inHeight*inWidth,vrpin_c0, vl) ;
       __vr vrin_c5 = _vel_vgtu_vvssl(vrpin_c5, 0, 0, vl) ;
+      __vr vrpin_c6 = _vel_vaddul_vsvl(6*4*inHeight*inWidth,vrpin_c0, vl) ;
       __vr vrin_c6 = _vel_vgtu_vvssl(vrpin_c6, 0, 0, vl) ;
+      __vr vrpin_c7 = _vel_vaddul_vsvl(7*4*inHeight*inWidth,vrpin_c0, vl) ;
       __vr vrin_c7 = _vel_vgtu_vvssl(vrpin_c7, 0, 0, vl) ;
 
       VFMAD(vrin_c0, c+0) ;
@@ -142,6 +139,60 @@ static inline void func(
       VFMAD(vrin_c5, c+5) ;
       VFMAD(vrin_c6, c+6) ;
       VFMAD(vrin_c7, c+7) ;
+
+      c+=8 ;
+    }
+    for (; c < inChannelGroup; c+=16) {
+      const float *pInChannel = pIn + inGroupOffset + ((n * inChannel + c) * inHeight * inWidth ) ;
+      __vr vrpin_c0 = _vel_vsfa_vvssl(vrij, 2, (uint64_t)(pInChannel+y*strideHeight*inWidth), vl) ;
+      __vr vrin_c0 = _vel_vgtu_vvssl(vrpin_c0, 0, 0, vl) ;
+      __vr vrpin_c1 = _vel_vaddul_vsvl(  4*inHeight*inWidth,vrpin_c0, vl) ;
+      __vr vrin_c1 = _vel_vgtu_vvssl(vrpin_c1, 0, 0, vl) ;
+      __vr vrpin_c2 = _vel_vaddul_vsvl(2*4*inHeight*inWidth,vrpin_c0, vl) ;
+      __vr vrin_c2 = _vel_vgtu_vvssl(vrpin_c2, 0, 0, vl) ;
+      __vr vrpin_c3 = _vel_vaddul_vsvl(3*4*inHeight*inWidth,vrpin_c0, vl) ;
+      __vr vrin_c3 = _vel_vgtu_vvssl(vrpin_c3, 0, 0, vl) ;
+      __vr vrpin_c4 = _vel_vaddul_vsvl(4*4*inHeight*inWidth,vrpin_c0, vl) ;
+      __vr vrin_c4 = _vel_vgtu_vvssl(vrpin_c4, 0, 0, vl) ;
+      __vr vrpin_c5 = _vel_vaddul_vsvl(5*4*inHeight*inWidth,vrpin_c0, vl) ;
+      __vr vrin_c5 = _vel_vgtu_vvssl(vrpin_c5, 0, 0, vl) ;
+      __vr vrpin_c6 = _vel_vaddul_vsvl(6*4*inHeight*inWidth,vrpin_c0, vl) ;
+      __vr vrin_c6 = _vel_vgtu_vvssl(vrpin_c6, 0, 0, vl) ;
+      __vr vrpin_c7 = _vel_vaddul_vsvl(7*4*inHeight*inWidth,vrpin_c0, vl) ;
+      __vr vrin_c7 = _vel_vgtu_vvssl(vrpin_c7, 0, 0, vl) ;
+      __vr vrpin_c8 = _vel_vaddul_vsvl(8*4*inHeight*inWidth,vrpin_c0, vl) ;
+      __vr vrin_c8 = _vel_vgtu_vvssl(vrpin_c8, 0, 0, vl) ;
+      __vr vrpin_c9 = _vel_vaddul_vsvl(9*4*inHeight*inWidth,vrpin_c0, vl) ;
+      __vr vrin_c9 = _vel_vgtu_vvssl(vrpin_c9, 0, 0, vl) ;
+      __vr vrpin_cA = _vel_vaddul_vsvl(10*4*inHeight*inWidth,vrpin_c0, vl) ;
+      __vr vrin_cA = _vel_vgtu_vvssl(vrpin_cA, 0, 0, vl) ;
+      __vr vrpin_cB = _vel_vaddul_vsvl(11*4*inHeight*inWidth,vrpin_c0, vl) ;
+      __vr vrin_cB = _vel_vgtu_vvssl(vrpin_cB, 0, 0, vl) ;
+      __vr vrpin_cC = _vel_vaddul_vsvl(12*4*inHeight*inWidth,vrpin_c0, vl) ;
+      __vr vrin_cC = _vel_vgtu_vvssl(vrpin_cC, 0, 0, vl) ;
+      __vr vrpin_cD = _vel_vaddul_vsvl(13*4*inHeight*inWidth,vrpin_c0, vl) ;
+      __vr vrin_cD = _vel_vgtu_vvssl(vrpin_cD, 0, 0, vl) ;
+      __vr vrpin_cE = _vel_vaddul_vsvl(14*4*inHeight*inWidth,vrpin_c0, vl) ;
+      __vr vrin_cE = _vel_vgtu_vvssl(vrpin_cE, 0, 0, vl) ;
+      __vr vrpin_cF = _vel_vaddul_vsvl(15*4*inHeight*inWidth,vrpin_c0, vl) ;
+      __vr vrin_cF = _vel_vgtu_vvssl(vrpin_cF, 0, 0, vl) ;
+
+      VFMAD(vrin_c0, c+0) ;
+      VFMAD(vrin_c1, c+1) ;
+      VFMAD(vrin_c2, c+2) ;
+      VFMAD(vrin_c3, c+3) ;
+      VFMAD(vrin_c4, c+4) ;
+      VFMAD(vrin_c5, c+5) ;
+      VFMAD(vrin_c6, c+6) ;
+      VFMAD(vrin_c7, c+7) ;
+      VFMAD(vrin_c8, c+8) ;
+      VFMAD(vrin_c9, c+9) ;
+      VFMAD(vrin_cA, c+10) ;
+      VFMAD(vrin_cB, c+11) ;
+      VFMAD(vrin_cC, c+12) ;
+      VFMAD(vrin_cD, c+13) ;
+      VFMAD(vrin_cE, c+14) ;
+      VFMAD(vrin_cF, c+15) ;
 
 #undef VFMAD
 #undef FILTER_OFFSET
