@@ -79,8 +79,19 @@ vednnError_t vednnConvolutionForwardBody(
     vednnConvolutionForward_wrapper, VEDNN_CONVFWD_ARGS_LIST)
   if (algo == VEDNN_CONV_ALGORITHM_DIRECT)
   {
-    if ( pParamOut->height * pParamOut->width <= 16  )
-      OMPWRAP(vecC);
+    if ((pParamOut->height * pParamOut->width <= 16) ||
+	((pParamOut->height * pParamOut->width < 64) && (pParamOut->height * pParamOut->width <  pParamIn->channel)))
+      if ( pParamConv->dilationHeight == 1 && pParamConv->dilationWidth == 1
+	  && pParamConv->strideHeight == 1 && pParamConv->strideWidth == 1
+	  && pParamConv->padHeight == 1 && pParamConv->padWidth == 1
+	  && pParamKernel->width == 3 && pParamKernel->width == 3 )
+      {
+	OMPWRAP(vecC_dil1_str1_pad1_ker3) ;
+      }
+      else
+      {
+	OMPWRAP(vecC);
+      }
     else if (pParamConv->strideHeight == 1 && pParamConv->strideWidth == 1
         && pParamConv->dilationHeight == 1 && pParamConv->dilationWidth == 1
         && pParamIn->height == pParamOut->height
