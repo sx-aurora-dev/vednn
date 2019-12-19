@@ -80,7 +80,11 @@ vednnError_t vednnConvolutionForwardBody(
   if (algo == VEDNN_CONV_ALGORITHM_DIRECT)
   {
     if ((pParamOut->height * pParamOut->width <= 16) ||
-	((pParamOut->height * pParamOut->width < 64) && (pParamOut->height * pParamOut->width <  pParamIn->channel)))
+	((pParamOut->height * pParamOut->width < 64)
+	    && (pParamOut->height * pParamOut->width <  pParamIn->channel)
+	    && ( pParamConv->dilationHeight | pParamConv->dilationWidth
+		 | pParamConv->strideHeight | pParamConv->strideWidth
+		 | pParamKernel->height | pParamKernel->width) != 1 ) )
       if ( pParamConv->dilationHeight == 1 && pParamConv->dilationWidth == 1
 	  && pParamConv->strideHeight == 1 && pParamConv->strideWidth == 1
 	  && pParamConv->padHeight == 1 && pParamConv->padWidth == 1
