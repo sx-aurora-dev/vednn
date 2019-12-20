@@ -4,6 +4,7 @@ add_library(vednn_intrinsic_convolution_forward OBJECT
     direct_default.cc
     direct_vecC.cc
     direct_vecC_dil1_str1_pad1_ker3.cc
+    direct_vecC_dil1_pad0_ker1.cc
     direct_dil1_pad0.cc
     direct_dil1_pad0_owU128.cc
     direct_dil1_pad0_ker1.cc

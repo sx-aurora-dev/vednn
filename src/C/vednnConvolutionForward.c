@@ -92,6 +92,14 @@ vednnError_t vednnConvolutionForwardBody(
       {
 	OMPWRAP(vecC_dil1_str1_pad1_ker3) ;
       }
+      else if (pParamConv->dilationHeight == 1 && pParamConv->dilationWidth == 1
+	  && pParamConv->padHeight == 0 && pParamConv->padWidth == 0
+	  && pParamOut->height == (pParamIn->height - pParamKernel->height) / pParamConv->strideHeight + 1
+	  && pParamOut->width == (pParamIn->width - pParamKernel->width) / pParamConv->strideWidth + 1
+	  && pParamKernel->width == 1 && pParamKernel->width == 1 )
+      {
+	OMPWRAP(vecC_dil1_pad0_ker1) ;
+      }
       else
       {
 	OMPWRAP(vecC);
