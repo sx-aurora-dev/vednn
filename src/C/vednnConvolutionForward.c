@@ -98,7 +98,10 @@ vednnError_t vednnConvolutionForwardBody(
 	  && pParamOut->width == (pParamIn->width - pParamKernel->width) / pParamConv->strideWidth + 1
 	  && pParamKernel->width == 1 && pParamKernel->width == 1 )
       {
-	OMPWRAP(vecC_dil1_pad0_ker1) ;
+	if( pParamIn->channel / pParamConv->group <= 1024 )
+	  OMPWRAP(vecC_dil1_pad0_ker1_cU1024) ;
+	else
+	  OMPWRAP(vecC_dil1_pad0_ker1) ;
       }
       else
       {
