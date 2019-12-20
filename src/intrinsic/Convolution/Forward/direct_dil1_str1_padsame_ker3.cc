@@ -62,28 +62,28 @@ static inline void func(
     __vr vrw_s0 = _vel_vaddsl_vsvl( -1, vrx, vl) ;
     __vr vrw_s2 = _vel_vaddsl_vsvl(2-1, vrx, vl) ;
 
-    __vm256 vm01_r0 =  _vel_vfmklge_mvl(vrh_r0, vl) ;
-    __vm256 vm01_r2 =  _vel_vfmklgt_mvl(_vel_vcmpsl_vsvl(inHeight,vrh_r2, vl), vl) ;
+    __vm256 vmh_r0 =  _vel_vfmklge_mvl(vrh_r0, vl) ;
+    __vm256 vmh_r2 =  _vel_vfmklgt_mvl(_vel_vcmpsl_vsvl(inHeight,vrh_r2, vl), vl) ;
 
-    __vm256 vm23_s0  =  _vel_vfmklge_mvl(vrw_s0, vl) ;
-    __vm256 vm23_s2  =  _vel_vfmklgt_mvl(_vel_vcmpsl_vsvl(inWidth,vrw_s2, vl), vl) ;
+    __vm256 vmw_s0  =  _vel_vfmklge_mvl(vrw_s0, vl) ;
+    __vm256 vmw_s2  =  _vel_vfmklgt_mvl(_vel_vcmpsl_vsvl(inWidth,vrw_s2, vl), vl) ;
 
 
-    __vm256 vmall_r0s0 = _vel_andm_mmm(vm01_r0,vm23_s0) ;
-    __vm256 vmall_r0s1 = vm01_r0 ;
-    __vm256 vmall_r0s2 = _vel_andm_mmm(vm01_r0, vm23_s2) ;
+    __vm256 vmhw_r0s0 = _vel_andm_mmm(vmh_r0,vmw_s0) ;
+    __vm256 vmhw_r0s1 = vmh_r0 ;
+    __vm256 vmhw_r0s2 = _vel_andm_mmm(vmh_r0, vmw_s2) ;
 
-    __vm256 vmall_r1s0 = vm23_s0 ;
-    __vm256 vmall_r1s2 = vm23_s2 ;
+    __vm256 vmhw_r1s0 = vmw_s0 ;
+    __vm256 vmhw_r1s2 = vmw_s2 ;
 
-    __vm256 vmall_r2s0 = _vel_andm_mmm(vm01_r2,vm23_s0) ;
-    __vm256 vmall_r2s1 = vm01_r2 ;
-    __vm256 vmall_r2s2 = _vel_andm_mmm(vm01_r2, vm23_s2) ;
+    __vm256 vmhw_r2s0 = _vel_andm_mmm(vmh_r2,vmw_s0) ;
+    __vm256 vmhw_r2s1 = vmh_r2 ;
+    __vm256 vmhw_r2s2 = _vel_andm_mmm(vmh_r2, vmw_s2) ;
 
     for (int64_t c = 0; c < inChannelGroup; c++) {
       const float *pInChannel = pIn + inGroupOffset + ((n * inChannel + c) * inHeight * inWidth ) ;
 
-      /* memory access errors mihgt be caused */
+      /* memory access errors might be caused */
       __vr vrin_r0s0 = _vel_vldu_vssl(4,&pInChannel[op-inWidth-1], vl) ;
       __vr vrin_r0s1 = _vel_vldu_vssl(4,&pInChannel[op-inWidth  ], vl) ;
       __vr vrin_r0s2 = _vel_vldu_vssl(4,&pInChannel[op-inWidth+1], vl) ;
@@ -94,27 +94,6 @@ static inline void func(
       __vr vrin_r2s1 = _vel_vldu_vssl(4,&pInChannel[op+inWidth  ], vl) ;
       __vr vrin_r2s2 = _vel_vldu_vssl(4,&pInChannel[op+inWidth+1], vl) ;
 
-      __vr vrzerof = _vel_vbrds_vsl(0.0f, vl) ;
-
-      vrin_r0s0 = _vel_vmrg_vvvml(vrzerof, vrin_r0s0, vmall_r0s0, vl) ;
-      vrin_r0s1 = _vel_vmrg_vvvml(vrzerof, vrin_r0s1, vmall_r0s1, vl) ;
-      vrin_r0s2 = _vel_vmrg_vvvml(vrzerof, vrin_r0s2, vmall_r0s2, vl) ;
-      __vr vrinP_r0s0 = _vel_vshf_vvvsl(vrin_r0s0, vrin_r0s0, VE_VSHUFFLE_YUZU, vl) ;
-      __vr vrinP_r0s1 = _vel_vshf_vvvsl(vrin_r0s1, vrin_r0s1, VE_VSHUFFLE_YUZU, vl) ;
-      __vr vrinP_r0s2 = _vel_vshf_vvvsl(vrin_r0s2, vrin_r0s2, VE_VSHUFFLE_YUZU, vl) ;
-
-      vrin_r1s0 = _vel_vmrg_vvvml(vrzerof, vrin_r1s0, vmall_r1s0, vl) ;
-      vrin_r1s2 = _vel_vmrg_vvvml(vrzerof, vrin_r1s2, vmall_r1s2, vl) ;
-      __vr vrinP_r1s0 = _vel_vshf_vvvsl(vrin_r1s0, vrin_r1s0, VE_VSHUFFLE_YUZU, vl) ;
-      __vr vrinP_r1s1 = _vel_vshf_vvvsl(vrin_r1s1, vrin_r1s1, VE_VSHUFFLE_YUZU, vl) ;
-      __vr vrinP_r1s2 = _vel_vshf_vvvsl(vrin_r1s2, vrin_r1s2, VE_VSHUFFLE_YUZU, vl) ;
-
-      vrin_r2s0 = _vel_vmrg_vvvml(vrzerof, vrin_r2s0, vmall_r2s0, vl) ;
-      vrin_r2s1 = _vel_vmrg_vvvml(vrzerof, vrin_r2s1, vmall_r2s1, vl) ;
-      vrin_r2s2 = _vel_vmrg_vvvml(vrzerof, vrin_r2s2, vmall_r2s2, vl) ;
-      __vr vrinP_r2s0 = _vel_vshf_vvvsl(vrin_r2s0, vrin_r2s0, VE_VSHUFFLE_YUZU, vl) ;
-      __vr vrinP_r2s1 = _vel_vshf_vvvsl(vrin_r2s1, vrin_r2s1, VE_VSHUFFLE_YUZU, vl) ;
-      __vr vrinP_r2s2 = _vel_vshf_vvvsl(vrin_r2s2, vrin_r2s2, VE_VSHUFFLE_YUZU, vl) ;
 
 #define FILTER_OFFSET(k,c,r,s) ( kernGroupOffset + filter_index<FLAYOUT>(k,c,r,s, inChannelGroup, outChannelGroup, kernHeight, kernWidth) )
 #define VFMAD(VRIN, R, S) 										\
@@ -132,15 +111,25 @@ static inline void func(
         }												\
       }
 
-      VFMAD(vrinP_r0s0, 0, 0) ;
-      VFMAD(vrinP_r0s1, 0, 1) ;
-      VFMAD(vrinP_r0s2, 0, 2) ;
-      VFMAD(vrinP_r1s0, 1, 0) ;
-      VFMAD(vrinP_r1s1, 1, 1) ;
-      VFMAD(vrinP_r1s2, 1, 2) ;
-      VFMAD(vrinP_r2s0, 2, 0) ;
-      VFMAD(vrinP_r2s1, 2, 1) ;
-      VFMAD(vrinP_r2s2, 2, 2) ;
+      vrin_r0s0 = _vel_vmrg_vsvml(0.f, vrin_r0s0, vmhw_r0s0, vl) ;
+      VFMAD(vrin_r0s0, 0, 0) ;
+      vrin_r0s1 = _vel_vmrg_vsvml(0.f, vrin_r0s1, vmhw_r0s1, vl) ;
+      VFMAD(vrin_r0s1, 0, 1) ;
+      vrin_r0s2 = _vel_vmrg_vsvml(0.f, vrin_r0s2, vmhw_r0s2, vl) ;
+      VFMAD(vrin_r0s2, 0, 2) ;
+
+      vrin_r1s0 = _vel_vmrg_vsvml(0.f, vrin_r1s0, vmhw_r1s0, vl) ;
+      VFMAD(vrin_r1s0, 1, 0) ;
+      VFMAD(vrin_r1s1, 1, 1) ;
+      vrin_r1s2 = _vel_vmrg_vsvml(0.f, vrin_r1s2, vmhw_r1s2, vl) ;
+      VFMAD(vrin_r1s2, 1, 2) ;
+
+      vrin_r2s0 = _vel_vmrg_vsvml(0.f, vrin_r2s0, vmhw_r2s0, vl) ;
+      VFMAD(vrin_r2s0, 2, 0) ;
+      vrin_r2s1 = _vel_vmrg_vsvml(0.f, vrin_r2s1, vmhw_r2s1, vl) ;
+      VFMAD(vrin_r2s1, 2, 1) ;
+      vrin_r2s2 = _vel_vmrg_vsvml(0.f, vrin_r2s2, vmhw_r2s2, vl) ;
+      VFMAD(vrin_r2s2, 2, 2) ;
 
 #undef VFMAD
     } // inChannel
