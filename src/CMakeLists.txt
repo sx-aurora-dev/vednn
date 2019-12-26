@@ -52,13 +52,18 @@ add_library(${LIBWRAP} ${LIB_MODE}
     $<TARGET_OBJECTS:vconv_code>
     )
 
-if(USE_OPENMP)
+if(USE_BLAS_OPENMP)
     #target_link_libraries(${LIBNAME} ${NLCDIR}/libcblas ${NLCDIR}/libblas_openmp.so)
     target_link_libraries(${LIBNAME} -L${NLCDIR}/lib -lblas_openmp)
     target_link_libraries(${LIBWRAP} -L${NLCDIR}/lib -lcblas -lblas_openmp)
 else()
+  if (LIB_MODE STREQUAL STATIC)
+    target_link_libraries(${LIBNAME} ${NLCDIR}/lib/libblas_sequential.a)
+    target_link_libraries(${LIBWRAP} ${NLCDIR}/lib/libcblas.a ${NLCDIR}/lib/libblas_sequential.a)
+  else()
     target_link_libraries(${LIBNAME} ${NLCDIR}/lib/libblas_sequential.so)
     target_link_libraries(${LIBWRAP} ${NLCDIR}/lib/libcblas.so ${NLCDIR}/lib/libblas_sequential.so)
+  endif()
 endif()
 
 install(TARGETS ${LIBNAME} ${LIBWRAP} ARCHIVE DESTINATION lib LIBRARY DESTINATION lib)
