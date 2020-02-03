@@ -1,26 +1,17 @@
+#include "vednnActivationBackward.h"
+#include "vednn-def.h"
 #include <stdio.h>
 #include <stdint.h>
 
-#include "vednnActivationBackward.h"
-
-#ifdef VEDNN_USE_OPENMP
-#include <stdint.h>
-#include <omp.h>
-extern int __vednn_omp_num_threads ;
-#endif
-
-static inline vednnError_t
-vednnActivationBackward_wrapper(
-    vednnActivationBackward_t	pFunc,
-    const void 			*pDataGradOut,
-    const void 			*pDataIn,
-    void 			*pDataGradIn,
-    const uint64_t		nElements
-)
+  static inline vednnError_t
+vednnActivationBackward_wrapper( vednnActivationBackward_t  pFunc,
+    VEDNN_ACTIVATIONBKW_ARGS )
 {
-#ifdef VEDNN_USE_OPENMP
+#ifndef VEDNN_USE_OPENMP
+  return pFunc(VEDNN_ACTIVATIONBKW_ARGS_LIST);
+#else
   if ( __vednn_omp_num_threads == 1 ) {
-    return pFunc(pDataGradOut, pDataIn, pDataGradIn, nElements) ;
+    return pFunc(VEDNN_ACTIVATIONBKW_ARGS_LIST);
   }
   else {
     vednnError_t rc = VEDNN_SUCCESS ;
@@ -36,44 +27,34 @@ vednnActivationBackward_wrapper(
       int64_t myElement    = eachNElement + ( threadid < remain ? 1 : 0 ) ;
 
       if( myElement == 0 ) {
-	rc |= VEDNN_SUCCESS ;
+        rc |= VEDNN_SUCCESS ;
       }
       else {
-	float* _pDataGradOut = ((float *)pDataGradOut) + elementBegin ;
-	float* _pDataIn      = ((float *)pDataIn) + elementBegin ;
-	float* _pDataGradIn  = ((float *)pDataGradIn) + elementBegin ;
+        float* _pDataGradOut = ((float *)pDataGradOut) + elementBegin ;
+        float* _pDataIn      = ((float *)pDataIn) + elementBegin ;
+        float* _pDataGradIn  = ((float *)pDataGradIn) + elementBegin ;
 
-	rc |= pFunc((void*)_pDataGradOut, (void*)_pDataIn, (void*) _pDataGradIn, myElement) ;
+        rc |= pFunc((void*)_pDataGradOut, (void*)_pDataIn, (void*) _pDataGradIn, myElement) ;
       }
     }
     return rc ;
   }
-#else
-  return pFunc(pDataGradOut, pDataIn, pDataGradIn, nElements) ;
-#endif
+#endif // openmp
 }
 
-/* ----------------------------------------------------------------------- */
-
+/* ------------------------- public API ---------------------------------- */
 vednnError_t vednnActivationBackward(
-    const vednnActivationMode_t		mode,
-    const void 				*pDataGradOut,
-    const void 				*pDataIn,
-    void 				*pDataGradIn,
-    const uint64_t			nElements
-)
+    const vednnActivationMode_t mode,
+    VEDNN_ACTIVATIONBKW_ARGS)
 {
-
+#define OMPWRAP( IMPL ) WRAP_RET(IMPL, \
+  vednnActivationBackward_wrapper, VEDNN_ACTIVATIONBKW_ARGS_LIST)
   switch(mode) {
-
-  case VEDNN_ACTIVATION_RELU :
-    return vednnActivationBackward_wrapper(
-	vednnActivationBackward_Relu,
-	pDataGradOut, pDataIn, pDataGradIn, nElements ) ;
-
-  default :
-    fprintf(stderr, "VEDNN Error : vednnActivationBackward : Invalid Parameter !!\n") ;
-    return VEDNN_ERROR_INVALID_PARAM ;
+    case VEDNN_ACTIVATION_RELU :
+      OMPWRAP( vednnActivationBackward_Relu );
   }
-
+  fprintf(stderr, "VEDNN Error : vednnActivationBackward : Invalid Parameter !!\n") ;
+  return VEDNN_ERROR_INVALID_PARAM ;
+#undef OMPWRAP
 }
+// vim: et sw=2 ts=2

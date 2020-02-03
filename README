@@ -22,10 +22,26 @@ $ make && make install
 
 ## Run some tests
 $ cd ../test
-$ make
+$ CC=ncc CXX=nC++ make vednn_conv_test vednn_linear_test vednn_pool_test
 $ ./vednn_conv_test   -H 0.8e9 -p params/conv/alexnet.txt   -T ConvForward
 $ ftrace
 $ ./vednn_linear_test -H 0.8e9 -p params/linear/alexnet.txt -T LinearForward
 $ ftrace
 $ ./vednn_pool_test   -H 0.8e9 -p params/pool/alexnet.txt   -T MaxPoolForward
 $ ftrace
+
+## additions:
+- src/wrap/ has:
+  - iteration over low-level impls (support comparing speeds of all applicable impls)
+  - jit API idea
+  - these extensions go into libvednxx ('x' for extensions)
+  - src/test/ codes that use libvednnx still have to be copied over
+
+- src/wrap/vconv has:
+  - a subset of gen-dnn (v0.16) that supports im2col convolution,
+  - as well as some useful C++ objects like parallel_nd_iterator.
+  - (not fully hooked up to src/C/ yet, mostly for speed comparison)
+
+- a simple im2col-gemm, good for low minibatch until parallel_nd intrinsics
+  get merged into this branch. im2col should be done with intrinsics, though.
+

@@ -9,12 +9,13 @@ DEF+=-DVEDNN_USE_OPENMP=1 -fopenmp
 INC+=-I/opt/nec/ve/include
 DEF+=-DFTRACE
 
-vconv/include: ../../vconv-ve.tar.gz
-	$(MAKE) -C vconv unpack
-hdr-collect: vconv/include
-	@if [ ! -d gen-dnn ]; then mkdir -v gen-dnn; fi
-	@for f in vconv/include/gen-dnn/vconv/* vconv/include/gen-dnn/vgemm/*; do \
-		cp -uav $$f gen-dnn; done
+#vconv/include: ../../vconv-ve.tar.gz
+#	$(MAKE) -C vconv unpack
+#hdr-collect: vconv/include
+#	@if [ ! -d gen-dnn ]; then mkdir -v gen-dnn; fi
+#	@for f in vconv/include/gen-dnn/vconv/* vconv/include/gen-dnn/vgemm/*; do \
+#		cp -uav $$f gen-dnn; done
+hdr-collect:
 hdr-check: hdr-collect
 	gcc -std=c11 $(INC) $(DEF) vednn-def.h
 	#g++ -std=gnu++11 -pthread $(INC) $(DEF) vednn-def.hpp

@@ -31,7 +31,7 @@ typedef                vednnConv##Forward##_okfn_decl * vednnConv##Forward##_okf
 typedef vednnError_t   vednnConv##Forward##_rtokfn_decl(VEDNN_DATARG_CONV_##FORWARD); \
 typedef vednnError_t (*vednnConv##Forward##_rtokfn_t)(  VEDNN_DATARG_CONV_##FORWARD);
 DECLARE_OK_FNS(Forward,         FORWARD)
-DECLARE_OK_FNS(ForwardAddBias,  FORWARDADDBIAS)
+//DECLARE_OK_FNS(ForwardAddBias,  FORWARDADDBIAS)
 DECLARE_OK_FNS(BackwardData,    BACKWARD_DATA)
 DECLARE_OK_FNS(BackwardFilter,  BACKWARD_FILTER)
 #undef DECLARE_OK_FNS
@@ -43,62 +43,62 @@ DECLARE_OK_FNS(BackwardFilter,  BACKWARD_FILTER)
 #define FWD_RT_OK_(BASENAME) vednnConvForward_rtokfn_decl BASENAME##_rtok;
 //FWD_FN_OK(vednnConvolutionForward_direct_dil1_str1_pad0_ker1_c1024x);
 FWD_FN_OK(vednnConvolutionForward_direct_dil1_str1_pad0_ker1);
-FWD_FN_OK(vednnConvolutionForward_direct_dil1_str1_pad0_ker1A);
-FWD_FN_OK(vednnConvolutionForward_direct_dil1_str1_pad0_ker1_T);
 FWD_FN_OK(vednnConvolutionForward_direct_dil1_pad0_owU128_ker1);
-FWD_FN_OK(vednnConvolutionForward_direct_dil1_pad0_owU128_ker1A);
 FWD_FN_OK(vednnConvolutionForward_direct_dil1_pad0_ker1);
-FWD_FN_OK(vednnConvolutionForward_direct_dil1_pad0_ker1A);
 FWD_FN_OK(vednnConvolutionForward_direct_dil1_str1_padsame_ker3_c1_owU128);
-FWD_FN_OK(vednnConvolutionForward_direct_dil1_str1_padsame_ker3_c1_owU128A);
 FWD_FN_OK(vednnConvolutionForward_direct_dil1_str1_padsame_ker3_c1024x);
-FWD_FN_OK(vednnConvolutionForward_direct_dil1_str1_padsame_ker3_c1024xA);
-FWD_FN_OK(vednnConvolutionForward_direct_dil1_str1_padsame_ker3_c1024x_T);
 FWD_FN_OK(vednnConvolutionForward_direct_dil1_str1_padsame_ker3);
-FWD_FN_OK(vednnConvolutionForward_direct_dil1_str1_padsame_ker3_T);
-FWD_FN_OK(vednnConvolutionForward_direct_dil1_str1_padsame_ker3A);
 FWD_FN_OK(vednnConvolutionForward_direct_dil1_str1_padsame);
-FWD_FN_OK(vednnConvolutionForward_direct_dil1_str1_padsameA); // XXX testing
-FWD_FN_OK(vednnConvolutionForward_direct_dil1_str1_padsameB); // XXX testing
-FWD_FN_OK(vednnConvolutionForward_direct_dil1_str1_padsameAB); // XXX testing
 FWD_FN_OK(vednnConvolutionForward_direct_dil1_str1_padsame_ker3_c1);
-FWD_FN_OK(vednnConvolutionForward_direct_dil1_str1_padsame_ker3_c1A);
 FWD_FN_OK(vednnConvolutionForward_direct_dil1_str1_padsame_ker5_owU128);
-FWD_FN_OK(vednnConvolutionForward_direct_dil1_str1_padsame_ker5_owU128A);
 FWD_FN_OK(vednnConvolutionForward_direct_dil1_str1_padsame_ker5);
-FWD_FN_OK(vednnConvolutionForward_direct_dil1_str1_padsame_ker5A);
 FWD_FN_OK(vednnConvolutionForward_direct_dil1_str1_padsame_ker2);
-FWD_FN_OK(vednnConvolutionForward_direct_dil1_str1_padsame_ker2A);
 FWD_FN_OK(vednnConvolutionForward_direct_dil1_str1_pad0_ker3_iw2XU256_ow2X_ioaligned);
+FWD_FN_OK(vednnConvolutionForward_direct_dil1_str2_pad1_ker3_owU128);
 // also has runtime "_rtok" check function:
 FWD_RT_OK(vednnConvolutionForward_direct_dil1_str1_pad0_ker3_iw2XU256_ow2X_ioaligned);
 FWD_FN_OK(vednnConvolutionForward_direct_dil1_str1_pad0_owU128);
-FWD_FN_OK(vednnConvolutionForward_direct_dil1_str1_pad0_owU128A);
 FWD_FN_OK(vednnConvolutionForward_direct_dil1_str1_pad0);
-FWD_FN_OK(vednnConvolutionForward_direct_dil1_str1_pad0A);
 FWD_FN_OK(vednnConvolutionForward_direct_dil1_pad0_owU128);
-FWD_FN_OK(vednnConvolutionForward_direct_dil1_pad0_owU128A);
 FWD_FN_OK(vednnConvolutionForward_direct_dil1_pad0);
-FWD_FN_OK(vednnConvolutionForward_direct_dil1_pad0A);
 FWD_FN_OK(vednnConvolutionForward_direct_dil1_ker1);
-FWD_FN_OK(vednnConvolutionForward_direct_dil1_ker1A);
 FWD_FN_OK(vednnConvolutionForward_direct_owU128);
-FWD_FN_OK(vednnConvolutionForward_direct_owU128A);
-FWD_FN_OK(vednnConvolutionForward_direct_owU128_T);
 FWD_FN_OK(vednnConvolutionForward_direct_vecC);
-FWD_FN_OK(vednnConvolutionForward_direct_default2);
-FWD_FN_OK(vednnConvolutionForward_direct_default2p);
-FWD_FN_OK(vednnConvolutionForward_direct_default3);
-FWD_FN_OK(vednnConvolutionForward_direct_default3b);
 FWD_FN_OK(vednnConvolutionForward_direct_default);
-FWD_FN_OK(vednnConvolutionForward_direct_defaultA);
-FWD_FN_OK(vednnConvolutionForward_direct_alt);
 FWD_FN_OK(vednnConvolutionForward_direct_gemm);
-FWD_FN_OK(vednnConvolutionForward_direct_gemmA);
+// extras...
+//FWD_FN_OK(vednnConvolutionForward_direct_gendnn);
+//FWD_FN_OK(vednnConvolutionForward_direct_default2);
+//FWD_FN_OK(vednnConvolutionForward_direct_default2p);
+//FWD_FN_OK(vednnConvolutionForward_direct_default3);
+//FWD_FN_OK(vednnConvolutionForward_direct_default3b);
+//FWD_FN_OK(vednnConvolutionForward_direct_defaultA);
+//FWD_FN_OK(vednnConvolutionForward_direct_alt);
+//FWD_FN_OK(vednnConvolutionForward_direct_dil1_str1_pad0_ker1A);
+//FWD_FN_OK(vednnConvolutionForward_direct_dil1_pad0_owU128_ker1A);
+//FWD_FN_OK(vednnConvolutionForward_direct_dil1_pad0_ker1A);
+//FWD_FN_OK(vednnConvolutionForward_direct_dil1_str1_padsame_ker3_c1_owU128A);
+//FWD_FN_OK(vednnConvolutionForward_direct_dil1_str1_padsame_ker3_c1024xA);
+//FWD_FN_OK(vednnConvolutionForward_direct_dil1_str1_padsame_ker3A);
+//FWD_FN_OK(vednnConvolutionForward_direct_dil1_str1_padsameA); // XXX testing
+//FWD_FN_OK(vednnConvolutionForward_direct_dil1_str1_padsameB); // XXX testing
+//FWD_FN_OK(vednnConvolutionForward_direct_dil1_str1_padsameAB); // XXX testing
+//FWD_FN_OK(vednnConvolutionForward_direct_dil1_str1_padsame_ker3_c1A);
+//FWD_FN_OK(vednnConvolutionForward_direct_dil1_str1_padsame_ker5_owU128A);
+//FWD_FN_OK(vednnConvolutionForward_direct_dil1_str1_padsame_ker5A);
+//FWD_FN_OK(vednnConvolutionForward_direct_dil1_str1_padsame_ker2A);
+//FWD_FN_OK(vednnConvolutionForward_direct_dil1_str1_pad0_owU128A);
+//FWD_FN_OK(vednnConvolutionForward_direct_dil1_str1_pad0A);
+//FWD_FN_OK(vednnConvolutionForward_direct_dil1_pad0_owU128A);
+//FWD_FN_OK(vednnConvolutionForward_direct_dil1_pad0A);
+//FWD_FN_OK(vednnConvolutionForward_direct_dil1_ker1A);
+//FWD_FN_OK(vednnConvolutionForward_direct_owU128A);
+
 #undef FWD_FN_OK
 #undef FWD_RT_OK
 #undef FWD_FN_OK_
 #undef FWD_RT_OK_
+#if 0
 #define FWDBIAS_FN_OK(BASENAME) FWDBIAS_FN_OK_(BASENAME)
 #define FWDBIAS_RT_OK(BASENAME) FWDBIAS_RT_OK_(BASENAME)
 #define FWDBIAS_FN_OK_(BASENAME) vednnConvForwardAddBias_okfn_decl BASENAME##_ok;
@@ -116,27 +116,37 @@ FWDBIAS_FN_OK(vednnConvolutionForwardAddBias_direct_default2);
 #undef FWDBIAS_FN_OK
 #undef FWDBIAS_RT_OK_
 #undef FWDBIAS_FN_OK_
+#endif
 #define BKWD_FN_OK(BASENAME) BKWD_FN_OK_(BASENAME)
 #define BKWD_RT_OK(BASENAME) BKWD_RT_OK_(BASENAME)
 #define BKWD_FN_OK_(BASENAME) vednnConvBackwardData_okfn_decl BASENAME##_ok;
 #define BKWD_RT_OK_(BASENAME) vednnConvBackwardData_rtokfn_decl BASENAME##_rtok;
-BKWD_FN_OK(vednnConvolutionBackwardData_direct_dil1_str1_padsame_ker5); // new
-BKWD_FN_OK(vednnConvolutionBackwardData_direct_dil1_str1_padsame_ker3); // new
-BKWD_FN_OK(vednnConvolutionBackwardData_direct_dil1_str1_padsame_ker2); // new
+BKWD_FN_OK(vednnConvolutionBackwardData_direct_vecC);
+BKWD_FN_OK(vednnConvolutionBackwardData_direct_dil1_pad0_ker1_owU128);
 BKWD_FN_OK(vednnConvolutionBackwardData_direct_dil1_str1_padsame_ker1); // new (XXX remove 'dil1_'
+BKWD_FN_OK(vednnConvolutionBackwardData_direct_dil1_str1_padsame_ker2);
+BKWD_FN_OK(vednnConvolutionBackwardData_direct_dil1_str1_padsame_ker3); // new
 BKWD_FN_OK(vednnConvolutionBackwardData_direct_dil1_str1_padsame); // really up top?
 BKWD_FN_OK(vednnConvolutionBackwardData_direct_dil1_str1_pad0_ker3_iw2XU32_ow2X_ioaligned); // new
 BKWD_RT_OK(vednnConvolutionBackwardData_direct_dil1_str1_pad0_ker3_iw2XU32_ow2X_ioaligned); // rt align check
 BKWD_FN_OK(vednnConvolutionBackwardData_direct_dil1_str1_pad0_ker3_iw2XU256_ow2X_ioaligned);
 BKWD_RT_OK(vednnConvolutionBackwardData_direct_dil1_str1_pad0_ker3_iw2XU256_ow2X_ioaligned);
+BKWD_FN_OK(vednnConvolutionBackwardData_direct_dil1_str2_pad1_ker3_iwU256);
 BKWD_FN_OK(vednnConvolutionBackwardData_direct_dil1_str1_pad0_ker3_iwU128);
+BKWD_FN_OK(vednnConvolutionBackwardData_direct_dil1_str2_ker3_iwU256);
+BKWD_FN_OK(vednnConvolutionBackwardData_direct_ker3_iwU128);
+BKWD_FN_OK(vednnConvolutionBackwardData_direct_dil1_str2_pad2_ker5_iwU128);
+BKWD_FN_OK(vednnConvolutionBackwardData_direct_dil1_str2_pad2_ker5);
+BKWD_FN_OK(vednnConvolutionBackwardData_direct_dil1_str1_padsame_ker5);
+BKWD_FN_OK(vednnConvolutionBackwardData_direct_ker5_iwU128);
+BKWD_FN_OK(vednnConvolutionBackwardData_direct_ker5);
+BKWD_FN_OK(vednnConvolutionBackwardData_direct_dil1_str1_padsame);
 BKWD_FN_OK(vednnConvolutionBackwardData_direct_dil1_str1_iwU128);
 BKWD_FN_OK(vednnConvolutionBackwardData_direct_dil1_str1);
 BKWD_FN_OK(vednnConvolutionBackwardData_direct_iwU128);
 BKWD_FN_OK(vednnConvolutionBackwardData_direct_default);
-BKWD_FN_OK(vednnConvolutionBackwardData_direct_default2);
 BKWD_FN_OK(vednnConvolutionBackwardData_direct_gemm);
-BKWD_FN_OK(vednnConvolutionBackwardData_direct_gemmA);
+//BKWD_FN_OK(vednnConvolutionBackwardData_direct_default2);
 #undef BKWD_RT_OK
 #undef BKWD_FN_OK
 #undef BKWD_RT_OK_
@@ -162,13 +172,11 @@ BKWF_FN_OK(vednnConvolutionBackwardFilter_direct_dil1_pad0_ker1_owU32);
 BKWF_FN_OK(vednnConvolutionBackwardFilter_direct_dil1_pad0_ker1);
 BKWF_FN_OK(vednnConvolutionBackwardFilter_direct_dil1_pad0_ker3_owU128);
 BKWF_FN_OK(vednnConvolutionBackwardFilter_direct_dil1_pad0_owU32);
-BKWF_FN_OK(vednnConvolutionBackwardFilter_direct_dil1_pad0_owU128);
 BKWF_FN_OK(vednnConvolutionBackwardFilter_direct_dil1_pad0);
 BKWF_FN_OK(vednnConvolutionBackwardFilter_direct_owU128);
 BKWF_FN_OK(vednnConvolutionBackwardFilter_direct_default);
-BKWF_FN_OK(vednnConvolutionBackwardFilter_direct_default2);
+//BKWF_FN_OK(vednnConvolutionBackwardFilter_direct_default2);
 BKWF_FN_OK(vednnConvolutionBackwardFilter_direct_gemm);
-BKWF_FN_OK(vednnConvolutionBackwardFilter_direct_gemmA);
 #undef BKWF_RT_OK
 #undef BKWF_FN_OK
 #undef BKWF_RT_OK_

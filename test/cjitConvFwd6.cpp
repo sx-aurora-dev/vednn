@@ -808,7 +808,7 @@ static void unroll_c_kBy1(Cblock &loop_x0, Cblock &loop_s,
 DllFile cjitConvolutionForward6( struct param const* const p )
 {
   ostringstream oss; // scratchpad for OSSFMT etc.
-  int const verbose=1;
+  int const verbose=0;
   string const impl = "cjitConvFwd6";
   DllFile df; // return value
   //DllFileAux dfx("Convolution","Forward");

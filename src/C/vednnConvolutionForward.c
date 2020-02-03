@@ -1,37 +1,26 @@
-
 #include "vednnConvolutionForward.h"
+#include "vednn-def.h"
 #include <stdint.h>
+#include <assert.h>
+#include <stdio.h>
 
-#ifdef VEDNN_USE_OPENMP
-#include <omp.h>
-extern int __vednn_omp_num_threads ;
-#endif
-
-static inline vednnError_t
+  static inline vednnError_t
 vednnConvolutionForward_wrapper(
     vednnConvForward_t			pFunc,
-    const vednnTensorParam_t 		*pParamIn,
-    const void 				*pDataIn,
-    const vednnFilterParam_t		*pParamKernel,
-    const void 				*pDataKernel,
-    const vednnConvolutionParam_t	*pParamConv,
-    const vednnTensorParam_t 		*pParamOut,
-    void 				*pDataOut
-)
+    VEDNN_CONVFWD_ARGS )
 {
-#ifdef VEDNN_USE_OPENMP
-  /* if ( __vednn_omp_num_threads == 1 ) { */
-  if ( __vednn_omp_num_threads == 1 || pParamIn->batch < __vednn_omp_num_threads ) {
-    return pFunc(pParamIn, pDataIn, pParamKernel, pDataKernel, pParamConv, pParamOut, pDataOut) ;
-  }
-  else {
+#ifndef VEDNN_USE_OPENMP
+  return pFunc(VEDNN_CONVFWD_ARGS_LIST);
+#else
+  int64_t allBatch = pParamIn->batch; // check as in vednnx
+  if (allBatch == 1 || __vednn_omp_num_threads == 1) {
+    return pFunc(VEDNN_CONVFWD_ARGS_LIST);
+  }else{
     vednnError_t rc = VEDNN_SUCCESS ;
 #pragma omp parallel reduction(|:rc)
     {
       int64_t nthreads = omp_get_num_threads() ;
       int64_t threadid = omp_get_thread_num() ;
-
-      int64_t allBatch = pParamIn->batch ;
 
       int64_t nBatch = allBatch / nthreads ;
       int64_t remain = allBatch % nthreads ;
@@ -40,26 +29,233 @@ vednnConvolutionForward_wrapper(
       int64_t myBatch = nBatch + ( threadid < remain ? 1 : 0 ) ;
 
       if( myBatch == 0 ) {
-	rc |= VEDNN_SUCCESS ;
-      }
-      else {
-	vednnTensorParam_t _pParamIn  = *pParamIn  ; _pParamIn.batch = myBatch ;
-	vednnTensorParam_t _pParamOut = *pParamOut ; _pParamOut.batch = myBatch ;
-	float* _pDataIn  = ((float *)pDataIn) + batchBegin * pParamIn->channel * pParamIn->height * pParamIn->width ;
-	float* _pDataOut = ((float *)pDataOut) + batchBegin * pParamOut->channel * pParamOut->height * pParamOut->width ;
+        rc |= VEDNN_SUCCESS ;
+      }else{
+        vednnTensorParam_t _pParamIn  = *pParamIn  ; _pParamIn.batch = myBatch ;
+        vednnTensorParam_t _pParamOut = *pParamOut ; _pParamOut.batch = myBatch ;
+        float* _pDataIn  = ((float *)pDataIn) + batchBegin * pParamIn->channel * pParamIn->height * pParamIn->width ;
+        float* _pDataOut = ((float *)pDataOut) + batchBegin * pParamOut->channel * pParamOut->height * pParamOut->width ;
 
-	rc |= pFunc(&_pParamIn, (void*)_pDataIn, pParamKernel, pDataKernel,
-		    pParamConv, &_pParamOut, (void*) _pDataOut) ;
+        rc |= pFunc(&_pParamIn, (void*)_pDataIn, pParamKernel, pDataKernel,
+            pParamBias, pDataBias, pParamConv, &_pParamOut, (void*) _pDataOut) ;
       }
     }
     return rc ;
   }
-#else
-  return pFunc(pParamIn, pDataIn, pParamKernel, pDataKernel, pParamConv, pParamOut, pDataOut) ;
 #endif
 }
 
 /* ----------------------------------------------------------------------- */
+  static inline
+vednnError_t vednnConvolutionForwardBody(
+    const vednnTensorParam_t 		*pParamIn,
+    const void 				*pDataIn,
+    const vednnFilterParam_t		*pParamKernel,
+    const void 				*pDataKernel,
+    const vednnBiasParam_t 		*pParamBias,
+    const void 				*pDataBias,
+    const vednnTensorParam_t 		*pParamOut,
+    void 				*pDataOut,
+    const vednnConvolutionParam_t	*pParamConv,
+    vednnConvolutionAlgorithm_t 	algo
+    )
+{
+  switch( pParamKernel->layout ) {
+  case VEDNN_FILTER_LAYOUT_NCHW :
+  break ;
+  case VEDNN_FILTER_LAYOUT_HWCN :
+  if( pParamConv->group > 1 ) {
+    fprintf(stderr, "[VEDNN ERROR] VEDNN does not support grouped convolution with filter_hwcn\n") ;
+    return VEDNN_ERROR_INVALID_PARAM ;
+  }
+  break ;
+  default :
+  fprintf(stderr, "[VEDNN ERROR] Unknown Filter Layout %d\n", pParamKernel->layout) ;
+  return VEDNN_ERROR_INVALID_PARAM ;
+  }
+
+  // normal ||ism over minibatch and group
+#define OMPWRAP( IMPL ) WRAP_RET(vednnConvolutionForward_direct_##IMPL, \
+    vednnConvolutionForward_wrapper, \
+    VEDNN_CONVFWD_ARGS_LIST)
+
+  // alternate ||ism handled internally via some other means
+#define ALT_RET( IMPL ) return vednnConvolutionForward_direct_##IMPL( \
+    VEDNN_CONVFWD_ARGS_LIST )
+
+  if (algo == VEDNN_CONV_ALGORITHM_DIRECT)
+  {
+    if ((pParamOut->height * pParamOut->width <= 16) ||
+        ((pParamOut->height * pParamOut->width < 64)
+         && (pParamOut->height * pParamOut->width <  pParamIn->channel)
+         && ( pParamConv->dilationHeight | pParamConv->dilationWidth
+           | pParamConv->strideHeight | pParamConv->strideWidth
+           | pParamKernel->height | pParamKernel->width) != 1 ) ){
+      // small images may have a fast vecC
+      if ( pParamConv->dilationHeight == 1 && pParamConv->dilationWidth == 1
+          && pParamConv->strideHeight == 1 && pParamConv->strideWidth == 1
+          && pParamConv->padHeight == 1 && pParamConv->padWidth == 1
+          && pParamKernel->width == 3 && pParamKernel->width == 3 )
+      {
+        OMPWRAP(vecC_dil1_str1_pad1_ker3) ;
+      }
+      else if (pParamConv->dilationHeight == 1 && pParamConv->dilationWidth == 1
+          && pParamConv->padHeight == 0 && pParamConv->padWidth == 0
+          && pParamOut->height == (pParamIn->height - pParamKernel->height) / pParamConv->strideHeight + 1
+          && pParamOut->width == (pParamIn->width - pParamKernel->width) / pParamConv->strideWidth + 1
+          && pParamKernel->width == 1 && pParamKernel->width == 1 )
+      {
+        if( pParamIn->channel / pParamConv->group <= 1024 )
+          OMPWRAP(vecC_dil1_pad0_ker1_cU1024) ;
+        else
+          OMPWRAP(vecC_dil1_pad0_ker1) ;
+      }
+      else
+      {
+        OMPWRAP(vecC);
+      }
+#if 1 // resnext branch : AGGRESSIVE use of gemm for all stride > 1 ?
+    }else if (pParamConv->strideWidth > 1 || pParamConv->strideHeight > 1) {
+      // try using gemm in most cases with stride > 1
+      if(pParamOut->channel / pParamConv->group <= 256
+          && pParamOut->width <= 128) {
+        ALT_RET(owU128_T);
+      } else {
+        ALT_RET(gemm);
+      }
+#endif
+    }else if (pParamConv->strideHeight == 1 && pParamConv->strideWidth == 1
+        && pParamConv->dilationHeight == 1 && pParamConv->dilationWidth == 1
+        && pParamIn->height == pParamOut->height
+        && pParamIn->width == pParamOut->width )
+    { // d1s1pS ...
+      if (pParamKernel->width == 1 && pParamKernel->height == 1){
+#if 0
+        OMPWRAP(dil1_str1_pad0_ker1);
+#else // new: CHECKME
+        if(pParamOut->width <= 128) {
+          ALT_RET(dil1_str1_pad0_ker1_T);
+        } else {
+          //OMPWRAP(dil1_str1_pad0_ker1);
+          ALT_RET(gemm); // always faster?
+        }
+#endif
+      }else if (pParamKernel->height == 3 && pParamKernel->width == 3){ // d1s1pSk3
+        if (pParamIn->channel == pParamConv->group){ // aka inputChannelGroup==1
+          if (pParamOut->width <= 128)
+            OMPWRAP(dil1_str1_padsame_ker3_c1_owU128);
+          else
+            OMPWRAP(dil1_str1_padsame_ker3_c1);
+        }else{
+#if 0
+          OMPWRAP(dil1_str1_padsame_ker3); // is this ever faster?
+#else
+          if (pParamKernel->inChannel % 1024 == 0)
+            ALT_RET(dil1_str1_padsame_ker3_c1024x_T);
+          else
+            ALT_RET(dil1_str1_padsame_ker3_T);
+#endif
+        }
+      }else if (pParamKernel->height == 5 && pParamKernel->width == 5){ // d1s1pSk5
+        if( pParamOut->width <= 128 )
+          OMPWRAP(dil1_str1_padsame_ker5_owU128);
+        else
+          OMPWRAP(dil1_str1_padsame_ker5);
+      }else if (pParamKernel->height == 2 && pParamKernel->width == 2) // d1s1pSk2
+        OMPWRAP(dil1_str1_padsame_ker2);
+      else
+        OMPWRAP(dil1_str1_padsame);
+      // end d1s1pS
+    }else if ( pParamConv->dilationHeight == 1 && pParamConv->dilationWidth == 1
+        && pParamConv->padHeight == 0  && pParamConv->padWidth == 0
+        && pParamOut->height == (pParamIn->height - pParamKernel->height) / pParamConv->strideHeight + 1
+        && pParamOut->width == (pParamIn->width - pParamKernel->width) / pParamConv->strideWidth + 1 )
+    { // d1p0 and oh expected value
+      if (pParamConv->strideHeight == 1 && pParamConv->strideWidth == 1 )
+      { // d1s1p0
+        if ( pParamKernel->height == 3 && pParamKernel->width == 3
+            && (pParamIn->width <= 256)
+            && (pParamIn->width & 0x1) == 0  && (((uint64_t)pDataIn) & 0x7) == 0
+            && (pParamOut->width & 0x1) == 0 && (((uint64_t)pDataOut) & 0x7) == 0 )
+          OMPWRAP(dil1_str1_pad0_ker3_iw2XU256_ow2X_ioaligned);
+        else if ( pParamKernel->height == 4 && pParamKernel->width == 4  && (pParamIn->width <= 256) )
+          OMPWRAP(dil1_str1_pad0_ker4_iwU256);
+        else if (pParamOut->width <= 128)
+          OMPWRAP(dil1_str1_pad0_owU128);
+        else
+          OMPWRAP(dil1_str1_pad0);
+      } else if( pParamKernel->width == 1 && pParamKernel->height == 1 ){ // d1s>1p0k1
+        if (pParamOut->width <= 128)
+          OMPWRAP(dil1_pad0_owU128_ker1);
+        else
+          OMPWRAP(dil1_pad0_ker1);
+      }else{ // d1s>1p0k>1
+        if (pParamOut->width <= 128){
+#if 0
+          OMPWRAP(dil1_pad0_owU128);
+#else
+          // XXX 3 possibilities:
+          //  OMPWRAP(dil1_pad0_owU128);
+          //  ALT_RET(direct_owU128_T);
+          //  ALT_RET(gemm)
+          if(pParamOut->channel / pParamConv->group <= 256) // all ||ism threshold ?
+            ALT_RET(direct_owU128_T); // NEW
+          else
+            ALT_RET(gemm); // NEW: is this case always faster than dil1_pad0_owU128?
+#endif
+        }else{
+#if 0
+          OMPWRAP(dil1_pad0);
+#else
+          ALT_RET(gemm); // always faster than dil1_pad0 ?
+#endif
+        }
+      }
+    } else if (pParamConv->strideHeight == 2 && pParamConv->strideWidth == 2
+        && pParamConv->dilationHeight == 1 && pParamConv->dilationWidth == 1
+        && pParamConv->padHeight == 1 && pParamConv->padWidth == 1
+        && pParamKernel->height == 3 && pParamKernel->width == 3
+        && pParamOut->width <= 128 )
+      OMPWRAP(dil1_str2_pad1_ker3_owU128); // N/A
+    else if (pParamConv->strideHeight == 2 && pParamConv->strideWidth == 2
+        && pParamConv->dilationHeight == 1 && pParamConv->dilationWidth == 1
+        && pParamConv->padHeight == 1 && pParamConv->padWidth == 1
+        && pParamKernel->height == 4 && pParamKernel->width == 4
+        && pParamOut->width <= 128 )
+      OMPWRAP(dil1_str2_pad1_ker4_owU128);
+    else{
+      if (pParamOut->width <= 128)
+        OMPWRAP(owU128);
+      else
+        OMPWRAP(default);
+    }
+  }
+  else{
+    return VEDNN_ERROR_INVALID_PARAM ;
+  }
+}
+#undef OMPWRAP
+#undef ALT_RET
+
+/* ----------------------------------------------------------------------- */
+vednnError_t vednnConvolutionForwardAddBias(
+    const vednnTensorParam_t 		*pParamIn,
+    const void 				*pDataIn,
+    const vednnFilterParam_t		*pParamKernel,
+    const void 				*pDataKernel,
+    const vednnBiasParam_t 		*pParamBias,
+    const void 				*pDataBias,
+    const vednnTensorParam_t 		*pParamOut,
+    void 				*pDataOut,
+    const vednnConvolutionParam_t	*pParamConv,
+    vednnConvolutionAlgorithm_t 	algo
+    )
+{
+  return vednnConvolutionForwardBody(pParamIn, pDataIn,
+      pParamKernel, pDataKernel, pParamBias, pDataBias,
+      pParamOut, pDataOut, pParamConv, algo );
+}
+
 vednnError_t vednnConvolutionForward(
     const vednnTensorParam_t 		*pParamIn,
     const void 				*pDataIn,
@@ -69,192 +265,10 @@ vednnError_t vednnConvolutionForward(
     void 				*pDataOut,
     const vednnConvolutionParam_t	*pParamConv,
     vednnConvolutionAlgorithm_t 	algo
-)
+    )
 {
-  if (algo == VEDNN_CONV_ALGORITHM_DIRECT)
-  {
-    // [todo] add variations
-    if ( pParamOut->height * pParamOut->width <= 16  ) {
-	return vednnConvolutionForward_wrapper(
-	    vednnConvolutionForward_direct_vecC,
-	    pParamIn, pDataIn, pParamKernel, pDataKernel,
-	    pParamConv, pParamOut, pDataOut);
-    }
-    // try using gemm in most cases with stride > 1
-    else if (pParamConv->strideWidth > 1 || pParamConv->strideHeight > 1) {
-        if(pParamOut->channel / pParamConv->group <= 256
-           && pParamOut->width <= 128) {
-	    return vednnConvolutionForward_direct_owU128_T(
-                pParamIn, pDataIn, pParamKernel, pDataKernel,
-                pParamConv, pParamOut, pDataOut );
-        } else {
-	    return vednnConvolutionForward_direct_gemm(
-                pParamIn, pDataIn, pParamKernel, pDataKernel,
-                pParamConv, pParamOut, pDataOut );
-        }
-    }
-    else if (pParamConv->strideHeight == 1 && pParamConv->strideWidth == 1
-	&& pParamConv->dilationHeight == 1 && pParamConv->dilationWidth == 1
-	&& pParamIn->height == pParamOut->height
-	&& pParamIn->width == pParamOut->width )
-    {
-      if (pParamKernel->width == 1 && pParamKernel->height == 1)
-      {
-        if(pParamOut->width <= 128) {
-          return vednnConvolutionForward_direct_dil1_str1_pad0_ker1_T(
-              pParamIn, pDataIn, pParamKernel, pDataKernel,
-              pParamConv, pParamOut, pDataOut);
-        } else {
-          return vednnConvolutionForward_direct_gemm(
-              pParamIn, pDataIn, pParamKernel, pDataKernel,
-              pParamConv, pParamOut, pDataOut );
-        }
-      }
-      else if (pParamKernel->height == 3 && pParamKernel->width == 3)
-      {
-	if (pParamIn->channel == pParamConv->group) // aka inputChannelGroup==1
-	{
-	  if (pParamOut->width <= 128)
-	  {
-	    return vednnConvolutionForward_wrapper(
-		vednnConvolutionForward_direct_dil1_str1_padsame_ker3_c1_owU128,
-		pParamIn, pDataIn, pParamKernel, pDataKernel,
-		pParamConv, pParamOut, pDataOut );
-	  }
-	  else {
-	    return vednnConvolutionForward_wrapper(
-		vednnConvolutionForward_direct_dil1_str1_padsame_ker3_c1,
-		pParamIn, pDataIn, pParamKernel, pDataKernel,
-		pParamConv, pParamOut, pDataOut );
-	  }
-	}
-	else if (pParamKernel->inChannel % 1024 == 0)
-	{
-	  return vednnConvolutionForward_direct_dil1_str1_padsame_ker3_c1024x_T(
-	      pParamIn, pDataIn, pParamKernel, pDataKernel,
-	      pParamConv, pParamOut, pDataOut );
-	}
-	else
-	{
-	  return vednnConvolutionForward_direct_dil1_str1_padsame_ker3_T(
-	      pParamIn, pDataIn, pParamKernel, pDataKernel,
-	      pParamConv, pParamOut, pDataOut );
-	}
-      }
-      else if (pParamKernel->height == 5 && pParamKernel->width == 5)
-      {
-	if( pParamOut->width <= 128 ) {
-	  return vednnConvolutionForward_wrapper(
-	      vednnConvolutionForward_direct_dil1_str1_padsame_ker5_owU128,
-	      pParamIn, pDataIn, pParamKernel, pDataKernel,
-	      pParamConv, pParamOut, pDataOut );
-	}
-	else {
-	  return vednnConvolutionForward_wrapper(
-	      vednnConvolutionForward_direct_dil1_str1_padsame_ker5,
-	      pParamIn, pDataIn, pParamKernel, pDataKernel,
-	      pParamConv, pParamOut, pDataOut );
-	}
-      }
-      else if (pParamKernel->height == 2 && pParamKernel->width == 2)
-      {
-	return vednnConvolutionForward_wrapper(
-	    vednnConvolutionForward_direct_dil1_str1_padsame_ker2,
-	    pParamIn, pDataIn, pParamKernel, pDataKernel,
-	    pParamConv, pParamOut, pDataOut );
-      }
-      else
-      {
-	return vednnConvolutionForward_wrapper(
-	    vednnConvolutionForward_direct_dil1_str1_padsame,
-	    pParamIn, pDataIn, pParamKernel, pDataKernel,
-	    pParamConv, pParamOut, pDataOut );
-      }
-    }
-    else if ( pParamConv->dilationHeight == 1 && pParamConv->dilationWidth == 1
-	&& pParamConv->padHeight == 0  && pParamConv->padWidth == 0
-	&& pParamOut->height == (pParamIn->height - pParamKernel->height) / pParamConv->strideHeight + 1
-	&& pParamOut->width == (pParamIn->width - pParamKernel->width) / pParamConv->strideWidth + 1 )
-    {
-      if (pParamConv->strideHeight == 1 && pParamConv->strideWidth == 1 )
-      {
-	if ( pParamKernel->height == 3 && pParamKernel->width == 3
-	    && (pParamIn->width <= 256)
-	    && (pParamIn->width & 0x1) == 0  && (((uint64_t)pDataIn) & 0x7) == 0
-	    && (pParamOut->width & 0x1) == 0 && (((uint64_t)pDataOut) & 0x7) == 0 )
-	{
-	  return vednnConvolutionForward_wrapper (
-		  vednnConvolutionForward_direct_dil1_str1_pad0_ker3_iw2XU256_ow2X_ioaligned,
-		  pParamIn, pDataIn, pParamKernel, pDataKernel,
-		  pParamConv, pParamOut, pDataOut ) ;
-	}
-	else if (pParamOut->width <= 128)
-	{
-	  return vednnConvolutionForward_wrapper (
-	      vednnConvolutionForward_direct_dil1_str1_pad0_owU128,
-	      pParamIn, pDataIn, pParamKernel, pDataKernel,
-	      pParamConv, pParamOut, pDataOut );
-	}
-	else
-	{
-	  return vednnConvolutionForward_wrapper(
-	      vednnConvolutionForward_direct_dil1_str1_pad0,
-	      pParamIn, pDataIn, pParamKernel, pDataKernel,
-	      pParamConv, pParamOut, pDataOut );
-	}
-      }
-      else {
-	if( pParamKernel->width == 1 && pParamKernel->height == 1 )
-	{
-	  if (pParamOut->width <= 128) {
-	    return vednnConvolutionForward_wrapper(
-		vednnConvolutionForward_direct_dil1_pad0_owU128_ker1,
-		pParamIn, pDataIn, pParamKernel, pDataKernel,
-		pParamConv, pParamOut, pDataOut );
-	  }
-	  else {
-	    return vednnConvolutionForward_wrapper(
-		vednnConvolutionForward_direct_dil1_pad0_ker1,
-		pParamIn, pDataIn, pParamKernel, pDataKernel,
-		pParamConv, pParamOut, pDataOut );
-	  }
-	}
-	else {
-	  if (pParamOut->width <= 128) {
-	    return vednnConvolutionForward_wrapper(
-		vednnConvolutionForward_direct_dil1_pad0_owU128,
-		pParamIn, pDataIn, pParamKernel, pDataKernel,
-		pParamConv, pParamOut, pDataOut );
-	  }
-	  else {
-	    return vednnConvolutionForward_wrapper(
-		vednnConvolutionForward_direct_dil1_pad0,
-		pParamIn, pDataIn, pParamKernel, pDataKernel,
-		pParamConv, pParamOut, pDataOut );
-	  }
-	}
-      }
-    }
-    else {
-      if (pParamOut->width <= 128)
-      {
-	return vednnConvolutionForward_direct_owU128_T(
-	    pParamIn, pDataIn, pParamKernel, pDataKernel,
-	    pParamConv, pParamOut, pDataOut );
-      }
-      else {
-        return vednnConvolutionForward_direct_gemm(
-            pParamIn, pDataIn, pParamKernel, pDataKernel,
-            pParamConv, pParamOut, pDataOut );
-	// return vednnConvolutionForward_wrapper(
-	//     vednnConvolutionForward_direct_default,
-	//     pParamIn, pDataIn, pParamKernel, pDataKernel,
-	//     pParamConv, pParamOut, pDataOut );
-      }
-    }
-  }
-  else {
-    return VEDNN_ERROR_INVALID_PARAM ;
-  }
+  return vednnConvolutionForwardBody(pParamIn, pDataIn,
+      pParamKernel, pDataKernel, NULL, NULL,
+      pParamOut, pDataOut, pParamConv, algo );
 }
-
+// vim: et ts=2 sw=2 cindent cino=+4s,^=l0,\:0,N-s syntax=cpp.doxygen

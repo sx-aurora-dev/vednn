@@ -1,30 +1,19 @@
-
+#include "vednnSoftmaxForward.h"
+#include "vednn-def.h"
 #include <stdio.h>
-#include <stdint.h>
-
 #include <float.h>
 #include <math.h>
 
-#include "vednnSoftmaxForward.h"
-
-#ifdef VEDNN_USE_OPENMP
-#include <stdint.h>
-#include <omp.h>
-extern int __vednn_omp_num_threads ;
-#endif
-
 static inline vednnError_t
 vednnSoftmaxForward_wrapper(
-    vednnSoftmaxForward_t	pFunc,
-    const void 			*pDataIn,
-    void 			*pDataOut,
-    const uint64_t		nBatch,
-    const uint64_t		nClass
-)
+    vednnSoftmaxForward_t pFunc,
+    VEDNN_SOFTMAXFWD_ARGS )
 {
-#ifdef VEDNN_USE_OPENMP
+#ifndef VEDNN_USE_OPENMP
+  return pFunc(VEDNN_SOFTMAXFWD_ARGS_LIST);
+#else
   if ( __vednn_omp_num_threads == 1 ) {
-    return pFunc(pDataIn, pDataOut, nBatch, nClass) ;
+    return pFunc(VEDNN_SOFTMAXFWD_ARGS_LIST);
   }
   else {
     vednnError_t rc = VEDNN_SUCCESS ;
@@ -40,64 +29,43 @@ vednnSoftmaxForward_wrapper(
       int64_t myBatch    = eachNBatch + ( threadid < remain ? 1 : 0 ) ;
 
       if( myBatch == 0 ) {
-	rc |= VEDNN_SUCCESS ;
+        rc |= VEDNN_SUCCESS ;
       }
       else {
-	float* _pDataIn  = ((float *)pDataIn)  + batchBegin * nClass;
-	float* _pDataOut = ((float *)pDataOut) + batchBegin * nClass;
+        float* _pDataIn  = ((float *)pDataIn)  + batchBegin * nClass;
+        float* _pDataOut = ((float *)pDataOut) + batchBegin * nClass;
 
-	rc |= pFunc((void*)_pDataIn, (void*) _pDataOut, myBatch, nClass) ;
+        rc |= pFunc((void*)_pDataIn, (void*) _pDataOut, myBatch, nClass) ;
       }
     }
     return rc ;
   }
-#else
-  return pFunc(pDataIn, pDataOut, nBatch, nClass) ;
 #endif
 }
 
 /* ----------------------------------------------------------------------- */
 
 vednnError_t vednnSoftmaxForward(
-    const vednnSoftmaxMode_t		mode,
-    const void 				*pDataIn,
-    void 				*pDataOut,
-    const uint64_t			nBatch,
-    const uint64_t			nClass
-)
+    const vednnSoftmaxMode_t    mode,
+    VEDNN_SOFTMAXFWD_ARGS)
 {
-
+#define OMPWRAP( IMPL ) WRAP_RET( vednnSoftmaxForward_##IMPL, \
+    vednnSoftmaxForward_wrapper, VEDNN_SOFTMAXFWD_ARGS_LIST)
   switch(mode) {
-  case VEDNN_SOFTMAX_FAST :
-    return vednnSoftmaxForward_wrapper(
-	vednnSoftmaxForward_Fast,
-	pDataIn, pDataOut, nBatch, nClass ) ;
-
-  case VEDNN_SOFTMAX_ACCURATE :
-    return vednnSoftmaxForward_wrapper(
-	vednnSoftmaxForward_Accurate,
-	pDataIn, pDataOut, nBatch, nClass ) ;
-
-  case VEDNN_SOFTMAX_LOG :
-    return vednnSoftmaxForward_wrapper(
-	vednnSoftmaxForward_Log,
-	pDataIn, pDataOut, nBatch, nClass ) ;
-
-  default :
-    fprintf(stderr, "VEDNN Error : vednnSoftmaxForward : Invalid Parameter !!\n") ;
-    return VEDNN_ERROR_INVALID_PARAM ;
+    case VEDNN_SOFTMAX_FAST :
+      OMPWRAP(Fast);
+    case VEDNN_SOFTMAX_ACCURATE :
+      OMPWRAP(Accurate);
+    case VEDNN_SOFTMAX_LOG :
+      OMPWRAP(Log);
   }
-
+  fprintf(stderr, "VEDNN Error : vednnSoftmaxForward : Invalid Parameter !!\n") ;
+  return VEDNN_ERROR_INVALID_PARAM ;
+#undef OMPWRAP
 }
 
-static vednnError_t vednnSoftmaxForward_Fast (
-    const void 			*pDataIn,
-    void 			*pDataOut,
-    const uint64_t		nBatch,
-    const uint64_t		nClass
-)
+static vednnError_t vednnSoftmaxForward_Fast ( VEDNN_SOFTMAXFWD_ARGS )
 {
-
   const float *pIn  = (const float *) pDataIn ;
   float       *pOut = (float       *) pDataOut ;
 
@@ -119,12 +87,7 @@ static vednnError_t vednnSoftmaxForward_Fast (
   return VEDNN_SUCCESS ;
 }
 
-static vednnError_t vednnSoftmaxForward_Accurate (
-    const void 			*pDataIn,
-    void 			*pDataOut,
-    const uint64_t		nBatch,
-    const uint64_t		nClass
-)
+static vednnError_t vednnSoftmaxForward_Accurate ( VEDNN_SOFTMAXFWD_ARGS )
 {
 
   const float *pIn  = (const float *) pDataIn ;
@@ -154,12 +117,7 @@ static vednnError_t vednnSoftmaxForward_Accurate (
 }
 
 
-static vednnError_t vednnSoftmaxForward_Log (
-    const void 			*pDataIn,
-    void 			*pDataOut,
-    const uint64_t		nBatch,
-    const uint64_t		nClass
-)
+static vednnError_t vednnSoftmaxForward_Log ( VEDNN_SOFTMAXFWD_ARGS )
 {
 
   const float *pIn  = (const float *) pDataIn ;
@@ -187,3 +145,4 @@ static vednnError_t vednnSoftmaxForward_Log (
 
   return VEDNN_SUCCESS ;
 }
+// vim: et sw=2 ts=2 ai

@@ -3,7 +3,7 @@
 #include "wrap/vednnConvolution_ok.h"
 
 #include "C/vednnConvolutionForward.h"
-#include "C/vednnConvolutionForwardAddBias.h"
+//#include "C/vednnConvolutionForwardAddBias.h"
 #include "C/vednnConvolutionBackwardData.h"
 #include "C/vednnConvolutionBackwardFilter.h"
 
@@ -28,6 +28,8 @@ extern "C" {
  *   same as the unexposed wrapper inside of libvednn itself.
  *   - run arguments follow the libvednn.h public order, and use macros
  *     to reorder to the args used by libvednn internal impls.
+ *   - openmp wrapper is similar to src/C/ wrappers, multi-threading ONLY
+ *     over \e minibatch
  *
  * Usage overview:
  *
@@ -36,6 +38,7 @@ extern "C" {
  *       followed by the normal \ref vednn.h parameters.
  *     - XXX_Run just calls the appropriate low-level impl, re-ordering
  *       parameters as required (and doing openmp parallelization)
+ *     - (to know full details, you might still call \b _realNext followed by \b _Run)
  *
  * Note: for use in external projects like mkl-dnn [gen-dnn, for Aurora],
  *       the _ok and _rtok functions and the raw impl lists must be
@@ -78,7 +81,7 @@ BASE##_out_t BASE##_Run( BASE##Impls* current, BASE_PARAMS, BASE_DATARG );
 
 //                 func names           macro names
 ITERATOR_FUNC_API( Conv,Forward,        CONV,FORWARD )
-ITERATOR_FUNC_API( Conv,ForwardAddBias, CONV,FORWARDADDBIAS )
+//ITERATOR_FUNC_API( Conv,ForwardAddBias, CONV,FORWARDADDBIAS )
 ITERATOR_FUNC_API( Conv,BackwardData,   CONV,BACKWARD_DATA )
 ITERATOR_FUNC_API( Conv,BackwardFilter, CONV,BACKWARD_FILTER )
 // following are TBD:
@@ -91,6 +94,11 @@ ITERATOR_FUNC_API( Act,Backward,        ACT,BACKWARD)
 #undef ITERATOR_FUNC_API
 //@}
 
+/** \addtogroup Impl list elements
+ *  These flesh out low-level vednn implementations with some handy info,
+ * and some handy auxiliary functions.
+ */
+//@{    
 
 /** \addtogroup Impl list elements
  *  These flesh out low-level vednn implementations with some handy info,
@@ -106,6 +114,9 @@ ITERATOR_FUNC_API( Act,Backward,        ACT,BACKWARD)
  *                          
  * In principle there may be alternate wrapper types, but let's try to 
  * have VEDNN_WRAP_NONE mean "I'll do my own openmp handling".
+ *
+ * Removed: Jit private data "once-only" init function
+ *  vednnConv##Forward##Pd_t (*getImpl)(void* pd, VEDNN_PARAMS_CONV_##FORWARD);
  */
 //@{    
 
@@ -113,9 +124,6 @@ typedef enum { VEDNN_WRAP_DEFAULT = 0,
     VEDNN_WRAP_NONE = 1
 } vednnOmpWrap_t;
 
-/** NEW: with \c wrap==VEDNN_WRAP_NONE, the function signature of the 'impl' may
- * actually be incorrect, so the function pointer must be typecast to the 'NOWRAP'
- * version of the function signature.  This has been added to \c vednn.h */
 #define CONVLIST_ENTRY(Forward,FORWARD) \
 struct vednnConv##Forward##Impls_s { \
     vednnConv##Forward##_t          impl; /**< vednn library function (adjust if VEDNN_WRAP_NONE!) */ \
@@ -128,7 +136,7 @@ struct vednnConv##Forward##Impls_s { \
     vednnConv##Forward##Pd_t (*getImpl)(void* pd, VEDNN_PARAMS_CONV_##FORWARD); /**< WIP: JIT */ \
 }
 CONVLIST_ENTRY(Forward,        FORWARD);
-CONVLIST_ENTRY(ForwardAddBias, FORWARDADDBIAS);
+//CONVLIST_ENTRY(ForwardAddBias, FORWARDADDBIAS);
 CONVLIST_ENTRY(BackwardData,   BACKWARD_DATA);
 CONVLIST_ENTRY(BackwardFilter, BACKWARD_FILTER);
 

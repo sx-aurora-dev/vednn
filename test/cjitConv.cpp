@@ -269,15 +269,15 @@ struct DfgNames {
 };
 
 static DfgNames const dfgNames[] = {
-    {"cjitConvFwd1q", cjitConvolutionForward1q}
-    ,{"cjitConvFwd6", cjitConvolutionForward6}
-    //,{"cjitConvFwd1", cjitConvolutionForward1}
+    //{"cjitConvFwd1", cjitConvolutionForward1}
     //,{"cjitConvFwd1b", cjitConvolutionForward1b}
     //,{"cjitConvFwd1p", cjitConvolutionForward1p}
+    {"cjitConvFwd1q", cjitConvolutionForward1q}
     //,{"cjitConvFwd2", cjitConvolutionForward2}
     //,{"cjitConvFwd3", cjitConvolutionForward3}
     //,{"cjitConvFwd4", cjitConvolutionForward4}
     //,{"cjitConvFwd5", cjitConvolutionForward5}
+    ,{"cjitConvFwd6", cjitConvolutionForward6}
 };
 static size_t const nDfgNames = sizeof(dfgNames)/sizeof(DfgNames);
 
@@ -312,7 +312,7 @@ CjitSyms  * cjitSyms( struct param const* const pParams,
         char const** const dllGeneratorNames,
         struct CjitOpt const* opt_a )
 {
-    int const v = 2; // verbose: 0,1,2
+    int const v=0; // verbose: 0,1,2
     assert( dllGeneratorNames != nullptr );
     assert( dllGeneratorNames[0] != nullptr );
     assert( pParams != nullptr );
@@ -401,7 +401,7 @@ void cjitSyms_free( CjitSyms const* const cjitsyms ){
     if(cjitsyms==nullptr){
         return;
     }
-    int const v = 0;
+    int const v=0;
     if(v){cout<<" cjitSyms_free( cjitsyms @ "<<(void*)cjitsyms<<" )"<<endl; cout.flush();}
     if(cjitsyms->opaque){ // help gaurd against double-free
         // now free the C++ opaque info

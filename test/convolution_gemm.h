@@ -1,29 +1,8 @@
 #ifndef CONVOLUTION_GEMM_H
 #define CONVOLUTION_GEMM_H
-
-#if defined(__GNUC__) && !defined(restrict)
-#define restrict __restrict
-#endif
-
 #ifdef __cplusplus
 extern "C" {
 #endif /*}*/
-
-/** pColBuff is malloced as:
- * `(float*) malloc(pColrows*pColcols*getTensorDataSize(pConv->pParamIn));`
- * where
- * `size_t pColrows = pConv->pParamKernel->inChannel * pConv->pParamKernel->width * pConv->pParamKernel->height;`
- * and
- * `size_t pColcols = pConv->pParamOut->width * pConv->pParamOut->height;`
- *  This can be quite big, and usual impls may do "one col at a time" (re-using the buffer)
- *
- *  This can be a libvednn scratchpad, I think (thread-local should be ok, shared among omp threads
- *  during gemm call)
- *
- *  note getTensorDataSize for pParam->dtype==DTYPE_FLOAT is sizeof(float). (vednn_helper.c)
- *
- *  pOnesize is float[ow*oh] and is used to add in the bias via a second gemm_ call.
- */
 vednnError_t
 convolution_forward_gemm(
     const vednnTensorParam_t * restrict pParamIn, const void * restrict pDataIn,

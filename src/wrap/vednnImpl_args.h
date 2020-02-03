@@ -17,20 +17,24 @@ extern "C" {
 #define VEDNN_PARAMS_CONV_FORWARD \
     const vednnTensorParam_t *      restrict pParamIn, \
     const vednnFilterParam_t *      restrict pParamKernel, \
+    const vednnBiasParam_t *        restrict pParamBias, \
     const vednnTensorParam_t *      restrict pParamOut, \
     const vednnConvolutionParam_t * restrict pParamConv, \
     vednnConvolutionAlgorithm_t     algo
-#define VEDNN_PARAMS_CONV_FORWARD_LIST pParamIn, pParamKernel, pParamOut, pParamConv, algo
+#define VEDNN_PARAMS_CONV_FORWARD_LIST pParamIn, pParamKernel, pParamBias, \
+    pParamOut, pParamConv, algo
 
 #define VEDNN_DATARG_CONV_FORWARD_OPENMP /* tbd? */
 #define VEDNN_DATARG_CONV_FORWARD \
     /*void const * const restrict pd,*/ \
-    void const *       restrict pDataIn, \
-    void const *       restrict pDataKernel, \
-    void *             restrict pDataOut \
+    void const * restrict pDataIn, \
+    void const * restrict pDataKernel, \
+    const void * restrict pDataBias, \
+    void *       restrict pDataOut \
     VEDNN_DATARG_CONV_FORWARD_OPENMP
-#define VEDNN_DATARG_CONV_FORWARD_LIST pDataIn, pDataKernel, pDataOut
+#define VEDNN_DATARG_CONV_FORWARD_LIST pDataIn, pDataKernel, pDataBias, pDataOut
 
+#if 0
 #define VEDNN_PARAMS_CONV_FORWARDADDBIAS \
     const vednnTensorParam_t *      restrict pParamIn, \
     const vednnFilterParam_t *      restrict pParamKernel, \
@@ -49,6 +53,7 @@ extern "C" {
     void *       restrict pDataOut \
     VEDNN_DATARG_CONV_FORWARDBIAS_OPENMP
 #define VEDNN_DATARG_CONV_FORWARDADDBIAS_LIST pDataIn, pDataKernel, pDataBias, pDataOut
+#endif
 
 #define VEDNN_PARAMS_CONV_BACKWARD_DATA \
     const vednnTensorParam_t      * pParamGradIn, \
@@ -98,8 +103,8 @@ extern "C" {
 //@{
 typedef vednnError_t (*vednnConvForwardPd_t)( void const* const pd,
                 VEDNN_DATARG_CONV_FORWARD );
-typedef vednnError_t (*vednnConvForwardAddBiasPd_t)( void const* const pd,
-                VEDNN_DATARG_CONV_FORWARDADDBIAS );
+//typedef vednnError_t (*vednnConvForwardAddBiasPd_t)( void const* const pd,
+//                VEDNN_DATARG_CONV_FORWARDADDBIAS );
 typedef vednnError_t (*vednnConvBackwardDataPd_t)( void const* const pd,
                 VEDNN_DATARG_CONV_BACKWARD_DATA );
 typedef vednnError_t (*vednnConvBackwardFilterPd_t)( void const* const pd,

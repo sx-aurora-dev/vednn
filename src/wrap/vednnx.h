@@ -1,7 +1,6 @@
 #ifndef VEDNNX_H_
 #define VEDNNX_H_
 
-
 #if defined(__cplusplus) && !defined(restrict)
 //#if !define(__ve)
 #define restrict __restrict__
@@ -62,8 +61,8 @@
  * (Order differs, and the vednnConvolutionAlgorithm_t \c ALGO arg is absent)
  */
 #define CONVX_FWD_ORDER(...) CONVX_FWD_ORDER_(__VA_ARGS__)
-#define CONVX_FWD_ORDER_(PI,PK,PO,PC,ALGO,   DI,DK,DO) /* order: libvednn low-level */ \
-    PI,DI, PK,DK, PC, PO,DO
+#define CONVX_FWD_ORDER_(PI,PK,PB,PO,PC,ALGO,   DI,DK,DB,DO) /* order: libvednn low-level */ \
+    PI,DI, PK,DK, PB,DB, PC, PO,DO
 // JIT mirror of low-level function type in src/C/vednnConvolutionForward.h
 #define CONVX_FWD_DECL(FUNCNAME) \
 "\nvednnError_t " FUNCNAME "(" \
@@ -71,10 +70,14 @@
 "\n    const void                   * restrict   pDataIn," \
 "\n    const vednnFilterParam_t     * restrict  pParamKernel," \
 "\n    const void                   * restrict   pDataKernel," \
+"\n    const vednnBiasParam_t       * restrict  pParamBias," \
+"\n    const void                   * restrict   pDataBias," \
 "\n    const vednnConvolutionParam_t* restrict pParamConv," \
 "\n    const vednnTensorParam_t     * restrict  pParamOut," \
 "\n          void                   * restrict   pDataOut   )"
 
+#if 0
+/// \deprecated
 #define CONVX_FWDB_ORDER(...) CONVX_FWDB_ORDER_(__VA_ARGS__)
 #define CONVX_FWDB_ORDER_(PI,PK,PB,PO,PC,ALGO,   DI,DK,DB,DO) /* order: libvednn low-level */ \
     PI,DI, PK,DK, PB,DB, PC, PO,DO
@@ -89,6 +92,7 @@
 "\n    const vednnConvolutionParam_t* restrict pParamConv," \
 "\n    const vednnTensorParam_t     * restrict  pParamOut," \
 "\n          void                   * restrict   pDataOut   )"
+#endif
 
 /** \ref vednnConvolutionBackwardData.h */
 #define CONVX_BKWD_ORDER(...) CONVX_BKWD_ORDER_(__VA_ARGS__)
@@ -108,7 +112,8 @@
 #define CONVX_BKWF_ORDER(...) CONVX_BKWF_ORDER_(__VA_ARGS__)
 #define CONVX_BKWF_ORDER_(PI,PGO,PGK,PC,ALGO,   DI,DGO,DGK) /* order: libvednn low-level */ \
     PI,DI, PGO,DGO, PC, PGK,DGK
-#define CONVX_BKWF_NOWRAP_DECL(FUNCNAME) \
+#ifdef VEDNN_USE_OPENMP
+#define CONVX_BKWF_DECL(FUNCNAME) \
 "\nvednnError_t " FUNCNAME "(" \
 "\n    const vednnTensorParam_t     * restrict  pParamIn," \
 "\n    const void                   * restrict   pDataIn," \
@@ -117,8 +122,6 @@
 "\n    const vednnConvolutionParam_t* restrict pParamConv," \
 "\n    const vednnFilterParam_t     * restrict  pParamGradKernel," \
 "\n          void                   * restrict   pDataGradKernel)"
-#ifdef VEDNN_USE_OPENMP
-#define CONVX_BKWF_DECL(FUNCNAME) CONVX_BKWF_NOWRAP_DECL(FUNCNAME)
 #else
 #define CONVX_BKWF_DECL(FUNCNAME) \
 "\nvednnError_t " FUNCNAME "(" \

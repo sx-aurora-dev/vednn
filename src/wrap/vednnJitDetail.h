@@ -64,7 +64,7 @@ typedef struct vednnSymDetail_s {
      * It detects when jit generators signal that the process-library
      * has been grown by newly-added symbols.
      */
-    uint64_t lib_seq;
+    uint64_t seq;
 
     /** pointer to some Layer_rtok function [usually NULL].  Some
      * layers might need to check pointer alignment at call time. */

@@ -7,10 +7,6 @@
 
 #define VLEN	(256)
 
-#ifndef restrict
-#define restrict __restrict__
-#endif
-
 #include "mkldnn_thread.hpp"
 #include "vednnConvolutionForward.h"
 
@@ -28,6 +24,8 @@ vednnConvolutionForward_direct_dil1_str1_padsame_ker3_T(
     const void * restrict 			pDataIn,
     const vednnFilterParam_t * restrict 	pParamKernel,
     const void * restrict 			pDataKernel,
+    const vednnBiasParam_t * restrict           pParamBias,
+    const void * restrict                       pDataBias,
     const vednnConvolutionParam_t * restrict 	pParamConv,
     const vednnTensorParam_t * restrict 	pParamOut,
     void * restrict 				pDataOut
@@ -59,7 +57,7 @@ vednnConvolutionForward_direct_dil1_str1_padsame_ker3_T(
     // int64_t op = VLEN * opPrime;
 
     vednnConvolutionForward_direct_dil1_str1_padsame_ker3_T_subkernel(
-      pParamIn, pDataIn, pParamKernel, pDataKernel,
+      pParamIn, pDataIn, pParamKernel, pDataKernel, pParamBias, pDataBias,
       pParamConv, pParamOut, pDataOut, n, g, kPrime, opPrime);
 
 #if DEBUG_THREADS

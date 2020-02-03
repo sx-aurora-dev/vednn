@@ -8,10 +8,6 @@
 #include "mkldnn_thread.hpp"
 #include "vednnConvolutionForward.h"
 
-#ifndef restrict
-#define restrict __restrict__
-#endif
-
 extern "C" {
 
 vednnError_t
@@ -20,6 +16,8 @@ vednnConvolutionForward_direct_owU128_T(
     const void * restrict 			pDataIn,
     const vednnFilterParam_t * restrict 	pParamKernel,
     const void * restrict 			pDataKernel,
+    const vednnBiasParam_t * restrict           pParamBias,
+    const void * restrict                       pDataBias,
     const vednnConvolutionParam_t * restrict 	pParamConv,
     const vednnTensorParam_t * restrict 	pParamOut,
     void * restrict 				pDataOut
@@ -43,7 +41,7 @@ vednnConvolutionForward_direct_owU128_T(
               [&](int n, int g, int kPrime, int oyPrime) {
 
     vednnConvolutionForward_direct_owU128_T_subkernel(
-      pParamIn, pDataIn, pParamKernel, pDataKernel,
+      pParamIn, pDataIn, pParamKernel, pDataKernel, pParamBias, pDataBias,
       pParamConv, pParamOut, pDataOut, n, g, kPrime, oyPrime);
 
   });  /* kernel of parallel_nd() */

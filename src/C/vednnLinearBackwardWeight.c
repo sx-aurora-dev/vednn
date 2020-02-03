@@ -1,27 +1,16 @@
-
-#include <stdint.h>
 #include "vednnLinearBackwardWeight.h"
-
-#ifdef VEDNN_USE_OPENMP
-#include <omp.h>
-extern int __vednn_omp_num_threads ;
-#endif
-
+#include "vednn-def.h"
 
 static inline vednnError_t
 vednnLinearBackwardWeight_wrapper(
-    vednnLinearBackwardWeight_t		pFunc,
-    const uint64_t			inDim,
-    const uint64_t			outDim,
-    const uint64_t			nBatch,
-    const void * 			pDataIn,
-    const void * 			pDataGradOut,
-    void * 				pDataGradWeight
-)
+    vednnLinearBackwardWeight_t pFunc,
+    VEDNN_LINEARBKW_ARGS )
 {
-#ifdef VEDNN_USE_OPENMP
+#ifndef VEDNN_USE_OPENMP
+  return pFunc(VEDNN_LINEARBKW_ARGS_LIST);
+#else
   if ( __vednn_omp_num_threads == 1 ) {
-    return pFunc(inDim, outDim, nBatch, pDataIn, pDataGradOut, pDataGradWeight, 0, inDim) ;
+    return pFunc(VEDNN_LINEARBKW_ARGS_LIST, 0, inDim);
   }
   else {
     vednnError_t rc = VEDNN_SUCCESS ;
@@ -37,39 +26,35 @@ vednnLinearBackwardWeight_wrapper(
       int64_t myInDim    = nInDim + ( threadid < remain ? 1 : 0 ) ;
 
       if( nInDim == 0 ) {
-	rc |= VEDNN_SUCCESS ;
+        rc |= VEDNN_SUCCESS ;
       }
       else  {
-	rc |= pFunc(inDim, outDim, nBatch, pDataIn, pDataGradOut, pDataGradWeight,
-	            inDimBegin, inDimBegin+myInDim) ;
+        rc |= pFunc(VEDNN_LINEARBKW_ARGS_LIST, inDimBegin, inDimBegin+myInDim) ;
       }
     }
     return rc ;
   }
-#else
-  return pFunc(inDim, outDim, nBatch, pDataIn, pDataGradOut, pDataGradWeight ) ;
 #endif
 }
 
 /* ----------------------------------------------------------------------- */
-vednnError_t vednnLinearBackwardWeight(
-    const uint64_t			inDim,
-    const uint64_t			outDim,
-    const uint64_t			nBatch,
-    const void * 			pDataIn,
-    const void * 			pDataGradOut,
-    void * 				pDataGradWeight
-)
+vednnError_t vednnLinearBackwardWeight( VEDNN_LINEARBKW_ARGS )
 {
-  // [todo] add variations
+#define OMPWRAP( IMPL ) WRAP_RET(vednnLinearBackwardWeight_##IMPL, \
+    vednnLinearBackwardWeight_wrapper, VEDNN_LINEARBKW_ARGS_LIST )
+  if( (outDim & 0x01) == 0 &&
+      (((uint64_t)pDataGradWeight) & 0x07) == 0 && (((uint64_t)pDataGradOut) & 0x07) == 0 )
   {
-    return vednnLinearBackwardWeight_wrapper(
-	vednnLinearBackwardWeight_default,
-	inDim, outDim, nBatch,
-	pDataIn, pDataGradOut, pDataGradWeight ) ;
+    if( outDim <= 128 )
+      OMPWRAP(o2XU128_woaligned);
+    else
+      OMPWRAP(o2X_woaligned);
   }
-
+  else
+    OMPWRAP(default);
+#undef OMPWRAP
 }
+// vim: et sw=2 ts=2 ai
 
 
 

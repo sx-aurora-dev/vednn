@@ -1,71 +1,110 @@
-
 #include "vednnConvolutionLists.h"
-
 #include "vednnx.h"
-
-#ifdef VEDNN_USE_OPENMP
-#include <omp.h>
-#endif
+#include "vednn-def.h"
 
 #include <stddef.h> // NULL
 #include <stdio.h> // fflush
 #include <stdint.h> // int64_t
 #include <assert.h>
 
+#define STRINGIFy(...) #__VA_ARGS__
+#define STRINGIFY(...) STRINGIFy(__VA_ARGS__)
+#ifndef VERBOSE
+/** these are bitflags, 0(silent), or 1+2+... */
+#define VERBOSE 0
+#endif
+
+// now vednn exports __vednn_omp_num_threads from vednn-def.h
+#define GET_NTHREADS(nthreads) int64_t const nthreads = __vednn_omp_num_threads;
+
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-#define IMPL_FNS(BASENAME,STR)          IMPL_FNS_(BASENAME,STR)
-#define IMPL_WRAPNONE_FNS(BASENAME,STR) IMPL_WRAPNONE_FNS_(BASENAME,STR)
-#define IMPL_RTFNS(BASENAME,STR)        IMPL_RTFNS_(BASENAME,STR)
-#define JIT_FNS(BASENAME,STR)           JIT_FNS_(BASENAME,STR) /* TBD */
+#define IMPL_FNS(BASENAME,STR)    IMPL_FNS_(BASENAME,STR)
+#define IMPL_RTFNS(BASENAME,STR)  IMPL_RTFNS_(BASENAME,STR)
+#define JIT_FNS(BASENAME,STR)     JIT_FNS_(BASENAME,STR)
 
 #define IMPL_FNS_(BASENAME,STR) \
     { BASENAME, #BASENAME, STR, VEDNN_WRAP_DEFAULT, BASENAME##_ok, NULL, NULL, NULL }
-#define IMPL_WRAPNONE_FNS_(BASENAME,STR) \
-    { BASENAME, #BASENAME, STR, VEDNN_WRAP_NONE,    BASENAME##_ok, NULL, NULL, NULL }
 #define IMPL_RTFNS_(BASENAME,STR) \
     { BASENAME, #BASENAME, STR, VEDNN_WRAP_DEFAULT, BASENAME##_ok, BASENAME##_rtok, NULL, NULL }
 #define JIT_FNS_(BASENAME,STR) \
-    { BASENAME, #BASENAME, STR, VEDNN_WRAP_DEFAULT, BASENAME##_ok, NULL, BASENAME##_pd, BASENAME##_jit }
+    { BASENAME, #BASENAME, STR, VEDNN_WRAP_DEFAULT, BASENAME##_ok, NULL, BASENAME##_pd, NULL}
+
+// original version of IMPL_WRAPNONE_FNS not quite correct for BackwardFilter low-level impls
+//#define IMPL_WRAPNONE_EASY_FNS(BASENAME,STR) IMPL_WRAPNONE_EASY_FNS_(BASENAME,STR)
+//#define IMPL_WRAPNONE_EASY_FNS_(BASENAME,STR) \
+//    { BASENAME, #BASENAME, STR, VEDNN_WRAP_NONE,    BASENAME##_ok, NULL, NULL, NULL }
+
+// low-level impl may have extra omp args, so
+//    FUNC_nowrap_t and FUNC_t may be different types
+#define IMPL_WRAPNONE_FNS( DIRN, IMPL, STR) IMPL_WRAPNONE_FNS_(DIRN, IMPL, STR)
+#define IMPL_WRAPNONE_FNS_(DIRN, IMPL, STR) { \
+    /* func w/o omp args    */ (vednnConv##DIRN##_t)vednnConvolution##DIRN##_direct_##IMPL, \
+    /* func C symbol name                      */ "vednnConvolution" #DIRN "_direct_" #IMPL,  \
+    /* short name           */ STR, \
+    /*                      */ VEDNN_WRAP_NONE, \
+    /* _ok, _rtok, _pd, TBD */ vednnConvolution##DIRN##_direct_##IMPL##_ok, NULL, NULL, NULL }
 
 // try to put most specialized first, because they are likely fastest
 static vednnConvForwardImpls vednnConvForwardList_[] = {
     // k1 NOTE: dil1 is irrelevant for ker1 (should remove from name/files)
-    //IMPL_FNS(vednnConvolutionForward_direct_dil1_str1_pad0_ker1_c1024x,"cnvFwd-d1s1p0k1c1024x"),
+    IMPL_FNS(vednnConvolutionForward_direct_dil1_str2_pad1_ker3_owU128,"cnvFwd-d1s2pSk3_owU128"),
     // d1s1pS
     IMPL_FNS(vednnConvolutionForward_direct_dil1_str1_padsame_ker3_c1_owU128,"cnvFwd-d1s1pSk3c1owU128"),
     IMPL_FNS(vednnConvolutionForward_direct_dil1_str1_padsame_ker3_c1,"cnvFwd-d1s1pSk3_c1"),
-    IMPL_FNS(vednnConvolutionForward_direct_dil1_str1_padsame_ker3_c1024x,"cnvFwd-d1s1pSk3c1024x"),
-    IMPL_FNS(vednnConvolutionForward_direct_dil1_str1_padsame_ker3_c1024x_T,"cnvFwd-d1s1pSk3c1024x_T"),
+    //IMPL_WRAPNONE_EASY_FNS(vednnConvolutionForward_direct_dil1_str1_padsame_ker3_T,"cnvFwd-d1s1pSk3_T"),
     IMPL_FNS(vednnConvolutionForward_direct_dil1_str1_padsame_ker3,"cnvFwd-d1s1pSk3"),
-    IMPL_WRAPNONE_FNS(vednnConvolutionForward_direct_dil1_str1_padsame_ker3_T,"cnvFwd-d1s1pSk3_T"),
     IMPL_FNS(vednnConvolutionForward_direct_dil1_str1_padsame_ker5_owU128,"cnvFwd-d1s1pSk5owU128"),
     IMPL_FNS(vednnConvolutionForward_direct_dil1_str1_padsame_ker5,"cnvFwd-d1s1pSk5"),
     IMPL_FNS(vednnConvolutionForward_direct_dil1_str1_padsame_ker2,"cnvFwd-d1s1pSk2"),
     IMPL_FNS(vednnConvolutionForward_direct_dil1_str1_padsame,"cnvFwd-d1s1pS"),
     // d1s1p0
     IMPL_RTFNS(vednnConvolutionForward_direct_dil1_str1_pad0_ker3_iw2XU256_ow2X_ioaligned,"cnvFwd-d1s1p0k3iw2XU256_ow2X_ioaligned"),
+    IMPL_FNS(vednnConvolutionForward_direct_dil1_str1_pad0_ker1,"cnvFwd-s1p0k1"),
     IMPL_FNS(vednnConvolutionForward_direct_dil1_str1_pad0_owU128,"cnvFwd-d1s1p0_owU128"),
     IMPL_FNS(vednnConvolutionForward_direct_dil1_str1_pad0,"cnvFwd-d1s1p0"),
     // d1p0
+    IMPL_FNS(vednnConvolutionForward_direct_dil1_pad0_owU128_ker1,"cnvFwd-p0k1_owU128"),
+    IMPL_FNS(vednnConvolutionForward_direct_dil1_pad0_ker1,"cnvFwd-p0k1"),
     IMPL_FNS(vednnConvolutionForward_direct_dil1_pad0_owU128,"cnvFwd-d1p0_owU128"),
     IMPL_FNS(vednnConvolutionForward_direct_dil1_pad0,"cnvFwd-d1p0"),
 	// generic libvednn
     IMPL_FNS(vednnConvolutionForward_direct_owU128,"cnvFwd-owU128"),
-    IMPL_FNS(vednnConvolutionForward_direct_owU128_T, "cnvFwd-owU128_T"),
     IMPL_FNS(vednnConvolutionForward_direct_vecC,"cnvFwd-vecC"),
     IMPL_FNS(vednnConvolutionForward_direct_default,"cnvFwd-def"),
-    IMPL_WRAPNONE_FNS(vednnConvolutionForward_direct_gemm,"cnvFwd-gemm"),
-    IMPL_WRAPNONE_FNS(vednnConvolutionForward_direct_gemmA,"cnvFwd-gemmA"),
     // customizations (stable, working, but win in isolated circumstances)
+    //IMPL_WRAPNONE_EASY_FNS(vednnConvolutionForward_direct_gemm,"cnvFwd-gemm"),
+    IMPL_WRAPNONE_FNS(Forward, gemm,"cnvFwd-gemm"),
+    // WIP 
+    //IMPL_WRAPNONE_EASY_FNS(vednnConvolutionForward_direct_gendnn,"cnvFwd-gendnn"), // scratchpad issues?
+    // older impls
+    //IMPL_FNS(vednnConvolutionForward_direct_dil1_str1_pad0_ker1_c1024x,"cnvFwd-d1s1p0k1c1024x"),
+    //IMPL_FNS(vednnConvolutionForward_direct_dil1_str1_padsame_ker3_c1_owU128A,"cnvFwd-d1s1pSk3c1owU128A"),
+    //IMPL_FNS(vednnConvolutionForward_direct_dil1_str1_padsame_ker3_c1A,"cnvFwd-d1s1pSk3_c1A"),
+    //IMPL_FNS(vednnConvolutionForward_direct_dil1_str1_padsame_ker3_c1024x,"cnvFwd-d1s1pSk3c1024x"),
+    //IMPL_FNS(vednnConvolutionForward_direct_dil1_str1_padsame_ker3_c1024xA,"cnvFwd-d1s1pSk3c1024xA"),
+    //IMPL_FNS(vednnConvolutionForward_direct_dil1_str1_padsame_ker3A,"cnvFwd-d1s1pSk3A"),
+    //IMPL_FNS(vednnConvolutionForward_direct_dil1_str1_padsame_ker5_owU128A,"cnvFwd-d1s1pSk5owU128A"),
+    //IMPL_FNS(vednnConvolutionForward_direct_dil1_str1_padsame_ker5A,"cnvFwd-d1s1pSk5A"),
+    //IMPL_FNS(vednnConvolutionForward_direct_dil1_str1_padsame_ker2A,"cnvFwd-d1s1pSk2A"),
+    //IMPL_FNS(vednnConvolutionForward_direct_dil1_str1_pad0_owU128A,"cnvFwd-d1s1p0_owU128A"),
+    //IMPL_FNS(vednnConvolutionForward_direct_dil1_str1_pad0A,"cnvFwd-d1s1p0A"),
+    //IMPL_FNS(vednnConvolutionForward_direct_dil1_pad0_owU128A,"cnvFwd-d1p0_owU128A"),
+    //IMPL_FNS(vednnConvolutionForward_direct_dil1_pad0A,"cnvFwd-d1p0A"),
+    //IMPL_FNS(vednnConvolutionForward_direct_owU128A,"cnvFwd-owU128A"),
+    //IMPL_FNS(vednnConvolutionForward_direct_defaultA,"cnvFwd-defA"),
     //IMPL_FNS(vednnConvolutionForward_direct_default2,"cnvFwd-def2"),
+    //IMPL_FNS(vednnConvolutionForward_direct_default2p,"cnvFwd-def2p"),
     //IMPL_FNS(vednnConvolutionForward_direct_default3,"cnvFwd-def3"),
-    // ker1
-    IMPL_FNS(vednnConvolutionForward_direct_dil1_str1_pad0_ker1,"cnvFwd-s1p0k1"),
-    IMPL_WRAPNONE_FNS(vednnConvolutionForward_direct_dil1_str1_pad0_ker1_T,"cnvFwd-s1p0k1_T"),
-    IMPL_FNS(vednnConvolutionForward_direct_dil1_pad0_owU128_ker1,"cnvFwd-p0k1_owU128"),
+    //IMPL_FNS(vednnConvolutionForward_direct_default3b,"cnvFwd-df3b"),
+    //IMPL_FNS(vednnConvolutionForward_direct_alt,"cnvFwd-alt"),
+    //IMPL_FNS(vednnConvolutionForward_direct_dil1_str1_padsameA,"cnvFwd-d1s1pSA"), // XXX testing
+    //IMPL_FNS(vednnConvolutionForward_direct_dil1_str1_padsameB,"cnvFwd-d1s1pSB"), // XXX testing
+    //IMPL_FNS(vednnConvolutionForward_direct_dil1_str1_padsameAB,"cnvFwd-d1s1pSA+B"), // XXX testing
+    //IMPL_FNS(vednnConvolutionForward_direct_dil1_str1_pad0_ker1A,"cnvFwd-s1p0k1A"),
+    //IMPL_FNS(vednnConvolutionForward_direct_dil1_pad0_owU128_ker1A,"cnvFwd-p0k1_owU128A"),
     // Problem: ker1 + nonequal height width buggy?  or else [d1] s1p0k1A maybe clobber output?
     // WRONG OUTPUT for mb1ih640iw360__ic128oc4__kh1___n"RNxt101-conv2a-ungrouped"
     //IMPL_FNS(vednnConvolutionForward_direct_dil1_pad0_ker1,"cnvFwd-p0k1"),
@@ -73,23 +112,37 @@ static vednnConvForwardImpls vednnConvForwardList_[] = {
     {NULL,"NULL","null",NULL, NULL, NULL, NULL}
 };
 
-static vednnConvForwardAddBiasImpls vednnConvForwardAddBiasList_[] = {
-    {NULL}
-};
-
 static vednnConvBackwardDataImpls vednnConvBackwardDataList_[] = {
-    IMPL_FNS(vednnConvolutionBackwardData_direct_dil1_str1_padsame,"cnvBkD-d1s1pS"), //1st?
+    IMPL_FNS(vednnConvolutionBackwardData_direct_vecC,"cnvBkD-vecC"),
+    IMPL_FNS(vednnConvolutionBackwardData_direct_dil1_pad0_ker1_owU128,"cnvBkD-k1-owU128"),
+    IMPL_FNS(vednnConvolutionBackwardData_direct_dil1_str1_padsame_ker1,"cnvBkD-s1-k1"),
+    IMPL_FNS(vednnConvolutionBackwardData_direct_dil1_str1_padsame_ker2,"cnvBkD-s1pS-k2"),
+    // k3
     IMPL_RTFNS(vednnConvolutionBackwardData_direct_dil1_str1_pad0_ker3_iw2XU32_ow2X_ioaligned,
             "cnvBkD-d1s1p0k3iw2XU32_ow2X_ioaligned"),
     IMPL_RTFNS(vednnConvolutionBackwardData_direct_dil1_str1_pad0_ker3_iw2XU256_ow2X_ioaligned,
             "cnvBkD-d1s1p0k3iw2XU256_ow2X_ioaligned"),
+    IMPL_FNS(vednnConvolutionBackwardData_direct_dil1_str2_pad1_ker3_iwU256,"cnvBkD-d1s2p1-k3-iwU256"),
+    IMPL_FNS(vednnConvolutionBackwardData_direct_dil1_str2_ker3_iwU256,"cnvBkD-d1s2-k3-iwU256"),
     IMPL_FNS(vednnConvolutionBackwardData_direct_dil1_str1_pad0_ker3_iwU128,"cnvBkD-d1s1p0k3_iwU128"),
-    IMPL_FNS(vednnConvolutionBackwardData_direct_dil1_str1_iwU128,"cnvBkD-d1s1_iwU128"),
+    IMPL_FNS(vednnConvolutionBackwardData_direct_dil1_str1_padsame_ker3,"cnvBkD-d1s1pS-k3"),
+    IMPL_FNS(vednnConvolutionBackwardData_direct_ker3_iwU128,"cnvBkD-k3-iwU128"),
+    // k5
+    IMPL_FNS(vednnConvolutionBackwardData_direct_dil1_str2_pad2_ker5_iwU128,"cnvBkD-d1s2p2-k5-iwU128"),
+    IMPL_FNS(vednnConvolutionBackwardData_direct_dil1_str2_pad2_ker5,   "cnvBkD-d1s2p2-k5"),
+    IMPL_FNS(vednnConvolutionBackwardData_direct_dil1_str1_padsame_ker5,"cnvBkD-d1s1pS-k5"),
+    IMPL_FNS(vednnConvolutionBackwardData_direct_ker5_iwU128,"cnvBkD-k5-iwU128"),
+    IMPL_FNS(vednnConvolutionBackwardData_direct_ker5,       "cnvBkD-k5"),
+    IMPL_FNS(vednnConvolutionBackwardData_direct_dil1_str1_padsame,"cnvBkD-d1s1pS"),
+    IMPL_FNS(vednnConvolutionBackwardData_direct_dil1_str1_iwU128, "cnvBkD-d1s1_iwU128"),
     IMPL_FNS(vednnConvolutionBackwardData_direct_dil1_str1,"cnvBkD-d1s1"),
     IMPL_FNS(vednnConvolutionBackwardData_direct_iwU128,"cnvBkD-iwU128"),
     IMPL_FNS(vednnConvolutionBackwardData_direct_default,"cnvBkD-def"),
-    IMPL_FNS(vednnConvolutionBackwardData_direct_gemm,"cnvBkD-gemm"),
-    IMPL_FNS(vednnConvolutionBackwardData_direct_gemmA,"cnvBkD-gemmA"),
+    //IMPL_WRAPNONE_EASY_FNS(vednnConvolutionBackwardData_direct_gemm,"cnvBkD-gemm"),
+    IMPL_WRAPNONE_FNS(BackwardData, gemm,"cnvBkD-gemm"),
+    // extras...
+    //IMPL_FNS(vednnConvolutionBackwardData_direct_default2,"cnvBkD-def2"),
+    //IMPL_FNS(vednnConvolutionBackwardData_direct_gendnn,"cnvBkD-gendnn"), // check if implemented XXX
     {NULL}
 };
 
@@ -111,16 +164,21 @@ static vednnConvBackwardFilterImpls vednnConvBackwardFilterList_[] = {
     IMPL_FNS(vednnConvolutionBackwardFilter_direct_dil1_pad0_ker1,"cnvBkF-d1p0k1"),
     IMPL_FNS(vednnConvolutionBackwardFilter_direct_dil1_pad0_ker3_owU128,"cnvBkF-d1p0k3_owU128"),
     IMPL_FNS(vednnConvolutionBackwardFilter_direct_dil1_pad0_owU32,"cnvBkF-d1p0_owU32"),
+    //IMPL_FNS(vednnConvolutionBackwardFilter_direct_dil1_pad0_owU128,"cnvBkF-d1p0_owU128"),
     IMPL_FNS(vednnConvolutionBackwardFilter_direct_dil1_pad0,"cnvBkF-d1p0"),
     IMPL_FNS(vednnConvolutionBackwardFilter_direct_owU128,"cnvBkF-owU128"),
     IMPL_FNS(vednnConvolutionBackwardFilter_direct_default,"cnvBkF-def"),
-    IMPL_FNS(vednnConvolutionBackwardFilter_direct_gemm,"cnvBkF-gemm"),
-    IMPL_FNS(vednnConvolutionBackwardFilter_direct_gemmA,"cnvBkF-gemmA"),
+    // Neither of the following work, because low-level impl may have "extra" args!
+    //IMPL_WRAPNONE_EASY_FNS((vednnConvBackwardFilter_t)(void*)vednnConvolutionBackwardFilter_direct_gemm,"cnvBkF-gemm"),
+    //IMPL_WRAPNONE_EASY_FNS(vednnConvolutionBackwardFilter_direct_gemm,"cnvBkF-gemm"),
+    IMPL_WRAPNONE_FNS( BackwardFilter, gemm, "cnvBkF-gemm" ),
+    // extras...
+    //IMPL_FNS(vednnConvolutionBackwardData_direct_gendnn,"cnvBkD-gendnn"), // check if implemented XXX
     {NULL}
 };
 
 vednnConvForwardImpls *        vednnConvForwardList        = &vednnConvForwardList_[0];
-vednnConvForwardAddBiasImpls * vednnConvForwardAddBiasList = &vednnConvForwardAddBiasList_[0];
+//vednnConvForwardAddBiasImpls * vednnConvForwardAddBiasList = &vednnConvForwardAddBiasList_[0];
 vednnConvBackwardDataImpls *   vednnConvBackwardDataList   = &vednnConvBackwardDataList_[0];
 vednnConvBackwardFilterImpls * vednnConvBackwardFilterList = &vednnConvBackwardFilterList_[0];
 
@@ -136,11 +194,12 @@ vednnConv##Forward##Impls * vednnConv##Forward##_Begin( \
     return i; \
 }
 ITERATOR_BEGIN(Forward,        FORWARD);
-ITERATOR_BEGIN(ForwardAddBias, FORWARDADDBIAS);
+//ITERATOR_BEGIN(ForwardAddBias, FORWARDADDBIAS);
 ITERATOR_BEGIN(BackwardData,   BACKWARD_DATA);
 ITERATOR_BEGIN(BackwardFilter, BACKWARD_FILTER);
 #undef ITERATOR_BEGIN
 
+// XXX show wrap state
 #define ITERATOR_DUMP(Forward,FORWARD) \
 void vednnConv##Forward##_Dump( vednnConv##Forward##Impls const* it) \
 { \
@@ -150,7 +209,7 @@ void vednnConv##Forward##_Dump( vednnConv##Forward##Impls const* it) \
             (void*)(it->rtokfn), (void*)(it->getPd), (void*)(it->getImpl) ); \
 }
 ITERATOR_DUMP(Forward,        FORWARD);
-ITERATOR_DUMP(ForwardAddBias, FORWARDADDBIAS);
+//ITERATOR_DUMP(ForwardAddBias, FORWARDADDBIAS);
 ITERATOR_DUMP(BackwardData,   BACKWARD_DATA);
 ITERATOR_DUMP(BackwardFilter, BACKWARD_FILTER);
 #undef ITERATOR_DUMP
@@ -160,9 +219,11 @@ ITERATOR_DUMP(BackwardFilter, BACKWARD_FILTER);
     vednnConv##Forward##Impls *i = &vednnConv##Forward##List[0]; \
     while( i != current && i->okfn != NULL ){ ++i; } /* MUST find current inside List */ \
     if( i->okfn != NULL ) \
-        for( ++i; i->okfn != NULL \
-            && (i->okfn)(VEDNN_PARAMS_CONV_##FORWARD##_LIST) != VEDNN_SUCCESS; \
-            ) ++i; \
+        for( ++i; i->okfn != NULL; ++i ){ \
+            if((VERBOSE&1) && i->shortname) printf(" iter-shortname %s", i->shortname); \
+            if((i->okfn)(VEDNN_PARAMS_CONV_##FORWARD##_LIST) \
+                    == VEDNN_SUCCESS) break; \
+        } \
     current = i; \
 }while(0)
 #define ITERATOR_NEXT(Forward,FORWARD) \
@@ -174,7 +235,7 @@ vednnConv##Forward##Impls * vednnConv##Forward##_Next( \
     return current; \
 }
 ITERATOR_NEXT(Forward,        FORWARD);
-ITERATOR_NEXT(ForwardAddBias, FORWARDADDBIAS);
+//ITERATOR_NEXT(ForwardAddBias, FORWARDADDBIAS);
 ITERATOR_NEXT(BackwardData,   BACKWARD_DATA);
 ITERATOR_NEXT(BackwardFilter, BACKWARD_FILTER);
 
@@ -205,26 +266,15 @@ vednnConv##Forward##Impls * vednnConv##Forward##_realNext( \
     return current; \
 }
 REALNEXT(Forward,        FORWARD);
-REALNEXT(ForwardAddBias, FORWARDADDBIAS);
+//REALNEXT(ForwardAddBias, FORWARDADDBIAS);
 REALNEXT(BackwardData,   BACKWARD_DATA);
 REALNEXT(BackwardFilter, BACKWARD_FILTER);
 #undef REALNEXT
 
-#ifdef VEDNN_USE_OPENMP
-#define GET_NTHREADS(nthreads) int64_t const nthreads = omp_get_max_threads() ;
-    // NOTE: outside parallel region, use omp_get_max_threads
-    //       inside                   use omp_get_num_threads (current #)
-    //printf(" openmp threads %ld batch %ld",nthreads,allBatch); fflush(stdout);
-#else
-//#warning "no openmp?"
-#define GET_NTHREADS(nthreads) int64_t const nthreads = 1;
-    //printf(" threads %ld batch %ld",nthreads,allBatch); fflush(stdout);
-#endif
-
 /** based on \ref C/vednnConvolutionForward.c version */
     static inline vednnError_t
 vednnConvolutionForward_wrapper(
-        vednnConvForward_t      pFunc,
+        vednnConvForward_t pFunc,
         CONVX_FWD_ORDER( VEDNN_PARAMS_CONV_FORWARD, VEDNN_DATARG_CONV_FORWARD )
         )
 {
@@ -257,12 +307,14 @@ vednnConvolutionForward_wrapper(
             float* _pDataOut = ((float *)pDataOut) + batchBegin * pParamOut->channel * pParamOut->height * pParamOut->width ;
 
             rc |= pFunc(&_pParamIn, (void*)_pDataIn, pParamKernel, pDataKernel,
+                    pParamBias, pDataBias,
                     pParamConv, &_pParamOut, (void*) _pDataOut) ;
         }
     }
     return rc ;
 #endif
 }
+#if 0
 static inline vednnError_t
 vednnConvolutionForwardAddBias_wrapper(
     vednnConvForwardAddBias_t		pFunc,
@@ -307,6 +359,7 @@ vednnConvolutionForwardAddBias_wrapper(
   return rc ;
 #endif
 }
+#endif
 
 /** \ref C/vednnConvolutionBackwardData.c (static inline openmp handling) */
 static inline vednnError_t
@@ -409,7 +462,6 @@ vednnConvolutionBackwardFilter_wrapper(
 
 #define INVOKE_CONV_OPENMP_WRAPPER(ret,current,Forward,FWD,FORWARD) \
 { \
-    if(current != NULL) \
     /* invoke via _wrapper to do parallelization */ \
     ret.status = vednnConvolution##Forward##_wrapper( \
             current->impl, \
@@ -420,13 +472,12 @@ vednnConvolutionBackwardFilter_wrapper(
 
 #define INVOKE_CONV_NOWRAP(ret,current,Forward,FWD,FORWARD) \
 { \
-    if(current != NULL) \
     /* instead of supplying current->impl as \c pFunc arg to wrapper, invoke impl directly */ \
     /* easy, because wrapper pFunc and low-level nowrap args are in fact identical */ \
-    ret.status = ((vednnConv##Forward##_nowrap_t)current->impl) /* maybe simple fn sig*/ \
-    ( CONVX_##FWD##_ORDER( \
-                           VEDNN_PARAMS_CONV_##FORWARD##_LIST, \
-                           VEDNN_DATARG_CONV_##FORWARD##_LIST )); \
+    ret.status = ((vednnConv##Forward##_nowrap_t)current->impl)( /* maybe simple fn sig*/ \
+            CONVX_##FWD##_ORDER( \
+                VEDNN_PARAMS_CONV_##FORWARD##_LIST, \
+                VEDNN_DATARG_CONV_##FORWARD##_LIST )); \
 }
 
 #define CONV_RUN(Forward,FWD,FORWARD) \
@@ -437,16 +488,18 @@ vednnConv##Forward##_out_t vednnConv##Forward##_Run( \
 { \
     vednnConv##Forward##_out_t ret = {current, VEDNN_ERROR_INVALID_PARAM}; \
     ADVANCE_RTOK(current,Forward,FORWARD); \
-    if(current->wrap == VEDNN_WRAP_DEFAULT){ \
-        /* current PARAMS ok **and** DATA rtok, so can run it, if still non-NULL */ \
-        INVOKE_CONV_OPENMP_WRAPPER(ret,current,Forward,FWD,FORWARD) \
-    }else{ \
-        assert( current->wrap == VEDNN_WRAP_NONE ); \
-        INVOKE_CONV_NOWRAP(ret,current,Forward,FWD,FORWARD) \
+    if(current != NULL){ \
+        if(current->wrap == VEDNN_WRAP_DEFAULT){ \
+            /* current PARAMS ok **and** DATA rtok, so can run it, if still non-NULL */ \
+            INVOKE_CONV_OPENMP_WRAPPER(ret,current,Forward,FWD,FORWARD) \
+        }else{ \
+            assert( current->wrap == VEDNN_WRAP_NONE ); \
+            INVOKE_CONV_NOWRAP(ret,current,Forward,FWD,FORWARD) \
+        } \
     } \
     return ret; \
 }
-#if 0 // long-hand version of macros, for debug ....
+#if (VERBOSE&2) //VERBOSE // long-hand version of macros, for debug ....
 vednnConvForward_out_t vednnConvForward_Run(
         vednnConvForwardImpls* current,
         VEDNN_PARAMS_CONV_FORWARD,
@@ -454,24 +507,33 @@ vednnConvForward_out_t vednnConvForward_Run(
 {
     vednnConvForward_out_t ret = {current, VEDNN_ERROR_INVALID_PARAM};
     ADVANCE_RTOK(current,Forward,FORWARD);
-    if(current->wrap == VEDNN_WRAP_DEFAULT){
-        /* current PARAMS ok **and** DATA rtok, so can run it, if still non-NULL */
-        if(current != NULL)
+    if(current != NULL){
+        if(current->wrap == VEDNN_WRAP_DEFAULT){
+            printf("\nvednnConvForward_Run VEDNN_WRAP_DEFAULT current@%p",(void*)current); fflush(stdout);
+            /* current PARAMS ok **and** DATA rtok, so can run it, if still non-NULL */
             /* invoke via _wrapper to do parallelization */
             ret.status = vednnConvolutionForward_wrapper(
                     current->impl,
                     CONVX_FWD_ORDER(
                         VEDNN_PARAMS_CONV_FORWARD_LIST,
                         VEDNN_DATARG_CONV_FORWARD_LIST ));
-    }else{
-        assert( current->wrap == VEDNN_WRAP_NONE );
-        // TROUBLE -- INVOKE_CONV_NOWRAP(ret,current,Forward,FWD,FORWARD)
-        if(current != NULL)
+        }else{
+            assert( current->wrap == VEDNN_WRAP_NONE );
+            printf("\nvednnConvForward_Run VEDNN_WRAP_NONE current@%p",(void*)current); fflush(stdout);
+            // TROUBLE -- INVOKE_CONV_NOWRAP(ret,current,Forward,FWD,FORWARD)
+            printf("\nPARAMS   : %s\n", STRINGIFY(VEDNN_PARAMS_CONV_FORWARD_LIST));
+            printf("\nDATARG   : %s\n", STRINGIFY(VEDNN_DATARG_CONV_FORWARD_LIST));
+            printf("\ninvoking : %s @ %p (\n%s\n\t)\n", current->name, current->impl,
+                    STRINGIFY(CONVX_FWD_ORDER(
+                            VEDNN_PARAMS_CONV_FORWARD_LIST,
+                            VEDNN_DATARG_CONV_FORWARD_LIST )));
+            fflush(stdout);
             /* instead of supplying current->impl as \c pFunc arg to wrapper, invoke impl directly */
             ret.status = ((vednnConvForward_nowrap_t)current->impl) /* maybe simple fn sig*/
                 ( CONVX_FWD_ORDER(
                                   VEDNN_PARAMS_CONV_FORWARD_LIST,
                                   VEDNN_DATARG_CONV_FORWARD_LIST ));
+        }
     }
     return ret;
 }
@@ -479,7 +541,7 @@ vednnConvForward_out_t vednnConvForward_Run(
 CONV_RUN(Forward,        FWD,  FORWARD)
 #endif
 // naming standardized so CONV_RUN also defines Run funcs for other directions
-CONV_RUN(ForwardAddBias, FWDB, FORWARDADDBIAS)
+// removed from API: CONV_RUN(ForwardAddBias, FWDB, FORWARDADDBIAS)
 CONV_RUN(BackwardData,   BKWD, BACKWARD_DATA)
 CONV_RUN(BackwardFilter, BKWF, BACKWARD_FILTER)
 

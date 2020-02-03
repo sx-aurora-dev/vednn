@@ -1,11 +1,12 @@
-PRJ:=vednnx
-CMAKE_SHARED:=-DBUILD_SHARED_LIB=ON
-CMAKE_ARGS:=-DCMAKE_BUILD_TYPE=Release ${CMAKE_SHARED}
+PRJ:=vednn
+#PRJ:=vednnx
+CMAKE_SHARED:='-DBUILD_SHARED_LIB=ON'
+CMAKE_ARGS:="-DCMAKE_BUILD_TYPE=Release ${CMAKE_SHARED}"
 all: force-build lib${PRJ}.tar.gz lib${PRJ}-ftrace1.tar.gz test
 # unpack one of the distro tarballs only in external projects.
 # -ft1 tarball will need to be linked with veperf library
 .PHONY: test build empty-build force-build clean realclean
-MKJOB:=VERBOSE=1 -j8
+MKJOB:=VERBOSE=1 -j1
 lib${PRJ}.tar.gz:
 	rm -rf ${PRJ}
 	# now for sequential
@@ -51,22 +52,30 @@ quicktest: # remove tarball build, use build/ and install/ only
 test: build
 	@# default build dir might be an assumed install location for tests/Makefile
 	-ls -l build/src
-	-cd test && make realclean
+	-cd test && make -f Makefile.tiny realclean
 	@#{ cd test && make VERBOSE=1 all ve_cmpconv && BIN_MK_VERBOSE=0 ./ve_cmpconv -r 10; } 2>&1 | tee mk-test.log
-	{ cd test && make VERBOSE=1 -f Makefile redo && { \
+	{ cd test && make VERBOSE=1 -f Makefile all && { \
 		./vednn_conv_test -H 8e8 -p params/conv/alexnet.txt -T ConvForward; ftrace; \
 		./vednn_linear_test -H 0.8e9 -p params/linear/alexnet.txt -T LinearForward; ftrace; \
 		./vednn_pool_test   -H 0.8e9 -p params/pool/alexnet.txt   -T MaxPoolForward; ftrace; \
-		} && { echo "resnext via Makefile.big..."; \
-		rm -f gemm_convolution*{.o,.lo,.s} jitconv.o; \
-		make VERBOSE=1 jitconv resnext-t8.log || { echo "OHOH: test/resnext.log!"; false; } \
+		} && { \
+		make VERBOSE=1 -f Makefile.big jitconv && ./jitconv -t 8 mb8 >& t8mb8.log \
+		&& echo "GOOD: test/t8mb8.log!" \
+		|| { echo "OHOH: test/t8mb8.log!" && false; } \
+		} && echo "resnext via Makefile.big..." \
+		&& { make VERBOSE=1 -f Makefile.big jitconv resnext-t8.log \
+		&& echo "GOOD: test/resnext-t8.log!" \
+		|| { echo "OHOH: test/resnext-t8.log!" && false; } \
+	       	} && { make VERBOSE=1 -f Makefile.big jitconv resnext-t8-mb8.log \
+		&& echo "GOOD: test/resnext-t8-mb8.log!" \
+		|| { echo "OHOH: test/resnext-t8-mb8.log!"; false; } \
 		} && echo "vednn make test passed"; \
 	} 2>&1 | tee mk-test.log; ps=($${PIPESTATUS[@]}); \
-	echo "make test ---> mk-test.log, test/resnext-t8.log : PIPESTATUS $${ps[@]}"; \
+	echo "make test ---> mk-test.log, test/{t8mb8,resnext-t8,resnext-t8-mb8}.log : PIPESTATUS $${ps[@]}"; \
 	[ "$${ps[0]}" == "0" ];
 	@echo "make test OK"
 empty-build:
-	-rm -rf build; mkdir build;
+	rm -rf build; mkdir build;
 force-build: empty-build build
 # close to default build...
 build: # if no tarballs, test/original tests/Makefile always links against this build directory
@@ -85,7 +94,7 @@ clean:
 	rm -rf build-${PRJ}* build-ft1* ${PRJ} mk-build.log mk-${PRJ}.log mk-${PRJ}_omp.log mk-ft1-${PRJ}.log mk-ft1-${PRJ}_omp.log
 	$(MAKE) -C test clean
 realclean: clean
-	-rm -rf build ${PRJ}.tar.gz ${PRJ}-ftrace1.tar.gz
-	$(MAKE) -C src/C/vconv realclean
+	-rm -rf build build-vednn build-vednn_omp install vednnx ${PRJ}.tar.gz ${PRJ}-ftrace1.tar.gz
+	$(MAKE) -C src/wrap realclean
 	$(MAKE) -C test realclean
 #

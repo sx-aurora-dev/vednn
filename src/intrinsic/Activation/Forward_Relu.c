@@ -15,8 +15,8 @@ vednnError_t vednnActivationForward_Relu(
     const uint64_t			nElements
 )
 {
-  const float * restrict pIn     = pDataIn;
-  float * restrict const pOut    = pDataOut;
+  const float * restrict const pIn     = (float* restrict)pDataIn;
+  float * restrict       const pOut    = (float* restrict)pDataOut;
 
   const uint64_t alignIn  = ((uint64_t)pDataIn) & 0x07 ;
   const uint64_t alignOut = ((uint64_t)pDataOut) & 0x07 ;

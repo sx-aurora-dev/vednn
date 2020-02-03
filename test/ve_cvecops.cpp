@@ -329,10 +329,10 @@ std::string vel_vmerge32(
         std::string s/*=""*/ // register name disambiguation suffix
         )
 {
+    // NOTE: if aBy==bBy and b32==a32+1 then ul can be loaded with a single 64-bit load
+    //       (and then this becomes a '64-bit copy', perhaps avoidable)
     static ostringstream oss; // a common (reset-to-empty) string formatting buffer.
     int const v = 0; // verbosity
-    // Optionally use a client-side vector length for guarantees and return.
-    //int64_t vlen = 0U;  // 0 : vel version uses own vlen (clobber, in general)
 
     if(v>=2) cout<<" "<<__PRETTY_FUNCTION__<<endl; cout.flush();
 
@@ -350,9 +350,6 @@ std::string vel_vmerge32(
     //vmerge32 CONST1(aBy) CONST1(bBy) CONST1(dBy);
     CBLK(vmerge32,"__vr u"<<s<<", l"<<s<<", ul"<<s<<";");
     auto vopOnce [[maybe_unused]] = [&](Cblock& blk, int const _vlen, std::string i0=""){
-        //if(_vlen != vlen) blk>>"_ve_lvl("+asDec(vlen=_vlen)+");";
-        // NOTE: if aBy==bBy and b32==a32+1 then ul can be loaded with a single 64-bit load
-        //       (and then this becomes a '64-bit copy', perhaps avoidable)
 #if defined(VEL_BUG)
 #if VEL_BUG
         blk>>"_ve_lvl("<<asDec(_vlen)<<");";

@@ -132,7 +132,7 @@ void generateKdata(enum Kinit const ki, vednnFilterParam_t const * const tpKrn, 
     }
 }
 
-void testForward(struct param *pNetwork, int nEntry, double HZ, int flagBias, int flagCSV, int reps)
+void testForward(struct param *pNetwork, int nEntry, double HZ, int flagBias, int flagCSV, int reps, filterLayout_t filter_layout)
 {
     static int const doRef = 1; // do ref gemm calc
     static int const doStd = 1; // do libvednn default calc
@@ -157,7 +157,7 @@ void testForward(struct param *pNetwork, int nEntry, double HZ, int flagBias, in
         conv *pConv = &pConvBuff[i];
         struct param *pNw = &pNetwork[i];
 
-        testconvForward_alloc( pConv, pNw, flagBias );
+        testconvForward_alloc( pConv, pNw, flagBias, filter_layout );
 
         // Generate Data
         if ( pNetwork == &simpleParam[0] ) {
@@ -276,71 +276,22 @@ void testForward(struct param *pNetwork, int nEntry, double HZ, int flagBias, in
 
         for (i=0; i<nEntry; i++) {
             conv *pConv = &pConvBuff[i];
-
-            //unsigned long long c[2];
-            //c[0] = __cycle();
-
+            unsigned long long c[2];
             char name[80];
 
             // Convolution
-            if ( flagBias ) {
-                // use parameters and args, split according to order of libvednn public api.
-                // I.e. \c vednnConvolutionForwardAddBias call as defined in \ref vednn.h
-#define FWDB_PARMS \
-                pConv->pParamIn, pConv->pParamKernel, pConv->pParamBias, pConv->pParamOut, \
-                pConv->pParamConv, VEDNN_CONV_ALGORITHM_DIRECT
-#define FWDB_DATA \
-                pConv->pDataIn,  pConv->pDataKernel,  pConv->pDataBias,  pConv->pDataOut
-                // libvednnx "iterator over impls"
-                int iter_cnt=0;
-                for (vednnConvForwardAddBiasImpls * iter = vednnConvForwardAddBias_Begin(FWDB_PARMS);
-                        iter->okfn != NULL;
-                        iter = vednnConvForwardAddBias_Next(iter, FWDB_PARMS))
-                {
-                    snprintf(name,80,"%s:%d:%s",pConv->region,iter_cnt,iter->shortname);
-                    //printf(" %s...",name); fflush(stdout);
-
-                    FTRACE_BEGIN(name);
-                    // NB:             CONVX_.....order for low-level call
-                    rv = (*iter->impl)(CONVX_FWDB_ORDER(FWDB_PARMS, FWDB_DATA));
-                    FTRACE_END(name);
-
-                    if (r == 0){
-                        if( pConv->pParamIn->batch == 1 ) {
-                            printf(" batch 1 group=%d inChannel=%d outChannel=%d",
-                                    (int)(pConv->pParamConv->group),
-                                    (int)(pConv->pParamIn->channel),
-                                    (int)(pConv->pParamOut->channel));
-                        }
-                        //pConv->cycle += c[1] - c[0]; // this is reserved for the libvednn time
-                        //printf(" %s %llu cycles", name, c[1]-c[0]);
-                        double diff = diffData(pConv->pParamOut, pConv->pDataOut, pConv->pBufRef);
-                        printf(" %s : %s",(rv==VEDNN_SUCCESS?" OK":"BAD"),name); fflush(stdout);
-                        printf(" DIFF = %f", diff);
-                        printf("\n");
-                        fflush(stdout);
-                    }
-
-                    if(++iter_cnt>=100) ERROR_EXIT("run-away iter over ConvForwardBias impls?");
-                }
-#undef FWDB_DATA
-#undef FWDB_PARMS
-            }else{
-                // original args for vednn.h call:
-                //pConv->pParamIn,         pConv->pDataIn,
-                //pConv->pParamKernel,     pConv->pDataKernel,
-                //pConv->pParamOut,        pConv->pDataOut,
-                //pConv->pParamConv,
-                //VEDNN_CONV_ALGORITHM_DIRECT
+            if(1){
 #define FWD_PARMS \
                 /* */ pConv->pParamIn,     \
                 /* */ pConv->pParamKernel, \
+                /* */ pConv->pParamBias, \
                 /* */ pConv->pParamOut,    \
                 /* */ pConv->pParamConv,   \
                 /* */ VEDNN_CONV_ALGORITHM_DIRECT
 #define FWD_DATA \
                 /* */                      pConv->pDataIn, \
                 /* */                      pConv->pDataKernel, \
+                /* */                      pConv->pDataBias, \
                 /* */                      pConv->pDataOut
                 // libvednnx "iterator over impls"
                 // 1 i            printf(" t%ld", (long)omp_get_num_threads()); fflush(stdout);
@@ -356,41 +307,43 @@ void testForward(struct param *pNetwork, int nEntry, double HZ, int flagBias, in
                     snprintf(name,80,"%s:%d:%s",pConv->region,iter_cnt,iter->shortname);
                     //printf(" %s... ",name); fflush(stdout);
 
-#if 0 // original way:
-                    // BADNESS:  no thread support, no rtok check at runtime for data tr alignment
-                    FTRACE_BEGIN(name);
-                    // libvednn calls directly into libvednn low-level routines, so use
-                    // the CONVX_.. macro to get low-level arg order correct.
-                    rv = (*iter->impl)(CONVX_FWD_ORDER(FWD_PARMS, FWD_DATA));
-                    FTRACE_END(name);
-#else
+                    // realNext supports impls doing runtime check on ptr alignment
                     FTRACE_BEGIN("realNext");
                     vednnConvForwardImpls *actual = vednnConvForward_realNext(
                             iter, FWD_PARMS, FWD_DATA );
                     FTRACE_END("realNext");
 
-                    if ( actual != NULL ) {
-                        if( actual == iter ){ // almost always...
-                            snprintf(name,80,"%s:%d:%s",pConv->region,iter_cnt,iter->shortname);
-                        }else{
-                            snprintf(name,80,"%s:%d:%s-->%s",pConv->region,iter_cnt,iter->shortname,actual->shortname);
-                        }
-                        FTRACE_BEGIN(name);
-                        // now we also want omp support, so we call via _Run, not via (*actual->impl)
-                        vednnConvForward_out_t const out = vednnConvForward_Run( actual, FWD_PARMS, FWD_DATA );
-                        // ignore out.status  (hopefully VEDNN_SUCCESS)
-                        FTRACE_END(name);
-                        assert( out.actual == actual );
-                        rv = out.status;
+                    if ( actual == NULL ) {
+                        printf(" (_realNext skips %s)\n", name);
+                        continue;
                     }
-#endif
+                    if( actual == iter ){ // almost always...
+                        snprintf(name,80,"%s:%d:%s",pConv->region,iter_cnt,iter->shortname);
+                    }else{
+                        snprintf(name,80,"%s:%d:%s-->%s",pConv->region,iter_cnt,iter->shortname,actual->shortname);
+                    }
+                    FTRACE_BEGIN(name);
+                    // now we also want omp support, so we call via _Run, not via (*actual->impl)
+                    // (_Run also includes _realNext, but we call _realNext
+                    // explicitly for full info about what impl ran)
+                    c[0] = __cycle();
+                    vednnConvForward_out_t const out = vednnConvForward_Run( actual, FWD_PARMS, FWD_DATA );
+                    c[1] = __cycle();
+                    // ignore out.status  (hopefully VEDNN_SUCCESS)
+                    FTRACE_END(name);
+                    assert( out.actual == actual );
+                    rv = out.status;
+                    // --------------------------------------
+                    double t_ms = (c[1]-c[0]) * (1.0e3 / HZ);
                     //printf(" OK\n",name); fflush(stdout);
                     if (r == 0){
                         if( pConv->pParamIn->batch == 1 ) {
-                            printf(" batch 1 group=%d inChannel=%d outChannel=%d",
+                            printf(" mb%dg%dic%doc%d %9.3f ms",
+                                    (int)(pConv->pParamIn->batch),
                                     (int)(pConv->pParamConv->group),
                                     (int)(pConv->pParamIn->channel),
-                                    (int)(pConv->pParamOut->channel));
+                                    (int)(pConv->pParamOut->channel),
+                                    t_ms);
                         }
                         //pConv->cycle += c[1] - c[0]; // this is reserved for the libvednn time
                         //printf(" %s %llu cycles", name, c[1]-c[0]);
@@ -399,6 +352,8 @@ void testForward(struct param *pNetwork, int nEntry, double HZ, int flagBias, in
                         printf(" DIFF = %f", diff);
                         printf("\n");
                         fflush(stdout);
+                    }else{ // repetitions just print the time
+                        printf(" %9.3f ms %s\n", t_ms, name);
                     }
 
                     if(++iter_cnt>=100) ERROR_EXIT("run-away iter over ConvForward impls?");
@@ -427,7 +382,7 @@ void testForward(struct param *pNetwork, int nEntry, double HZ, int flagBias, in
     free(pConvBuff);
 }
 
-void testBackwardData(struct param *pNetwork, int nEntry, double HZ, int flagCSV, int reps)
+void testBackwardData(struct param *pNetwork, int nEntry, double HZ, int flagCSV, int reps, filterLayout_t filter_layout)
 {
     int i;
     typedef struct testconvBackwardData conv;
@@ -445,7 +400,7 @@ void testBackwardData(struct param *pNetwork, int nEntry, double HZ, int flagCSV
     for (i=0; i<nEntry; i++) {
         conv *pConv = &pConvBuff[i];
         struct param *pNw  = &pNetwork[i];
-        testconvBackwardData_alloc(pConv, pNw);
+        testconvBackwardData_alloc(pConv, pNw, filter_layout);
         testconvBackwardData_randomData( pConv );
     }
 
@@ -491,7 +446,7 @@ void testBackwardData(struct param *pNetwork, int nEntry, double HZ, int flagCSV
     free(pConvBuff);
 }
 
-void testBackwardFilter(struct param *pNetwork, int nEntry, double HZ, int flagCSV, int reps)
+void testBackwardFilter(struct param *pNetwork, int nEntry, double HZ, int flagCSV, int reps, filterLayout_t filter_layout)
 {
     int i;
     typedef struct testconvBackwardFilter conv;
@@ -508,7 +463,7 @@ void testBackwardFilter(struct param *pNetwork, int nEntry, double HZ, int flagC
     for (i=0; i<nEntry; i++) {
         conv *pConv = &pConvBuff[i];
         struct param *pNw  = &pNetwork[i];
-        testconvBackwardFilter_alloc( pConv, pNw );
+        testconvBackwardFilter_alloc(pConv, pNw, filter_layout);
         testconvBackwardFilter_randomData( pConv );
     }
 
@@ -567,17 +522,28 @@ static struct {
     //    { "BackwardBias", CONV_TEST_BACKWARD_BIAS } ,   // not implemented
 };
 
+static struct {
+    char *pName;
+    filterLayout_t   layouttype;
+} filterLayout[] = {
+    { "filter_nchw",    VEDNN_FILTER_LAYOUT_NCHW } ,
+    { "filter_hwcn",    VEDNN_FILTER_LAYOUT_HWCN }
+};
+
 static void help(){
-    printf( "\nve_cmpconv:"
+    printf( "\nve_simpleconv: demo of 'C' access to iterator API"
             "\n   -p PATH   convolution parameter file"
             "\n optional:"
             "\n   -C        CSV output"
-            "\n   -T STRING test type [Forward] ForwardAddBias"
-            "\n                       BackwardData BackwardFilter"
+            "\n   -T STRING test type: [Forward] ForwardAddBias"
+            "\n                        BackwardData BackwardFilter"
             "\n   -r INT    reps [1]"
             "\n   -H FLOAT  Timer register speed (Hz) [0.8e9]"
             "\n   -t N      omp_set_num_threads(N), then run"
             "\n             N < 0 means repeat for N=0..8 (don't use ftrace output)"
+            "\n   -i N      select image initialization method [sequential]"
+            "\n   -k N      select kernel initialization method [all ones]"
+            "\n   -f STRING filter layout: [filter_nchw] filter_hwcn"
             "\n");
 }
 int main(int argc, char **argv)
@@ -592,6 +558,7 @@ int main(int argc, char **argv)
     int flagCSV      = 0 ;
     int reps         = 1 ;
     int threads      = 1 ; /* set to -ve to repeat for 0..8 threads */
+    filterLayout_t filter_layout = VEDNN_FILTER_LAYOUT_NCHW;
     printf("Test program: %s\n",__FILE__);
     //enum Iinit itp   = Iseq ; // input type: Iseq=0={0,1,2,...}, Ixy={{00,01,..},{10,11,...},...{...<isz>,<isz>}}
     //enum Kinit ktp   = Ktl ; // kernel type: Ktl=1 in top left, zeros elsewhere
@@ -608,7 +575,7 @@ int main(int argc, char **argv)
             " You should be able to visually check for correctness of ref (gemm) output.\n"
             " Then we run all available impls (fwd) and report DIFF from ref calc.\n"
           );
-    while ((opt = getopt(argc, argv, "p:CH:T:t:r:i:k:")) != -1) {
+    while ((opt = getopt(argc, argv, "p:CH:T:t:r:i:k:f:")) != -1) {
         switch (opt) {
         case 'p':
             pParamPath = optarg;
@@ -634,6 +601,21 @@ int main(int argc, char **argv)
                          }
                      }
                      break;
+        case 'f' :
+                     {
+                         int found = 0;
+                         for (int i=0; i<sizeof(filterLayout)/sizeof(filterLayout[0]); i++) {
+                             if (strcasecmp(optarg, filterLayout[i].pName) == 0) {
+                                 filter_layout= filterLayout[i].layouttype ;
+                                 found = 1;
+                                 break;
+                             }
+                         }
+                         if (! found )  {
+                             fprintf(stderr, "Invalid filter layout.\n");
+                             exit(1);
+                         }
+                     }
         case 't':    threads = atof(optarg);
                      if(threads > 16) threads = 16;
                      if(threads < 0 ) threads = -1;
@@ -668,6 +650,7 @@ int main(int argc, char **argv)
     }
     printf("CONVOLUTION TEST TYPE    = %s\n",      tests[testtype].pName) ;
     printf("PROCESSOR CORE FREQUENCY = %.3e HZ\n", HZ);
+    printf("FILTER LAYOUT            = %s\n",      filterLayout[filter_layout].pName) ;
     printf("PARAMETER FILE           = %s\n",      pParamPath);
     printf(" Image data              = %s\n",      itp2str(itp));
     printf(" Kernel data             = %s\n",      ktp2str(ktp));
@@ -714,16 +697,16 @@ int main(int argc, char **argv)
 #endif
         switch(testtype) {
         case CONV_TEST_FORWARD :
-            testForward(pParams, nParams, HZ, 0, flagCSV, reps);
+            testForward(pParams, nParams, HZ, 0, flagCSV, reps, filter_layout);
             break ;
         case CONV_TEST_FORWARD_ADDBIAS :
-            testForward(pParams, nParams, HZ, 1, flagCSV, reps);
+            testForward(pParams, nParams, HZ, 1, flagCSV, reps, filter_layout);
             break ;
         case CONV_TEST_BACKWARD_DATA :
-            testBackwardData(pParams, nParams, HZ, flagCSV, reps);
+            testBackwardData(pParams, nParams, HZ, flagCSV, reps, filter_layout);
             break ;
         case CONV_TEST_BACKWARD_FILTER :
-            testBackwardFilter(pParams, nParams, HZ, flagCSV, reps);
+            testBackwardFilter(pParams, nParams, HZ, flagCSV, reps, filter_layout);
             break ;
         default :
             break ;

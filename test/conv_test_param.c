@@ -1,29 +1,23 @@
 #include "conv_test_param.h"
-#include "convolution_gemm.h"
 
 #include <assert.h>
 #include <stdio.h>
-#include <stdlib.h>     // drand48, rand, srand
+#include <stdlib.h>     // drand48
 #include <string.h>     // memset
 #include <math.h>       // sqrt
 #include <stdint.h>
-#include <mcheck.h>
 
 #ifdef __cplusplus
 extern "C" { //}
 #endif //C++
 
-
 static void oclobber_float(float * const out, size_t const nFloat){
     static const int oclobber_quick = 1;
     static uint64_t oclobber_rand = 13ULL;
-    mcheck_check_all();
     if(out==NULL || nFloat <= 0){
-        printf(" clobber out==%p, nFloat=%lu ?? IGNORED", (void*)out, (long unsigned)nFloat);
-        fflush(stdout);
+        printf(" clobber out==%p, nFloat=%lu ?? IGNORED\n", (void*)out, (long unsigned)nFloat);
     }else{
-        printf(" clobber out=%p nFloat=%lu", (void*)out, (long unsigned)nFloat);
-        fflush(stdout);
+        printf(" clobber out=%p nFloat=%lu\n", (void*)out, (long unsigned)nFloat);
         if(oclobber_quick){ // just change a few entries to wrong result
             out[0] = 999.99f;
             out[oclobber_rand % nFloat] = 13.13e5f;
@@ -34,7 +28,6 @@ static void oclobber_float(float * const out, size_t const nFloat){
             for(size_t i=0U; i<nFloat; ++i) out[i] = 13.13f;
         }
     }
-    mcheck_check_all(); printf(" (clobber DONE)\n"); fflush(stdout);
 }
 
 // testconvForward_FOO
@@ -65,7 +58,8 @@ testconvForward_init( struct testconvForward *pConv )
     pConv->ref_region[0]= '\0';
 }
 void
-testconvForward_alloc( struct testconvForward *pConv, struct param const* pNw, int const flagBias ){
+testconvForward_alloc( struct testconvForward *pConv, struct param const* pNw,
+        int const flagBias, filterLayout_t filter_layout ){
     pConv->ops = count_ops(pNw);
     vednnError_t rv[5];
     int inChannelGroup;
@@ -82,7 +76,8 @@ testconvForward_alloc( struct testconvForward *pConv, struct param const* pNw, i
     if( flagBias ) {
         rv[2] = createBiasParam(&pConv->pParamBias, DTYPE_FLOAT, pNw->outChannel);
     }
-    rv[3] = createKernelParam(&pConv->pParamKernel, DTYPE_FLOAT, inChannelGroup, outChannelGroup, pNw->kernWidth, pNw->kernHeight);
+    rv[3] = createKernelParam(&pConv->pParamKernel, DTYPE_FLOAT, filter_layout,
+            inChannelGroup, outChannelGroup, pNw->kernWidth, pNw->kernHeight);
     rv[4] = createConvolutionParam(&pConv->pParamConv, pNw->group, pNw->strideWidth, pNw->strideHeight, pNw->padWidth, pNw->padHeight, pNw->dilationHeight, pNw->dilationWidth);
     if (rv[0] != VEDNN_SUCCESS || rv[1] != VEDNN_SUCCESS || ( flagBias && rv[2] != VEDNN_SUCCESS )
             || rv[3] != VEDNN_SUCCESS || rv[4] != VEDNN_SUCCESS )
@@ -157,7 +152,6 @@ testconvForward_randomData( struct testconvForward const* pConv, int const flagB
             getKernelSize(pConv->pParamKernel) * pConv->pParamConv->group,
             pConv->pDataKernel);
 }
-
 void testconvForward_oclobber( struct testconvForward const* pConv ){
     switch(getTensorDataType(pConv->pParamOut)){
     case DTYPE_FLOAT: {
@@ -170,52 +164,9 @@ void testconvForward_oclobber( struct testconvForward const* pConv ){
     }
 }
 void
-testconvForward_vednncalcs( struct testconvForward *pConvArray, int const nEntry ){
-    vednnError_t rv = VEDNN_SUCCESS;
-
-    for (int i=0; i<nEntry; i++) {
-        struct testconvForward *pConv = &pConvArray[i];
-        int const flagBias = (pConv->pDataBias != NULL);
-#ifdef FTRACE
-        FTRACE_IF(char const* all_region = (flagBias? "all FwdB convolutions": "all Fwd convolutions"));
-        printf("all_region = %s\ndef_region = %s\n",all_region,pConv->region);
-#endif
-        FTRACE_BEGIN(all_region);
-
-        unsigned long long c[2];
-        c[0] = __cycle();
-
-        // Convolution
-        FTRACE_BEGIN(pConv->region);
-        if ( flagBias ) {
-            rv = vednnConvolutionForwardAddBias(pConv->pParamIn, pConv->pDataIn,
-                    pConv->pParamKernel, pConv->pDataKernel,
-                    pConv->pParamBias, pConv->pDataBias,
-                    pConv->pParamOut, pConv->pDataOut,
-                    pConv->pParamConv, VEDNN_CONV_ALGORITHM_DIRECT );
-        }
-        else {
-            rv = vednnConvolutionForward(pConv->pParamIn, pConv->pDataIn,
-                    pConv->pParamKernel, pConv->pDataKernel,
-                    pConv->pParamOut, pConv->pDataOut,
-                    pConv->pParamConv, VEDNN_CONV_ALGORITHM_DIRECT );
-        }
-        FTRACE_END(pConv->region);
-        FTRACE_END(all_region);
-        if (rv != VEDNN_SUCCESS) ERROR_EXIT("convolution() failed.");
-
-        c[1] = __cycle();
-        unsigned long long d = c[1] - c[0];
-        if( pConv->reps == 0U || d < pConv->mincycle ) pConv->mincycle = d;
-        if( pConv->reps == 0U || d > pConv->maxcycle ) pConv->maxcycle = d;
-        pConv->cycle += d;
-        ++pConv->reps;
-    }
-}
-void
 testconvForward_refcalcs( struct testconvForward *pConvArray, int const nEntry ){
     vednnError_t rv;
-    FTRACE_IF(char const* ref_all_region = "<gemm:Fwd> all convolution");
+    FTRACE_IF(char const* ref_all_region = "<gemm:Fwd>all");
     FTRACE_BEGIN(ref_all_region);
     for (int i=0; i<nEntry; i++) {
         struct testconvForward *pConv = &pConvArray[i];
@@ -231,6 +182,50 @@ testconvForward_refcalcs( struct testconvForward *pConvArray, int const nEntry )
         FTRACE_END(pConv->ref_region);
     }
     FTRACE_END(ref_all_region);
+}
+void
+testconvForward_vednncalcs( struct testconvForward *pConvArray, int const nEntry ){
+    vednnError_t rv = VEDNN_SUCCESS;
+
+    for (int i=0; i<nEntry; i++) {
+        struct testconvForward *pConv = &pConvArray[i];
+        int const flagBias = (pConv->pDataBias != NULL);
+        int namedLayer = strcmp(pConv->region,"\"wip\"") != 0;
+#ifdef FTRACE
+        FTRACE_IF(char const* all_region = (flagBias? "vednn-def all FwdB conv": "vednn-def all Fwd conv"));
+        printf("all_region = %s\ndef_region = %s\n",all_region,pConv->region);
+#endif
+        FTRACE_BEGIN(all_region);
+
+        unsigned long long c[2];
+        c[0] = __cycle();
+
+        // Convolution
+        if(namedLayer) FTRACE_BEGIN(pConv->region);
+        if ( flagBias ) {
+            rv = vednnConvolutionForwardAddBias(pConv->pParamIn, pConv->pDataIn,
+                    pConv->pParamKernel, pConv->pDataKernel,
+                    pConv->pParamBias, pConv->pDataBias,
+                    pConv->pParamOut, pConv->pDataOut,
+                    pConv->pParamConv, VEDNN_CONV_ALGORITHM_DIRECT );
+        }
+        else {
+            rv = vednnConvolutionForward(pConv->pParamIn, pConv->pDataIn,
+                    pConv->pParamKernel, pConv->pDataKernel,
+                    pConv->pParamOut, pConv->pDataOut,
+                    pConv->pParamConv, VEDNN_CONV_ALGORITHM_DIRECT );
+        }
+        if(namedLayer) FTRACE_END(pConv->region);
+        FTRACE_END(all_region);
+        if (rv != VEDNN_SUCCESS) ERROR_EXIT("convolution() failed.");
+
+        c[1] = __cycle();
+        unsigned long long d = c[1] - c[0];
+        if( pConv->reps == 0U || d < pConv->mincycle ) pConv->mincycle = d;
+        if( pConv->reps == 0U || d > pConv->maxcycle ) pConv->maxcycle = d;
+        pConv->cycle += d;
+        ++pConv->reps;
+    }
 }
 void testconvForward_free( struct testconvForward *pConv, int const flagBias){
     destroyTensorParam(pConv->pParamIn);
@@ -251,8 +246,6 @@ void testconvForward_free( struct testconvForward *pConv, int const flagBias){
     pConv->pDataIn = pConv->pDataOut = pConv->pDataKernel
         = pConv->pBufRef = pConv->pBufOne = pConv->pBufCol = NULL;
 }
-
-// testconvBackwardData_FOO
 void testconvBackwardData_init( struct testconvBackwardData *pConv ){
     pConv->pParamGradOut = NULL;
     pConv->pParamGradIn  = NULL;
@@ -272,7 +265,8 @@ void testconvBackwardData_init( struct testconvBackwardData *pConv ){
     pConv->region[0]     = '\0';
     pConv->ref_region[0] = '\0';
 }
-void testconvBackwardData_alloc( struct testconvBackwardData *pConv, struct param const* pNw ){
+void
+testconvBackwardData_alloc( struct testconvBackwardData *pConv, struct param const* pNw, filterLayout_t filter_layout ){
     pConv->ops = count_ops(pNw);
     vednnError_t rv[4];
     int inChannelGroup;
@@ -294,8 +288,8 @@ void testconvBackwardData_alloc( struct testconvBackwardData *pConv, struct para
             pNw->outChannel, pNw->outWidth, pNw->outHeight);
     rv[1] = createTensorParam(&pConv->pParamGradIn, DTYPE_FLOAT, pNw->batchNum,
             pNw->inChannel, pNw->inWidth, pNw->inHeight);
-    rv[2] = createKernelParam(&pConv->pParamKernel, DTYPE_FLOAT, inChannelGroup,
-            outChannelGroup, pNw->kernWidth, pNw->kernHeight);
+    rv[2] = createKernelParam(&pConv->pParamKernel, DTYPE_FLOAT, filter_layout,
+            inChannelGroup, outChannelGroup, pNw->kernWidth, pNw->kernHeight);
     rv[3] = createConvolutionParam(&pConv->pParamConv, pNw->group, pNw->strideWidth,
             pNw->strideHeight, pNw->padWidth, pNw->padHeight, pNw->dilationHeight, pNw->dilationWidth);
     if (rv[0] != VEDNN_SUCCESS || rv[1] != VEDNN_SUCCESS || rv[2] != VEDNN_SUCCESS || rv[3] != VEDNN_SUCCESS ) {
@@ -320,7 +314,6 @@ void testconvBackwardData_alloc( struct testconvBackwardData *pConv, struct para
     memset(pConv->pDataKernel,  0, getKernelSizeInByte(pConv->pParamKernel) * pNw->group);
 
     memset(pConv->pBufRef,      0, getTensorSizeInByte(pConv->pParamGradIn));
-
 }
 void
 testconvBackwardData_randomData( struct testconvBackwardData const* pConv ){
@@ -329,17 +322,6 @@ testconvBackwardData_randomData( struct testconvBackwardData const* pConv ){
     generateRandomData(getKernelDataType(pConv->pParamKernel),
             getKernelSize(pConv->pParamKernel) * pConv->pParamConv->group,
             pConv->pDataKernel);
-}
-void testconvBackwardData_oclobber( struct testconvBackwardData const* pConv ){
-    switch(getTensorDataType(pConv->pParamGradOut)){
-    case DTYPE_FLOAT: {
-                          float * const out = (float*)pConv->pDataGradOut;
-                          size_t const nFloat = getTensorSize(pConv->pParamGradOut);
-                          oclobber_float(out,nFloat);
-                      }
-                      break;
-    default: ERROR_EXIT("Unknown dataType_t"); break;
-    }
 }
 void
 testconvBackwardData_dumpParms( struct testconvBackwardData const *pConv ){
@@ -357,30 +339,16 @@ testconvBackwardData_dumpParms( struct testconvBackwardData const *pConv ){
             parm->dilationWidth, parm->dilationHeight);
 }
 void
-testconvBackwardData_vednncalcs( struct testconvBackwardData *pConvArray, int const nEntry ){
-    vednnError_t rv;
-    FTRACE_IF(char const* allconv = "all BkwdD convolution");
-    FTRACE_BEGIN(allconv);
-    for (int i=0; i<nEntry; i++) {
-        struct testconvBackwardData *pConv = &pConvArray[i];
-        unsigned long long c[2];
-        c[0] = __cycle();
-        FTRACE_BEGIN(pConv->region);
-        // Convolution
-        rv = vednnConvolutionBackwardData(pConv->pParamGradOut, pConv->pDataGradOut,
-                pConv->pParamKernel, pConv->pDataKernel,
-                pConv->pParamGradIn, pConv->pDataGradIn,
-                pConv->pParamConv, VEDNN_CONV_ALGORITHM_DIRECT );
-        if (rv != VEDNN_SUCCESS) ERROR_EXIT("convolution() failed.\n");
-        FTRACE_END(pConv->region);
-        c[1] = __cycle();
-        unsigned long long d = c[1] - c[0];
-        if( pConv->reps == 0U || d < pConv->mincycle ) pConv->mincycle = d;
-        if( pConv->reps == 0U || d > pConv->maxcycle ) pConv->maxcycle = d;
-        pConv->cycle += d;
-        ++pConv->reps;
+testconvBackwardData_oclobber( struct testconvBackwardData const* pConv ){
+    switch(getTensorDataType(pConv->pParamGradOut)){
+    case DTYPE_FLOAT: {
+                          float * const out = (float*)pConv->pDataGradOut;
+                          size_t const nFloat = getTensorSize(pConv->pParamGradOut);
+                          oclobber_float(out,nFloat);
+                      }
+                      break;
+    default: ERROR_EXIT("Unknown dataType_t"); break;
     }
-    FTRACE_END(allconv);
 }
 void
 testconvBackwardData_refcalcs( struct testconvBackwardData *pConvArray, int const nEntry ){
@@ -409,6 +377,33 @@ testconvBackwardData_refcalcs( struct testconvBackwardData *pConvArray, int cons
     }
     FTRACE_END(ref_all_region);
     free(ref_regions);
+}
+void
+testconvBackwardData_vednncalcs( struct testconvBackwardData *pConvArray, int const nEntry ){
+    vednnError_t rv;
+    FTRACE_IF(char const* allconv = "all BkwdD convolution");
+    FTRACE_BEGIN(allconv);
+    for (int i=0; i<nEntry; i++) {
+        struct testconvBackwardData *pConv = &pConvArray[i];
+        unsigned long long c[2];
+        int namedLayer = strcmp(pConv->region,"\"wip\"") != 0;
+        c[0] = __cycle();
+        if(namedLayer) FTRACE_BEGIN(pConv->region);
+        // Convolution
+        rv = vednnConvolutionBackwardData(pConv->pParamGradOut, pConv->pDataGradOut,
+                pConv->pParamKernel, pConv->pDataKernel,
+                pConv->pParamGradIn, pConv->pDataGradIn,
+                pConv->pParamConv, VEDNN_CONV_ALGORITHM_DIRECT );
+        if (rv != VEDNN_SUCCESS) ERROR_EXIT("convolution() failed.\n");
+        if(namedLayer) FTRACE_END(pConv->region);
+        c[1] = __cycle();
+        unsigned long long d = c[1] - c[0];
+        if( pConv->reps == 0U || d < pConv->mincycle ) pConv->mincycle = d;
+        if( pConv->reps == 0U || d > pConv->maxcycle ) pConv->maxcycle = d;
+        pConv->cycle += d;
+        ++pConv->reps;
+    }
+    FTRACE_END(allconv);
 }
 void testconvBackwardData_free( struct testconvBackwardData *pConv ){
     destroyTensorParam(pConv->pParamGradOut);
@@ -444,7 +439,7 @@ void testconvBackwardFilter_init( struct testconvBackwardFilter *pConv ){
     pConv->region[0]        = '\0';
     pConv->ref_region[0]    = '\0';
 }
-void testconvBackwardFilter_alloc( struct testconvBackwardFilter *pConv, struct param const* pNw ){
+void testconvBackwardFilter_alloc( struct testconvBackwardFilter *pConv, struct param const* pNw, filterLayout_t filter_layout ){
     pConv->ops = count_ops(pNw);
     vednnError_t rv[4];
     int inChannelGroup;
@@ -464,7 +459,8 @@ void testconvBackwardFilter_alloc( struct testconvBackwardFilter *pConv, struct 
 
     rv[0] = createTensorParam(&pConv->pParamIn, DTYPE_FLOAT, pNw->batchNum, pNw->inChannel, pNw->inWidth, pNw->inHeight);
     rv[1] = createTensorParam(&pConv->pParamGradOut, DTYPE_FLOAT, pNw->batchNum, pNw->outChannel, pNw->outWidth, pNw->outHeight);
-    rv[2] = createKernelParam(&pConv->pParamGradKernel, DTYPE_FLOAT, inChannelGroup, outChannelGroup, pNw->kernWidth, pNw->kernHeight);
+    rv[2] = createKernelParam(&pConv->pParamGradKernel, DTYPE_FLOAT, filter_layout,
+            inChannelGroup, outChannelGroup, pNw->kernWidth, pNw->kernHeight);
     rv[3] = createConvolutionParam(&pConv->pParamConv, pNw->group, pNw->strideWidth, pNw->strideHeight, pNw->padWidth, pNw->padHeight, pNw->dilationHeight, pNw->dilationWidth);
     if (rv[0] != VEDNN_SUCCESS || rv[1] != VEDNN_SUCCESS || rv[2] != VEDNN_SUCCESS || rv[3] != VEDNN_SUCCESS ) {
         fprintf(stderr, "Failed to create/initialize structure.\n");
@@ -510,43 +506,6 @@ void testconvBackwardFilter_randomData( struct testconvBackwardFilter const* pCo
     generateRandomData(getTensorDataType(pConv->pParamGradOut),
             getTensorSize(pConv->pParamGradOut), pConv->pDataGradOut);
 }
-void testconvBackwardFilter_oclobber( struct testconvBackwardFilter const* pConv ){
-    switch(getKernelDataType(pConv->pParamGradKernel)){
-    case DTYPE_FLOAT: {
-                          float * const out = (float*)pConv->pDataGradKernel;
-                          size_t const nFloat = getKernelSizeInByte(pConv->pParamGradKernel);
-                          oclobber_float(out,nFloat);
-                      }
-                      break;
-    default: ERROR_EXIT("Unknown dataType_t"); break;
-    }
-}
-void
-testconvBackwardFilter_vednncalcs( struct testconvBackwardFilter *pConvArray, int const nEntry ){
-    vednnError_t rv;
-    FTRACE_IF(char const* all_region = "all BkwF convolution");
-    FTRACE_BEGIN(all_region);
-    for (int i=0; i<nEntry; i++) {
-        struct testconvBackwardFilter *pConv = &pConvArray[i];
-        unsigned long long c[2];
-        c[0] = __cycle();
-        FTRACE_BEGIN(pConv->region);
-        // Convolution
-        rv = vednnConvolutionBackwardFilter(pConv->pParamIn, pConv->pDataIn,
-                pConv->pParamGradOut, pConv->pDataGradOut,
-                pConv->pParamGradKernel, pConv->pDataGradKernel,
-                pConv->pParamConv, VEDNN_CONV_ALGORITHM_DIRECT );
-        if (rv != VEDNN_SUCCESS) ERROR_EXIT("convolution() failed.\n");
-        FTRACE_END(pConv->region);
-        c[1] = __cycle();
-        unsigned long long d = c[1] - c[0];
-        if( pConv->reps == 0U || d < pConv->mincycle ) pConv->mincycle = d;
-        if( pConv->reps == 0U || d > pConv->maxcycle ) pConv->maxcycle = d;
-        pConv->cycle += d;
-        ++pConv->reps;
-    }
-    FTRACE_END(all_region);
-}
 void
 testconvBackwardFilter_refcalcs( struct testconvBackwardFilter *pConvArray, int const nEntry ){
     // this one is nice because it uses a local ref_regions (so can remove the field)
@@ -575,6 +534,33 @@ testconvBackwardFilter_refcalcs( struct testconvBackwardFilter *pConvArray, int 
 #if defined(FTRACE)
     free(ref_regions);
 #endif
+}
+void
+testconvBackwardFilter_vednncalcs( struct testconvBackwardFilter *pConvArray, int const nEntry ){
+    vednnError_t rv;
+    FTRACE_IF(char const* all_region = "all BkwF convolution");
+    FTRACE_BEGIN(all_region);
+    for (int i=0; i<nEntry; i++) {
+        struct testconvBackwardFilter *pConv = &pConvArray[i];
+        unsigned long long c[2];
+        int namedLayer = strcmp(pConv->region,"\"wip\"") != 0;
+        c[0] = __cycle();
+        if(namedLayer) FTRACE_BEGIN(pConv->region);
+        // Convolution
+        rv = vednnConvolutionBackwardFilter(pConv->pParamIn, pConv->pDataIn,
+                pConv->pParamGradOut, pConv->pDataGradOut,
+                pConv->pParamGradKernel, pConv->pDataGradKernel,
+                pConv->pParamConv, VEDNN_CONV_ALGORITHM_DIRECT );
+        if (rv != VEDNN_SUCCESS) ERROR_EXIT("convolution() failed.\n");
+        if(namedLayer) FTRACE_END(pConv->region);
+        c[1] = __cycle();
+        unsigned long long d = c[1] - c[0];
+        if( pConv->reps == 0U || d < pConv->mincycle ) pConv->mincycle = d;
+        if( pConv->reps == 0U || d > pConv->maxcycle ) pConv->maxcycle = d;
+        pConv->cycle += d;
+        ++pConv->reps;
+    }
+    FTRACE_END(all_region);
 }
 void testconvBackwardFilter_free( struct testconvBackwardFilter *pConv ){
     destroyTensorParam(pConv->pParamIn);

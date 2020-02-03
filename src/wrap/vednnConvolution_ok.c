@@ -1,4 +1,3 @@
-
 #include "vednnConvolution_ok.h"
 #include "vednnConvolutionLists.h" // circular? YES!
 #include <stdint.h>
@@ -16,10 +15,8 @@ int (*pfun) (void) = NULL;
 /** Run-time Pointer alignment checks */
 #define FWD_RT_OK( BASENAME ) vednnError_t BASENAME##_rtok(VEDNN_DATARG_CONV_FORWARD)
 
-#define FWD_LIKE0(BASENAME) (VEDNN_SUCCESS == BASENAME##_ok( \
-            pParamIn, pParamKernel, pParamOut, pParamConv, algo))
-#define FWD_LIKE(IMPL) (VEDNN_SUCCESS == vednnConvolutionForward_direct_##IMPL##_ok( \
-            pParamIn, pParamKernel, pParamOut, pParamConv, algo))
+#define FWD_LIKE(IMPL) (VEDNN_SUCCESS == \
+        vednnConvolutionForward_direct_##IMPL##_ok( VEDNN_PARAMS_CONV_FORWARD_LIST))
 
 #define FWD_FN_OK_LIKE( IMPL, PREV_IMPL, EXTRA_COND ) \
 FWD_FN_OK(vednnConvolutionForward_direct_##IMPL) { \
@@ -73,17 +70,23 @@ FWD_FN_OK(vednnConvolutionForward_direct_default)
 //    int ok = FWD_LIKE(default);
 //    return ok? VEDNN_SUCCESS: VEDNN_ERROR_INVALID_PARAM;
 //}
+FWD_FN_OK_LIKE(gendnn, default, 1); // Note: this one comes in libvednnx [wip]
+FWD_FN_OK_LIKE(gemm, default, pParamKernel->layout==VEDNN_FILTER_LAYOUT_NCHW );
 FWD_FN_OK_LIKE(default2, default, 1);
 FWD_FN_OK_LIKE(default2p, default, 1);
 FWD_FN_OK_LIKE(default3, default, 1);
 FWD_FN_OK_LIKE(default3b, default, 1);
-FWD_FN_OK_LIKE(gemm, default, 1);
-FWD_FN_OK_LIKE(gemmA, default, 1);
 FWD_FN_OK_LIKE(alt, default, 1);
 FWD_FN_OK_LIKE(defaultA, default, 1);
 FWD_FN_OK_LIKE(owU128, default, pParamOut->width <= 128);
 FWD_FN_OK_LIKE(owU128A, owU128, 1);
-FWD_FN_OK_LIKE(owU128_T, owU128, 1);
+
+
+FWD_FN_OK_LIKE(dil1_str2_pad1_ker3_owU128, owU128,
+        pParamConv->strideHeight == 2 && pParamConv->strideWidth == 2
+        && pParamConv->dilationHeight == 1 && pParamConv->dilationWidth == 1
+        && pParamConv->padHeight == 1 && pParamConv->padWidth == 1
+        && pParamKernel->height == 3 && pParamKernel->width == 3);
 
 FWD_FN_OK_LIKE(vecC, default,
         pParamOut->height * pParamOut->width <= 16
@@ -115,7 +118,6 @@ FWD_FN_OK_LIKE(dil1_str1_pad0A, dil1_str1_pad0, 1);
 FWD_FN_OK_LIKE(dil1_str1_pad0_ker1, dil1_str1_pad0,
         pParamKernel->width == 1 && pParamKernel->height == 1);
 FWD_FN_OK_LIKE(dil1_str1_pad0_ker1A, dil1_str1_pad0_ker1, 1);
-FWD_FN_OK_LIKE(dil1_str1_pad0_ker1_T, dil1_str1_pad0_ker1, 1);
 
 FWD_FN_OK_LIKE(dil1_pad0_ker1, dil1_pad0,
         pParamKernel->width == 1 && pParamKernel->height == 1);
@@ -127,13 +129,11 @@ FWD_FN_OK_LIKE(dil1_pad0_owU128_ker1A, dil1_pad0_owU128_ker1, 1);
 FWD_FN_OK_LIKE(dil1_str1_padsame_ker3, dil1_str1_padsame,
         pParamKernel->width == 3 && pParamKernel->height == 3);
 FWD_FN_OK_LIKE(dil1_str1_padsame_ker3A, dil1_str1_padsame_ker3, 1);
-FWD_FN_OK_LIKE(dil1_str1_padsame_ker3_T, dil1_str1_padsame_ker3, 1);
 
-FWD_FN_OK_LIKE(dil1_str1_padsame_ker3_c1024x, dil1_str1_padsame_ker3,
-        1 /* CAN validly run in other cases! ParamKernel->inChannel % 1024 == 0 */
-        );
-FWD_FN_OK_LIKE(dil1_str1_padsame_ker3_c1024xA, dil1_str1_padsame_ker3_c1024x, 1);
-FWD_FN_OK_LIKE(dil1_str1_padsame_ker3_c1024x_T, dil1_str1_padsame_ker3_c1024x, 1);
+//FWD_FN_OK_LIKE(dil1_str1_padsame_ker3_c1024x, dil1_str1_padsame_ker3,
+//        1 /* CAN validly run in other cases! ParamKernel->inChannel % 1024 == 0 */
+//        );
+//FWD_FN_OK_LIKE(dil1_str1_padsame_ker3_c1024xA, dil1_str1_padsame_ker3_c1024x, 1);
 
 FWD_FN_OK_LIKE(dil1_str1_padsame_ker3_c1, dil1_str1_padsame_ker3,
         pParamIn->channel == pParamConv->group);
@@ -174,11 +174,11 @@ FWD_FN_OK_LIKE(dil1_pad0_owU128, dil1_pad0, pParamOut->width <= 128);
 FWD_FN_OK_LIKE(dil1_pad0_owU128A, dil1_pad0_owU128, 1);
 //---------------------
 #undef FWD_FN_OK_LIKE
-#undef FWD_LIKE0
 #undef FWD_LIKE
 #undef FWD_FN_OK
 #undef FWD_RT_OK
 
+#if 0
 #define FWDBIAS_FN_OK( BASENAME ) vednnError_t BASENAME##_ok(  VEDNN_PARAMS_CONV_FORWARDADDBIAS)
 #define FWDBIAS_RT_OK( BASENAME ) vednnError_t BASENAME##_rtok(VEDNN_DATARG_CONV_FORWARDADDBIAS)
 #define FWDBIAS_LIKE(BASENAME) (VEDNN_SUCCESS == BASENAME##_ok( \
@@ -233,6 +233,7 @@ FWDBIAS_FN_OK(vednnConvolutionForwardAddBias_direct_dil1_str1_pad0_ker1_c1024x)
 #undef FWDBIAS_LIKE
 #undef FWDBIAS_RT_OK
 #undef FWDBIAS_FN_OK
+#endif
 
 #define BKWD_FN_OK( BASENAME ) vednnError_t BASENAME##_ok(   VEDNN_PARAMS_CONV_BACKWARD_DATA )
 #define BKWD_RT_OK( BASENAME ) vednnError_t BASENAME##_rtok( VEDNN_DATARG_CONV_BACKWARD_DATA )
@@ -244,6 +245,10 @@ FWDBIAS_FN_OK(vednnConvolutionForwardAddBias_direct_dil1_str1_pad0_ker1_c1024x)
         int ok = BKWD_LIKE(PREV_IMPL) && (EXTRA_COND); \
         return ok? VEDNN_SUCCESS: VEDNN_ERROR_INVALID_PARAM; \
     }
+#define DIL(N) pParamConv->dilationHeight == (N) && pParamConv->dilationWidth == (N)
+#define PAD(N) pParamConv->padHeight == (N) && pParamConv->padWidth == (N)
+#define STR(N) pParamConv->strideHeight == (N) && pParamConv->strideWidth == (N)
+#define KER(N) pParamKernel->width == (N) && pParamKernel->height == (N)
 
 BKWD_FN_OK(vednnConvolutionBackwardData_direct_default)
 {
@@ -265,28 +270,41 @@ BKWD_FN_OK(vednnConvolutionBackwardData_direct_default)
         ;
     return ok? VEDNN_SUCCESS: VEDNN_ERROR_INVALID_PARAM;
 }
-BKWD_FN_OK_LIKE(default2, default, 1);
-BKWD_FN_OK_LIKE(gemm, default, 1);
-BKWD_FN_OK_LIKE(gemmA, default, 1);
-BKWD_FN_OK_LIKE(iwU128, default, pParamGradIn->width <= 128);
+BKWD_FN_OK_LIKE(gemm,           default, pParamKernel->layout==VEDNN_FILTER_LAYOUT_NCHW );
+BKWD_FN_OK_LIKE(iwU128,         default, pParamGradIn->width <= 128);
+BKWD_FN_OK_LIKE(ker5,           default,    KER(5));
+BKWD_FN_OK_LIKE(ker3_iwU128,    iwU128,     KER(3));
+BKWD_FN_OK_LIKE(ker5_iwU128,    iwU128,     KER(5));
 
-BKWD_FN_OK_LIKE(dil1_str1, default,
-        pParamConv->strideHeight == 1 && pParamConv->strideWidth == 1
-        && pParamConv->dilationHeight == 1 && pParamConv->dilationWidth == 1);
+BKWD_FN_OK_LIKE(vecC, default,
+        ( pParamGradIn->height * pParamGradIn->width <= 16 ||
+          ( pParamGradIn->height * pParamGradIn->width < 64
+            && pParamGradIn->height * pParamGradIn->width < pParamGradIn->channel / pParamConv->group )));
 
-BKWD_FN_OK_LIKE(dil1_str1_iwU128, dil1_str1, pParamGradIn->width <= 128);
+BKWD_FN_OK_LIKE(dil1_str1, default, DIL(1) && STR(1));
 
-BKWD_FN_OK_LIKE(dil1_str1_pad0_ker3_iwU128, dil1_str1_iwU128,
-        pParamConv->padHeight == 0 && pParamConv->padWidth == 0
-        /* TODO check output size correct */
-        && pParamKernel->height == 3 && pParamKernel->width == 3);
+BKWD_FN_OK_LIKE(dil1_str2_ker3_iwU256, default,
+        DIL(1) && STR(2) && KER(3) && pParamGradIn->width <= 256 );
+BKWD_FN_OK_LIKE(dil1_str2_pad1_ker3_iwU256, dil1_str2_ker3_iwU256, PAD(1));
+
+BKWD_FN_OK_LIKE(dil1_str1_padsame, dil1_str1,
+        /* could instead ask in- and out-Widths and -Heights to match */
+        pParamKernel->width == 2*pParamConv->padWidth + 1
+        && pParamKernel->height == 2*pParamConv->padHeight + 1);
+BKWD_FN_OK_LIKE(dil1_str1_iwU128, dil1_str1,
+        pParamGradIn->width <= 128);
+
+BKWD_FN_OK_LIKE(dil1_str1_padsame_ker5, dil1_str1_padsame, KER(5));
+BKWD_FN_OK_LIKE(dil1_str1_padsame_ker3, dil1_str1_padsame, KER(3));
+BKWD_FN_OK_LIKE(dil1_str1_padsame_ker2, dil1_str1_padsame, KER(2));
+BKWD_FN_OK_LIKE(dil1_str1_padsame_ker1, dil1_str1_padsame, KER(1));
 
 BKWD_RT_OK(vednnConvolutionBackwardData_direct_dil1_str1_pad0_ker3_iw2XU256_ow2X_ioaligned)
     CHK2_ALIGN8(pDataGradIn,pDataGradOut);
 BKWD_FN_OK_LIKE(dil1_str1_pad0_ker3_iw2XU256_ow2X_ioaligned, dil1_str1,
         pParamConv->padHeight == 0 && pParamConv->padWidth == 0
         /* TODO check output size correct */
-        && pParamKernel->height == 3 && pParamKernel->width == 3
+        && KER(3)
         && pParamGradIn->width <=256
         && (pParamGradIn->width & 0x01) == 0
         && (pParamGradOut->width & 0x01) == 0
@@ -299,13 +317,25 @@ BKWD_RT_OK(vednnConvolutionBackwardData_direct_dil1_str1_pad0_ker3_iw2XU32_ow2X_
 BKWD_FN_OK_LIKE(dil1_str1_pad0_ker3_iw2XU32_ow2X_ioaligned, dil1_str1_pad0_ker3_iw2XU256_ow2X_ioaligned,
         pParamGradIn->width <=256);
 
-BKWD_FN_OK_LIKE(dil1_str1_padsame, dil1_str1,
-        pParamKernel->width == 2*pParamConv->padWidth + 1
-        && pParamKernel->height == 2*pParamConv->padHeight + 1);
+BKWD_FN_OK_LIKE(dil1_str1_pad0_iwU128, dil1_str1, pParamGradIn->width <= 128)
+BKWD_FN_OK_LIKE(dil1_str1_pad0_ker3_iwU128, dil1_str1_iwU128,
+        PAD(0) && KER(3)); /* TODO check output size correct */
 
-BKWD_FN_OK_LIKE(dil1_str1_padsame_ker5, dil1_str1_padsame,
-        pParamKernel->width == 5 && pParamKernel->height == 5);
+BKWD_FN_OK_LIKE(dil1_str2_pad2_ker5, default, KER(5) && STR(2) && PAD(2) && DIL(1));
+BKWD_FN_OK_LIKE(dil1_str2_pad2_ker5_iwU128, dil1_str2_pad2_ker5,
+        pParamGradIn->width <= 128);
 
+BKWD_FN_OK_LIKE(dil1_pad0_ker1_owU128, default,
+        pParamConv->dilationHeight == 1 && pParamConv->dilationWidth == 1
+        && pParamConv->padHeight == 0 && pParamConv->padWidth == 0
+        && KER(1)
+        && pParamGradOut->width <= 128 );
+
+
+#undef KER
+#undef STR
+#undef PAD
+#undef DIL
 #undef BKWD_LIKE
 #undef BKWD_LIKE0
 #undef BKWD_FN_OK_LIKE
@@ -345,8 +375,10 @@ BKWF_FN_OK(vednnConvolutionBackwardFilter_direct_default)
         ;
     return ok? VEDNN_SUCCESS: VEDNN_ERROR_INVALID_PARAM;
 }
-BKWF_FN_OK_LIKE(gemm, default, 1);
-BKWF_FN_OK_LIKE(gemmA, default, 1);
+//BKWF_FN_OK_LIKE(default2, default, 1);
+//BKWF_FN_OK_LIKE(gendnn, default, 1);
+BKWF_FN_OK_LIKE(gemm, default, pParamGradKernel->layout==VEDNN_FILTER_LAYOUT_NCHW );
+
 BKWF_FN_OK_LIKE(dil1_str1_padsame, default,
         pParamConv->strideWidth==1 && pParamConv->strideHeight==1
         && pParamConv->dilationWidth==1 && pParamConv->dilationHeight==1
@@ -369,7 +401,6 @@ BKWF_FN_OK_LIKE(dil1_pad0, default,
         && pParamGradOut->height == (pParamIn->height - pParamGradKernel->height) / pParamConv->strideHeight + 1
         && pParamGradOut->width == (pParamIn->width - pParamGradKernel->width) / pParamConv->strideWidth + 1);
 BKWF_FN_OK_LIKE(dil1_pad0_owU32, dil1_pad0, OW(32));
-BKWF_FN_OK_LIKE(dil1_pad0_owU128, dil1_pad0, OW(128));
 
 BKWF_FN_OK_LIKE(dil1_str1_pad0_ker3_ow2X_iw2XU256_igoaligned, dil1_pad0,
         KER(3)

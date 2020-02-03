@@ -38,6 +38,12 @@ vednnError_t vednnInitJit(void** jitctx,
         char const* process_subdir,
         char const* process_lib);
 
+/** after freeing \c jitctx, symbols should no longer be used.
+ * Well, if you have not already done so, you may
+ * \c vednnSym_free them (they have some string memory)
+ * \post *jitctx==nullptr. */
+vednnError_t vednnFreeJit(void** jitctx);
+
 /** Add \c libpath dll to \c jitctx symbol resolution procedures.
  * \pre non-NULL \c jitctx set via \c vednnInitJit.
  *
@@ -65,16 +71,20 @@ vednnError_t vednnJitLib(void* jitctx, char const* libpath);
  * If the constructor sets \c addr non-NULL, then there is a fast-path
  * call available -- such symbols guarantee never needing to check for
  * stale dlls, and never need to check \e data pointer alignments.
+ *
+ * \c vednnSym_t are always allocated with \c new, and should be freed
+ * via \c vednnSym_free(VednnSym_t**).
  */
 struct vednnSym_s {
-    char const* const symbol; ///< a low-level vednn jit impl (NULL means vednn public impl)
+    char const* symbol; ///< a low-level vednn jit impl (NULL means vednn public impl)
     void * addr;              ///< for fastest calling (not always exposed)
     vednnSymDetail_t opaque;  ///< opaque details
 };
 
 /** release scratchpad memory or other privately held data.
- * At least releases \c jitsym->symbol string memory. */
-void vednnSym_free( vednnSym_t * jitsym );
+ * At least releases \c (*jitsym)->symbol string memory.
+ * \post \c *jitsym is nullptr*/
+void vednnSym_free( vednnSym_t ** jitsym );
 
 /** @group vednnSymCall invoke a LAYER via \c vednnSym_t.
  * The first argument is always a \c vednnSym_t*, followed by

@@ -1,18 +1,17 @@
+
 #ifndef TEST_VEDNN_HELPER_H_
 #define TEST_VEDNN_HELPER_H_
 
 #include "vednn.h"
-
 #include <stddef.h>
 #include <stdio.h>
 
 #ifdef __cplusplus
 extern "C" {
-#endif
-
 // not sure about next condition (has it changed to be defined in necvals.h?)
 #if !defined(restrict)
 #define restrict __restrict__
+#endif
 #endif
 
 vednnError_t
@@ -66,7 +65,8 @@ dumpBiasData(FILE * restrict pFile, const char * restrict pName,
 
 vednnError_t
 createKernelParam(vednnFilterParam_t **ppParam, dataType_t dtype,
-                  int inChannel, int outChannel, int width, int height);
+        filterLayout_t filter_layout, int inChannel, int outChannel,
+        int width, int height);
 
 void
 destroyKernelParam(vednnFilterParam_t *pParam);
@@ -107,6 +107,7 @@ createPoolingParam(vednnPoolingParam_t **ppParam,
 void destroyPoolingParam(vednnPoolingParam_t *pParam) ;
 
 #ifdef __cplusplus
-}// extern "C"
+}//extern "C"
 #endif
+// vim: et ts=4 sw=4 cindent cino=^=l0,\:0,N-s syntax=cpp.doxygen
 #endif /* TEST_VEDNN_HELPER_H_ */

@@ -43,8 +43,8 @@ using namespace cprog;
 #define PRE_KRN_MAX 8
 
 #if PRE_KH_BEG_END
-/** 0: precalc array kh_be 1: static array kh_be? 2: do we elide some things? 3: elide more? */
-#define KH_BE 2 // USE 2 for production version
+/** 1: do we use a static array kh_be? 2: do we elide some things? 3: elide more? */
+#define KH_BE 2
 #if KH_BE // static array
 //#define DEFINE_KH_BEG_END "uint8_t const * restrict kh_beg_end = &kh_be[0];"
 #define DEFINE_KH_BEG_END ""
@@ -367,11 +367,11 @@ struct PreConvFwd1q mkPreConvFwd1q( struct param const* const p,
             kBy = 2;
             if( (outChannelGroup & kBy) != 0 ) kMax = k+kBy;
             if ( kBy == kByMax || kMax>outChannelGroup ) kMax = outChannelGroup;
-#ifndef NDEBUG
             auto const k2_0 = pre.krn_gkrsc.size();
+#ifndef NDEBUG
             auto const k0 = k;
-            cout<<" g"<<g<<" k"<<k<<" k2@"<<k2_0<<endl;
 #endif
+            cout<<" g"<<g<<" k"<<k<<" k2@"<<k2_0<<endl;
             assert( k2_0 == g * ((kMax-k)/kBy) * (kernHW*inChannelGroup) );
             for( ; k<kMax; k+=kBy){ // loop_k
                 pKern_gk = pKernel + kernGroupOffset + (k * inChannelGroup + 0/*c*/) * kernHW;
@@ -388,8 +388,8 @@ struct PreConvFwd1q mkPreConvFwd1q( struct param const* const p,
 #ifndef NDEBUG
             auto const k4_0 = pre.krn_gkrsc.size();
             auto const k0 = k;
-#endif
             assert( k4_0 == g * ((kMax-k)/kBy) * (kernHW*inChannelGroup) );
+#endif
             for( ; k<kMax; k+=kBy){ // loop_k
                 pKern_gk = pKernel + kernGroupOffset + (k * inChannelGroup + 0/*c*/) * kernHW;
                 krn_rsc_kBy_gt_1();
@@ -404,8 +404,8 @@ struct PreConvFwd1q mkPreConvFwd1q( struct param const* const p,
 #ifndef NDEBUG
             auto const k8_0 = pre.krn_gkrsc.size();
             auto const k0 = k;
-#endif
             assert( k8_0 == g * ((kMax-k)/kBy) * (kernHW*inChannelGroup) );
+#endif
             for( ; k<kMax; k+=kBy){ // loop_k
                 pKern_gk = pKernel + kernGroupOffset + (k * inChannelGroup + 0/*c*/) * kernHW;
                 krn_rsc_kBy_gt_1();
@@ -692,7 +692,7 @@ std::pair<string,string> strCPreConvFwd1q( struct param const* const p, int cons
         && !((PRE_KRN_MAX>=2) && nk2>0)
         && !((PRE_KRN_MAX>=4) && nk4>0)
         && !((PRE_KRN_MAX>=8) && nk8>0)
-        && (PRE_KH_BEG_END==0 || (PRE_KH_BEG_END && KH_BE>0))
+        && (PRE_KH_BEG_END==0 || (PRE_KH_BEG_END && KH_BE))
       ){ // then we have no work to do
         cout<<" (CpreConvFwd1q not needed)";
     }else{
@@ -733,13 +733,13 @@ std::pair<string,string> strCPreConvFwd1q( struct param const* const p, int cons
             //>>"//const int64_t inHW = inHeight * inWidth;"
             //>>"const int64_t kernHW = kernHeight * kernWidth;"
             //>>"//const int64_t outHW = outHeight * outWidth;"
-#if KH_BE==0
+#if KH_BE==1
         const int64_t outHeight      = p->outHeight;
 #endif
         int64_t bufsz_bytes = 
             (nk2+nk4+nk8) * sizeof(union PairedFloat)
             + nk1 * sizeof(float)
-#if KH_BE==0
+#if KH_BE==1
             + outHeight*2U*sizeof(int8_t)
 #endif
             ;
@@ -770,7 +770,7 @@ std::pair<string,string> strCPreConvFwd1q( struct param const* const p, int cons
 #if 0
                 >>"        ( (nk2+nk4+nk8) * sizeof(union PairedFloat)"
                 >>"        + nk1 * sizeof(float)"
-#if KH_BE==0
+#if KH_BE==1
                 >>"        + outHeight*2U*sizeof(int8_t)"
 #endif
                 >>"        + 7) /*bytes*/   /    8   /*round up to force 8-byte aligment*/"
@@ -795,13 +795,13 @@ std::pair<string,string> strCPreConvFwd1q( struct param const* const p, int cons
             FREE1(krn_krsc_k4_off)
             FREE1(krn_krsc_k8_off)
             ;
-#if KH_BE==0
+#if KH_BE==1
         int64_t kh_beg_end_off  = krn_krsc_k1_off + nk1 * sizeof(float);
         tmp_beg CONST1(kh_beg_end_off);
         tmp_last FREE1(kh_beg_end_off);
 #endif
 
-#if KH_BE==0
+#if KH_BE==1
         //const int64_t inHeight       = p->inHeight;
         //const int64_t outHeight      = p->outHeight;
         //const int64_t strideHeight   = p->strideHeight;
@@ -809,7 +809,6 @@ std::pair<string,string> strCPreConvFwd1q( struct param const* const p, int cons
         //const int64_t dilationHeight = p->dilationHeight;
 
         // NOTE: these are const, and should not be calculated at all (i.e. not even in 'buffer')
-        //       So a static array is the usual approach (KH_BE>0)
         //tmp_beg>>"cpre.kh_beg_end_off = kh_beg_end_off;";
         CBLOCK_SCOPE(kh_beg_end,"",tmp,tmp_beg);
         kh_beg_end
@@ -1175,7 +1174,7 @@ DllFile cjitConvolutionForward1q( struct param const* const p )
         >>"    size_t krn_krsc_k2_off;"
         >>"    size_t krn_krsc_k4_off;"
         >>"    size_t krn_krsc_k8_off;"
-#if PRE_KH_BEG_END && KH_BE==0
+#if KH_BEG==1
         >>"    size_t kh_beg_end_off;"
 #endif
         >>"};"

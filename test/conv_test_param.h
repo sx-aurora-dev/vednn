@@ -1,16 +1,7 @@
 #ifndef CONV_TEST_PARAM_H
 #define CONV_TEST_PARAM_H
 
-#ifdef __cplusplus
-extern "C" {
-#endif //C++
-
 #include "vednn_helper.h"
-
-#ifdef __cplusplus
-}   /* extern "C" */
-#endif //C++
-
 #include "convolution_gemm.h"
 #include "timer.h"
 
@@ -46,6 +37,7 @@ extern "C" {
 
 #define CONV_OVERRIDE -13 /* value meaning NO override for this struct param item */
 
+
 #ifdef __cplusplus
 extern "C" {
 #endif //C++
@@ -54,7 +46,7 @@ extern "C" {
 #define HAVE_XMALLOC
 #define XMALLOC(BYTES) \
     xmalloc(BYTES,__FILE__,__LINE__);
-inline void * xmalloc(size_t const bytes, char const* file, size_t const line){
+static inline void * xmalloc(size_t const bytes, char const* file, size_t const line){
     void *ret = malloc(bytes);
     if(!ret) ERROR_EXIT("Memory exhausted");
     return ret;
@@ -70,29 +62,30 @@ struct testconvBackwardData;
 struct testconvBackwardFilter;
 
 #ifdef FTRACE
-inline int with_ftrace() {return 1;}
+static inline int with_ftrace() {return 1;}
 #else
-inline int with_ftrace() {return 0;}
+static inline int with_ftrace() {return 0;}
 #endif
 // which are convolution-specific?
-inline int compute_out( int i, int k, int s, int p, int d );
-inline int compute_pad( int o, int i, int k, int s, int d );
-inline int upMul( int const i, int const a );
-inline int mkConsistent( struct param* p );
-inline int apply_overrides( struct param* const pParams, int const nParams, struct param* const ovr );
-inline int mkConsistentOverrides( struct param* p, struct param* const ovr );
-inline void generateRandomData(dataType_t type, size_t size, void *pData);
-inline double diffData(const vednnTensorParam_t *pParam, const void *pData, const void *pExpectedResult);
-inline int readParamFile(struct param **ppParams, const char *pParamPath );
-inline int readParamString(struct param **ppParams, const char *pParamString, char const m_for_mkldnn );
-inline void dumpParam(struct param* p, char const* dirn, char const* other);
-inline void dumpParamCSV_title();
-inline void dumpParamCSV(struct param* p, char const* dirn, char const* other);
-inline char const* param_cstr(struct param const* const p, char * const buf, size_t const n); ///< mb#g#_icihiw_ocohow_khshphdh_kwswpwdw
-inline char const* param_cstr_short(struct param const* const p, char * const buf, size_t const n);
+static inline int compute_out( int i, int k, int s, int p, int d );
+static inline int compute_pad( int o, int i, int k, int s, int d );
+static inline int upMul( int const i, int const a );
+static inline int mkConsistent( struct param* p );
+static inline int readParamFile(struct param **ppParams, const char *pParamPath );
+static inline int readParamString(struct param **ppParams, const char *pParamString, char const m_for_mkldnn );
+static inline int apply_overrides( struct param* const pParams, int const nParams, struct param* const ovr );
+static inline int mkConsistentOverrides( struct param* p, struct param* const ovr );
+static inline void generateRandomData(dataType_t type, size_t size, void *pData);
+static inline double diffData(const vednnTensorParam_t *pParam, const void *pData, const void *pExpectedResult);
+static inline void dumpParam(struct param* p, char const* dirn, char const* other);
+static inline void dumpParamCSV_title();
+static inline void dumpParamCSV(struct param* p, char const* dirn, char const* other);
+static inline char const* param_cstr(struct param const* const p, char * const buf, size_t const n); ///< mb#g#_icihiw_ocohow_khshphdh_kwswpwdw
+static inline char const* param_cstr_short(struct param const* const p, char * const buf, size_t const n);
 
+// TODO split following into separate file, they have extra linkage requirements to libvednn etc.
 void testconvForward_init( struct testconvForward *pConv );
-void testconvForward_alloc( struct testconvForward *pConv, struct param const* pNw, int const flagBias );
+void testconvForward_alloc( struct testconvForward *pConv, struct param const* pNw, int const flagBias, filterLayout_t filter_layout );
 void testconvForward_dumpParms( struct testconvForward const *pConv, int const flagBias );
 void testconvForward_randomData( struct testconvForward const* pConv, int const flagBias );
 void testconvForward_oclobber( struct testconvForward const* pConv );
@@ -101,7 +94,7 @@ void testconvForward_vednncalcs( struct testconvForward *pConvArray, int const n
 void testconvForward_free( struct testconvForward *pConv, int const flagBias);
 
 void testconvBackwardData_init( struct testconvBackwardData *pConv );
-void testconvBackwardData_alloc( struct testconvBackwardData *pConv, struct param const* pNw );
+void testconvBackwardData_alloc( struct testconvBackwardData *pConv, struct param const* pNw, filterLayout_t filter_layout );
 void testconvBackwardData_randomData( struct testconvBackwardData const* pConv );
 void testconvBackwardData_dumpParms( struct testconvBackwardData const *pConv );
 void testconvBackwardData_oclobber( struct testconvBackwardData const* pConv );
@@ -110,7 +103,7 @@ void testconvBackwardData_vednncalcs( struct testconvBackwardData *pConvArray, i
 void testconvBackwardData_free( struct testconvBackwardData *pConv );
 
 void testconvBackwardFilter_init( struct testconvBackwardFilter *pConv );
-void testconvBackwardFilter_alloc( struct testconvBackwardFilter *pConv, struct param const* pNw );
+void testconvBackwardFilter_alloc( struct testconvBackwardFilter *pConv, struct param const* pNw, filterLayout_t filter_layout );
 void testconvBackwardFilter_randomData( struct testconvBackwardFilter const* pConv );
 void testconvBackwardFilter_dumpParms( struct testconvBackwardFilter const *pConv );
 void testconvBackwardFilter_oclobber( struct testconvBackwardFilter const* pConv );
@@ -118,7 +111,7 @@ void testconvBackwardFilter_refcalcs( struct testconvBackwardFilter *pConvArray,
 void testconvBackwardFilter_vednncalcs( struct testconvBackwardFilter *pConvArray, int const nEntry );
 void testconvBackwardFilter_free( struct testconvBackwardFilter *pConv );
 
-inline unsigned long long count_ops(struct param const* p); // as in bench-dnn
+inline unsigned long long count_ops(struct param const* p); // as in bench-dnn, for Fwd conv.
 
 struct param {
     int        batchNum;
@@ -150,11 +143,11 @@ struct testconvForward {
     vednnFilterParam_t      *pParamKernel;
     vednnConvolutionParam_t *pParamConv;
     void *pDataIn;
-    void *pDataOut; // normal "output" buffer
+    void *pDataOut; // general "output" buffer
     void *pDataBias;
     void *pDataKernel;
 
-    void *pBufRef;  // "reference output" buffer (pDataOut)
+    void *pBufRef; // "reference" output buffer (alt. pDataOut)
     float *pBufOne;
     float *pBufCol;
 
@@ -208,7 +201,6 @@ struct testconvBackwardFilter {
     char ref_region[128];
 };
 
-
 /** exact output height/width for convolution. d==0 for "no dilation" (cf. vednn 1 for none) */
 // exact output height/width for convolution.
 // d==0 for "no dilation". NO NO. libvednn uses d==1.
@@ -252,6 +244,35 @@ inline int
 upMul( int const i, int const a ) {
     return (i+a-1)/a*a;
 }
+/** fwd ops brute-force count, as in bench-dnn */
+inline unsigned long long count_ops(struct param const* p){
+    unsigned long long sp_ops = 0;
+    //for (int od = 0; od < this->od; ++od) {
+    for (int oh = 0; oh < p->outHeight; ++oh) {
+    for (int ow = 0; ow < p->outWidth; ++ow) {
+        //for (int kd = 0; kd < this->kd; ++kd) {
+        //    const int id = od * this->sd - this->pd + kd * (this->dd + 1);
+        //    if (id < 0 || id >= this->id) continue;
+            for (int kh = 0; kh < p->kernHeight; ++kh) {
+                //const int ih = oh * this->sh - this->ph + kh * (this->dh + 1);
+                const int ih = oh * p->strideHeight - p->padHeight + kh * (p->dilationHeight);
+                if (ih < 0 || ih >= p->inHeight) continue;
+                for (int kw = 0; kw < p->kernWidth; ++kw) {
+                    //const int iw = ow * this->sw - this->pw + kw * (this->dw + 1);
+                    const int iw = ow * p->strideWidth - p->padWidth + kw * (p->dilationWidth);
+                    if (iw < 0 || iw >= p->inWidth) continue;
+                    sp_ops += 1;
+                }
+            }
+        //}
+    }
+    }
+    //}
+
+    //ops = 2 * this->mb * this->oc * this->ic / this->g * sp_ops;
+    return 2 * sp_ops * p->batchNum * p->outChannel * p->inChannel / p->group;
+}
+
 /** return # of modifications needed to make the test look reasonable. */
 inline int
 mkConsistent( struct param* p ){
@@ -655,7 +676,7 @@ diffData(const vednnTensorParam_t *pParam, const void *pData, const void *pExpec
     inline int
 readParamFile(struct param **ppParams, const char *pParamPath )
 {
-    int const v=2; //verbose
+    int const v=0; //verbose
     struct param *pParams  = NULL ;
     int nParams            = 0 ;
 
@@ -746,7 +767,7 @@ readParamFile(struct param **ppParams, const char *pParamPath )
  */
 inline int
 readParamString(struct param **ppParams, const char *pParamString, char const m_for_mkldnn ){
-    int const v=2; // verbose
+    int const v=0; // verbose
     int const nParams = 1;
     struct param* pParams;      // pParams  : decoded values
     struct param* have;         // have     : 0/1 value was given (we handle missing values)
@@ -1094,7 +1115,7 @@ param_cstr_short(struct param const* const p, char * const buf, size_t const n){
     return buf;
 }
 
-inline void
+void
 dumpParam(struct param* p, char const* dirn, char const* other){
     fprintf(stdout,
             "%30s %11s %-4d %11s %-4d %11s %-5d %4s %-4d x %-4d %11s %-5d %5s %-4d x %-4d"
@@ -1110,13 +1131,13 @@ dumpParam(struct param* p, char const* dirn, char const* other){
             dirn, other);
     fflush(stdout);
 }
-inline void
+void
 dumpParamCSV_title(){
     printf ("# convolution name, batch, group, inChannel|Height|Width,"
             " outChannel|Height|Width, kernHeight|Width, strideHeight|Width,"
             " padHeight|Width, dilationHeight|Width, dirn, time(msec)[min,max], diff\n");
 }
-inline void
+void
 dumpParamCSV(struct param* p, char const* dirn, char const* other){
     printf("%s, %d, %d, %d, %d, %d, %d, %d, %d, %d, %d, %d, %d, %d, %d, %d, %d, %s%s",
             p->pName, p->batchNum, p->group,
@@ -1128,35 +1149,6 @@ dumpParamCSV(struct param* p, char const* dirn, char const* other){
             p->dilationHeight, p->dilationWidth,
             dirn, other);
     fflush(stdout);
-}
-
-/** fwd ops brute-force count, as in bench-dnn */
-inline unsigned long long count_ops(struct param const* p){
-    unsigned long long sp_ops = 0;
-    //for (int od = 0; od < this->od; ++od) {
-    for (int oh = 0; oh < p->outHeight; ++oh) {
-    for (int ow = 0; ow < p->outWidth; ++ow) {
-        //for (int kd = 0; kd < this->kd; ++kd) {
-        //    const int id = od * this->sd - this->pd + kd * (this->dd + 1);
-        //    if (id < 0 || id >= this->id) continue;
-            for (int kh = 0; kh < p->kernHeight; ++kh) {
-                //const int ih = oh * this->sh - this->ph + kh * (this->dh + 1);
-                const int ih = oh * p->strideHeight - p->padHeight + kh * (p->dilationHeight);
-                if (ih < 0 || ih >= p->inHeight) continue;
-                for (int kw = 0; kw < p->kernWidth; ++kw) {
-                    //const int iw = ow * this->sw - this->pw + kw * (this->dw + 1);
-                    const int iw = ow * p->strideWidth - p->padWidth + kw * (p->dilationWidth);
-                    if (iw < 0 || iw >= p->inWidth) continue;
-                    sp_ops += 1;
-                }
-            }
-        //}
-    }
-    }
-    //}
-
-    //ops = 2 * this->mb * this->oc * this->ic / this->g * sp_ops;
-    return 2 * sp_ops * p->batchNum * p->outChannel * p->inChannel / p->group;
 }
 
 #ifdef __cplusplus
