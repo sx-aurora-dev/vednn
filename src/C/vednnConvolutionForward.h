@@ -7,6 +7,19 @@
 extern "C" { //}
 #endif
 
+/** public API args, as in `vednn.h`. */
+#define VEDNN_CONVFWD_API_ARGS \
+    const vednnTensorParam_t *      pParamIn, \
+    const void *                    pDataIn, \
+    const vednnFilterParam_t *      pParamKernel, \
+    const void *                    pDataKernel, \
+    /*const vednnBiasParam_t *        pParamBias,*/ \
+    /*const void *                    pDataBias,*/ \
+    const vednnTensorParam_t *      pParamOut, \
+    void *                          pDataOut, \
+    const vednnConvolutionParam_t * pParamConv, \
+    vednnConvolutionAlgorithm_t     algo
+
 /** low-level impl std args signature, \e always with optional bias parameters.
  * Use NULL for \c pDataBias [and \p pParamBias] if layer does not need bias. */
 #define VEDNN_CONVFWD_ARGS \
@@ -23,23 +36,7 @@ extern "C" { //}
 #define VEDNN_CONVFWD_ARGS_LIST pParamIn, pDataIn, pParamKernel, pDataKernel, \
     pParamBias, pDataBias, pParamConv, pParamOut, pDataOut
 
-#if 0
-typedef
-vednnError_t (*vednnConvForward_t)( VEDNN_CONVFWD_ARGS );
-#else
-typedef
-vednnError_t (*vednnConvForward_t)(
-    const vednnTensorParam_t *restrict      pParamIn,
-    const void *restrict                    pDataIn,
-    const vednnFilterParam_t *restrict      pParamKernel,
-    const void *restrict                    pDataKernel,
-    const vednnBiasParam_t * restrict       pParamBias,
-    const void * restrict                   pDataBias,
-    const vednnConvolutionParam_t *restrict pParamConv,
-    const vednnTensorParam_t *restrict      pParamOut,
-    void *restrict                          pDataOut
-        );
-#endif
+typedef vednnError_t (*vednnConvForward_t)( VEDNN_CONVFWD_ARGS );
 
 /** this is the signature of \c pFunc arg to the wrapper, which we use
  * directly for low-level impls marked as VEDNN_WRAP_NONE in libvednnx */
@@ -49,6 +46,9 @@ typedef vednnConvForward_t vednnConvForward_nowrap_t;
 /** low-level implementations. */
 #define VEDNN_DECL_CONVFWD( SUFFIX ) vednnError_t \
     vednnConvolutionForward_direct_##SUFFIX ( VEDNN_CONVFWD_ARGS );
+/** public API */
+#define VEDNN_DECL_CONVFWD_API( SUFFIX ) vednnError_t \
+    vednnConvolutionForward_direct_##SUFFIX ( VEDNN_CONVFWD_API_ARGS );
 
 VEDNN_DECL_CONVFWD(default);
 VEDNN_DECL_CONVFWD(gemm); ///< same parms, but do \b not call via omp wrapper
@@ -77,8 +77,6 @@ VEDNN_DECL_CONVFWD(dil1_str1_padsame);
 VEDNN_DECL_CONVFWD(dil1_str1_padsame_ker2);
 VEDNN_DECL_CONVFWD(dil1_str1_padsame_ker3);
 VEDNN_DECL_CONVFWD(dil1_str1_padsame_ker3_T);
-vednnError_t vednnConvolutionForward_direct_dil1_str1_padsame_ker3_T_remainder(
-        VEDNN_CONVFWD_ARGS, int n, int group, int op);
 vednnError_t vednnConvolutionForward_direct_dil1_str1_padsame_ker3_T_subkernel(
         VEDNN_CONVFWD_ARGS, int n, int group, int curOutChannelGroupPrime, int curOutPixelPrime);
 

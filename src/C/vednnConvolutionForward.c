@@ -6,7 +6,7 @@
 
   static inline vednnError_t
 vednnConvolutionForward_wrapper(
-    vednnConvForward_t			pFunc,
+    vednnConvForward_t                  pFunc,
     VEDNN_CONVFWD_ARGS )
 {
 #ifndef VEDNN_USE_OPENMP
@@ -48,16 +48,16 @@ vednnConvolutionForward_wrapper(
 /* ----------------------------------------------------------------------- */
   static inline
 vednnError_t vednnConvolutionForwardBody(
-    const vednnTensorParam_t 		*pParamIn,
-    const void 				*pDataIn,
-    const vednnFilterParam_t		*pParamKernel,
-    const void 				*pDataKernel,
-    const vednnBiasParam_t 		*pParamBias,
-    const void 				*pDataBias,
-    const vednnTensorParam_t 		*pParamOut,
-    void 				*pDataOut,
-    const vednnConvolutionParam_t	*pParamConv,
-    vednnConvolutionAlgorithm_t 	algo
+    const vednnTensorParam_t            *pParamIn,
+    const void                          *pDataIn,
+    const vednnFilterParam_t            *pParamKernel,
+    const void                          *pDataKernel,
+    const vednnBiasParam_t              *pParamBias,
+    const void                          *pDataBias,
+    const vednnTensorParam_t            *pParamOut,
+    void                                *pDataOut,
+    const vednnConvolutionParam_t       *pParamConv,
+    vednnConvolutionAlgorithm_t         algo
     )
 {
   switch( pParamKernel->layout ) {
@@ -80,6 +80,8 @@ vednnError_t vednnConvolutionForwardBody(
     VEDNN_CONVFWD_ARGS_LIST)
 
   // alternate ||ism handled internally via some other means
+  // XXX public or private API?
+  // These can use the private API !!!
 #define ALT_RET( IMPL ) return vednnConvolutionForward_direct_##IMPL( \
     VEDNN_CONVFWD_ARGS_LIST )
 
@@ -196,10 +198,10 @@ vednnError_t vednnConvolutionForwardBody(
 #else
           // XXX 3 possibilities:
           //  OMPWRAP(dil1_pad0_owU128);
-          //  ALT_RET(direct_owU128_T);
+          //  ALT_RET(owU128_T);
           //  ALT_RET(gemm)
           if(pParamOut->channel / pParamConv->group <= 256) // all ||ism threshold ?
-            ALT_RET(direct_owU128_T); // NEW
+            ALT_RET(owU128_T); // NEW
           else
             ALT_RET(gemm); // NEW: is this case always faster than dil1_pad0_owU128?
 #endif
@@ -239,16 +241,16 @@ vednnError_t vednnConvolutionForwardBody(
 
 /* ----------------------------------------------------------------------- */
 vednnError_t vednnConvolutionForwardAddBias(
-    const vednnTensorParam_t 		*pParamIn,
-    const void 				*pDataIn,
-    const vednnFilterParam_t		*pParamKernel,
-    const void 				*pDataKernel,
-    const vednnBiasParam_t 		*pParamBias,
-    const void 				*pDataBias,
-    const vednnTensorParam_t 		*pParamOut,
-    void 				*pDataOut,
-    const vednnConvolutionParam_t	*pParamConv,
-    vednnConvolutionAlgorithm_t 	algo
+    const vednnTensorParam_t            *pParamIn,
+    const void                          *pDataIn,
+    const vednnFilterParam_t            *pParamKernel,
+    const void                          *pDataKernel,
+    const vednnBiasParam_t              *pParamBias,
+    const void                          *pDataBias,
+    const vednnTensorParam_t            *pParamOut,
+    void                                *pDataOut,
+    const vednnConvolutionParam_t       *pParamConv,
+    vednnConvolutionAlgorithm_t         algo
     )
 {
   return vednnConvolutionForwardBody(pParamIn, pDataIn,
@@ -257,14 +259,14 @@ vednnError_t vednnConvolutionForwardAddBias(
 }
 
 vednnError_t vednnConvolutionForward(
-    const vednnTensorParam_t 		*pParamIn,
-    const void 				*pDataIn,
-    const vednnFilterParam_t		*pParamKernel,
-    const void 				*pDataKernel,
-    const vednnTensorParam_t 		*pParamOut,
-    void 				*pDataOut,
-    const vednnConvolutionParam_t	*pParamConv,
-    vednnConvolutionAlgorithm_t 	algo
+    const vednnTensorParam_t            *pParamIn,
+    const void                          *pDataIn,
+    const vednnFilterParam_t            *pParamKernel,
+    const void                          *pDataKernel,
+    const vednnTensorParam_t            *pParamOut,
+    void                                *pDataOut,
+    const vednnConvolutionParam_t       *pParamConv,
+    vednnConvolutionAlgorithm_t         algo
     )
 {
   return vednnConvolutionForwardBody(pParamIn, pDataIn,

@@ -3,6 +3,7 @@
 #include "wrap/vednnConvolution_ok.h"
 
 #include "C/vednnConvolutionForward.h"
+// internal API : just one (bias parms may be NULL)
 //#include "C/vednnConvolutionForwardAddBias.h"
 #include "C/vednnConvolutionBackwardData.h"
 #include "C/vednnConvolutionBackwardFilter.h"
@@ -81,7 +82,7 @@ BASE##_out_t BASE##_Run( BASE##Impls* current, BASE_PARAMS, BASE_DATARG );
 
 //                 func names           macro names
 ITERATOR_FUNC_API( Conv,Forward,        CONV,FORWARD )
-//ITERATOR_FUNC_API( Conv,ForwardAddBias, CONV,FORWARDADDBIAS )
+//ITERATOR_FUNC_API( Conv,ForwardAdd0ias, CONV,FORWARDADDBIAS )
 ITERATOR_FUNC_API( Conv,BackwardData,   CONV,BACKWARD_DATA )
 ITERATOR_FUNC_API( Conv,BackwardFilter, CONV,BACKWARD_FILTER )
 // following are TBD:
