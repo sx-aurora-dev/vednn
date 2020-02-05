@@ -93,24 +93,65 @@ static vednnError_t vednnSoftmaxForward_Accurate ( VEDNN_SOFTMAXFWD_ARGS )
   const float *pIn  = (const float *) pDataIn ;
   float       *pOut = (float       *) pDataOut ;
 
-  for(uint64_t b=0; b<nBatch; b++) {
-    float max = -FLT_MAX ;
-    for(uint64_t i=0; i<nClass; i++) {
-      if( max < pIn[i] ) max = pIn[i] ;
-    }
+  if( nClass <=128 && nBatch > nClass ) {
+#pragma _NEC novector
+    for(uint64_t b0=0; b0<nBatch; b0+=256) {
+      const uint64_t blen = nBatch - b0 < 256 ? nBatch - b0 : 256 ;
 
-    float sum = 0.f ;
-    for(uint64_t i=0; i<nClass; i++) {
-      sum += (pOut[i] = expf(pIn[i]-max)) ;
-    }
+      float max[256] ;
+#pragma _NEC vreg(max)
+      for(uint64_t b1=0; b1<blen; b1++) {
+	max[b1] = -FLT_MAX ;
+      }
+      for(uint64_t i=0; i<nClass; i++) {
+	for(uint64_t b1=0; b1<blen; b1++) {
+	  if( max[b1] < pIn[(b0+b1)*nClass+i] ) max[b1] = pIn[(b0+b1)*nClass+i] ;
+	}
+      }
 
-    float inv_sum = 1.f / sum ;
-    for(uint64_t i=0; i<nClass; i++) {
-      pOut[i] *= inv_sum ;
-    }
+      float sum[256] ;
+#pragma _NEC vreg(sum)
+      for(uint64_t b1=0; b1<blen; b1++) {
+	sum[b1] = 0.f ;
+      }
+      for(uint64_t i=0; i<nClass; i++) {
+	for(uint64_t b1=0; b1<blen; b1++) {
+	  sum[b1] += (pOut[(b0+b1)*nClass+i] = expf(pIn[(b0+b1)*nClass+i]-max[b1])) ;
+	}
+      }
 
-    pIn  += nClass ;
-    pOut += nClass ;
+      float inv_sum[256] ;
+#pragma _NEC vreg(inv_sum)
+      for(uint64_t b1=0; b1<blen; b1++) {
+	inv_sum[b1] = 1.f / sum[b1] ;
+      }
+      for(uint64_t i=0; i<nClass; i++) {
+	for(uint64_t b1=0; b1<blen; b1++) {
+	  pOut[(b0+b1)*nClass+i] *= inv_sum[b1] ;
+	}
+      }
+    }
+  }
+  else {
+    for(uint64_t b=0; b<nBatch; b++) {
+      float max = -FLT_MAX ;
+      for(uint64_t i=0; i<nClass; i++) {
+	if( max < pIn[i] ) max = pIn[i] ;
+      }
+
+      float sum = 0.f ;
+      for(uint64_t i=0; i<nClass; i++) {
+	sum += (pOut[i] = expf(pIn[i]-max)) ;
+      }
+
+      float inv_sum = 1.f / sum ;
+      for(uint64_t i=0; i<nClass; i++) {
+	pOut[i] *= inv_sum ;
+      }
+
+      pIn  += nClass ;
+      pOut += nClass ;
+    }
   }
 
   return VEDNN_SUCCESS ;
