@@ -11,6 +11,7 @@ extern "C" { //}
 static inline void k1(
     const float * restrict pIn,
     const float * restrict pKernel,
+    const float * restrict pBias,
     float * restrict const pOut,
     const int64_t inChannel,
     const int64_t inWidth,
@@ -23,6 +24,7 @@ static inline void k1(
     const int64_t inGroupOffset,
     const int64_t outGroupOffset,
     const int64_t kernGroupOffset,
+    const int64_t biasGroupOffset,
     const int64_t oPixels,
     const int64_t n,
     const int64_t k,
@@ -33,7 +35,8 @@ static inline void k1(
 
   const int64_t vl = oPixels - op < VLEN ? oPixels - op : VLEN ;
 
-  __vr vrsum = _vel_vbrds_vsl(0.0f, vl) ;
+  __vr vrsum = pBias ? _vel_vbrds_vsl(pBias[biasGroupOffset+k], vl)
+                     : _vel_vbrds_vsl(0.0f, vl) ;
 
   int64_t c = 0 ;
   if( ( inChannelGroup & 0x01 ) == 1 ) {
@@ -64,6 +67,7 @@ static inline void k1(
 static inline void k2(
     const float * restrict pIn,
     const float * restrict pKernel,
+    const float * restrict pBias,
     float * restrict const pOut,
     const int64_t inChannel,
     const int64_t inWidth,
@@ -76,6 +80,7 @@ static inline void k2(
     const int64_t inGroupOffset,
     const int64_t outGroupOffset,
     const int64_t kernGroupOffset,
+    const int64_t biasGroupOffset,
     const int64_t oPixels,
     const int64_t n,
     const int64_t k,
@@ -87,6 +92,11 @@ static inline void k2(
   const int64_t vl = oPixels - op < VLEN ? oPixels - op : VLEN ;
 
   __vr vrsum01 = _vel_pvbrd_vsl(0UL, vl) ;
+  if(pBias) {
+    const uint64_t uint_bias = _vel_pack_f32p(pBias+biasGroupOffset+k,
+                                              pBias+biasGroupOffset+k+1);
+    vrsum01 = _vel_pvbrd_vsl(uint_bias, vl);
+  }
 
   int64_t c = 0 ;
 
@@ -134,6 +144,7 @@ static inline void k2(
 static inline void k4(
     const float * restrict pIn,
     const float * restrict pKernel,
+    const float * restrict pBias,
     float * restrict const pOut,
     const int64_t inChannel,
     const int64_t inWidth,
@@ -146,6 +157,7 @@ static inline void k4(
     const int64_t inGroupOffset,
     const int64_t outGroupOffset,
     const int64_t kernGroupOffset,
+    const int64_t biasGroupOffset,
     const int64_t oPixels,
     const int64_t n,
     const int64_t k,
@@ -158,6 +170,15 @@ static inline void k4(
 
   __vr vrsum01 = _vel_pvbrd_vsl(0UL, vl) ;
   __vr vrsum23 = _vel_pvbrd_vsl(0UL, vl) ;
+
+  if(pBias) {
+    const uint64_t uint_bias01 = _vel_pack_f32p(pBias+biasGroupOffset+k,
+                                                pBias+biasGroupOffset+k+1);
+    const uint64_t uint_bias23 = _vel_pack_f32p(pBias+biasGroupOffset+k+2,
+                                                pBias+biasGroupOffset+k+3);
+    vrsum01 = _vel_pvbrd_vsl(uint_bias01, vl);
+    vrsum23 = _vel_pvbrd_vsl(uint_bias23, vl);
+  }
 
   int64_t c = 0 ;
 
@@ -216,6 +237,7 @@ static inline void k4(
 static inline void k8(
     const float * restrict pIn,
     const float * restrict pKernel,
+    const float * restrict pBias,
     float * restrict const pOut,
     const int64_t inChannel,
     const int64_t inWidth,
@@ -228,6 +250,7 @@ static inline void k8(
     const int64_t inGroupOffset,
     const int64_t outGroupOffset,
     const int64_t kernGroupOffset,
+    const int64_t biasGroupOffset,
     const int64_t oPixels,
     const int64_t n,
     const int64_t k,
@@ -242,6 +265,21 @@ static inline void k8(
   __vr vrsum23 = _vel_pvbrd_vsl(0UL, vl) ;
   __vr vrsum45 = _vel_pvbrd_vsl(0UL, vl) ;
   __vr vrsum67 = _vel_pvbrd_vsl(0UL, vl) ;
+
+  if(pBias) {
+    const uint64_t uint_bias01 = _vel_pack_f32p(pBias+biasGroupOffset+k,
+                                                pBias+biasGroupOffset+k+1);
+    const uint64_t uint_bias23 = _vel_pack_f32p(pBias+biasGroupOffset+k+2,
+                                                pBias+biasGroupOffset+k+3);
+    const uint64_t uint_bias45 = _vel_pack_f32p(pBias+biasGroupOffset+k+4,
+                                                pBias+biasGroupOffset+k+5);
+    const uint64_t uint_bias67 = _vel_pack_f32p(pBias+biasGroupOffset+k+6,
+                                                pBias+biasGroupOffset+k+7);
+    vrsum01 = _vel_pvbrd_vsl(uint_bias01, vl);
+    vrsum23 = _vel_pvbrd_vsl(uint_bias23, vl);
+    vrsum45 = _vel_pvbrd_vsl(uint_bias45, vl);
+    vrsum67 = _vel_pvbrd_vsl(uint_bias67, vl);
+  }
 
   int64_t c = 0 ;
 
@@ -327,6 +365,7 @@ static inline void k8(
 static inline void k16(
     const float * restrict pIn,
     const float * restrict pKernel,
+    const float * restrict pBias,
     float * restrict const pOut,
     const int64_t inChannel,
     const int64_t inWidth,
@@ -339,6 +378,7 @@ static inline void k16(
     const int64_t inGroupOffset,
     const int64_t outGroupOffset,
     const int64_t kernGroupOffset,
+    const int64_t biasGroupOffset,
     const int64_t oPixels,
     const int64_t n,
     const int64_t k,
@@ -357,6 +397,33 @@ static inline void k16(
   __vr vrsumAB = _vel_pvbrd_vsl(0UL, vl) ;
   __vr vrsumCD = _vel_pvbrd_vsl(0UL, vl) ;
   __vr vrsumEF = _vel_pvbrd_vsl(0UL, vl) ;
+
+  if(pBias) {
+    const uint64_t uint_bias01 = _vel_pack_f32p(pBias+biasGroupOffset+k,
+                                                pBias+biasGroupOffset+k+1);
+    const uint64_t uint_bias23 = _vel_pack_f32p(pBias+biasGroupOffset+k+2,
+                                                pBias+biasGroupOffset+k+3);
+    const uint64_t uint_bias45 = _vel_pack_f32p(pBias+biasGroupOffset+k+4,
+                                                pBias+biasGroupOffset+k+5);
+    const uint64_t uint_bias67 = _vel_pack_f32p(pBias+biasGroupOffset+k+6,
+                                                pBias+biasGroupOffset+k+7);
+    const uint64_t uint_bias89 = _vel_pack_f32p(pBias+biasGroupOffset+k+8,
+                                                pBias+biasGroupOffset+k+9);
+    const uint64_t uint_biasAB = _vel_pack_f32p(pBias+biasGroupOffset+k+10,
+                                                pBias+biasGroupOffset+k+11);
+    const uint64_t uint_biasCD = _vel_pack_f32p(pBias+biasGroupOffset+k+12,
+                                                pBias+biasGroupOffset+k+13);
+    const uint64_t uint_biasEF = _vel_pack_f32p(pBias+biasGroupOffset+k+14,
+                                                pBias+biasGroupOffset+k+15);
+    vrsum01 = _vel_pvbrd_vsl(uint_bias01, vl);
+    vrsum23 = _vel_pvbrd_vsl(uint_bias23, vl);
+    vrsum45 = _vel_pvbrd_vsl(uint_bias45, vl);
+    vrsum67 = _vel_pvbrd_vsl(uint_bias67, vl);
+    vrsum89 = _vel_pvbrd_vsl(uint_bias89, vl);
+    vrsumAB = _vel_pvbrd_vsl(uint_biasAB, vl);
+    vrsumCD = _vel_pvbrd_vsl(uint_biasCD, vl);
+    vrsumEF = _vel_pvbrd_vsl(uint_biasEF, vl);
+  }
 
   int64_t c = 0 ;
 
@@ -493,6 +560,7 @@ static inline void k16(
 static inline void k16_c1024x(
     const float * restrict pIn,
     const float * restrict pKernel,
+    const float * restrict pBias,
     float * restrict const pOut,
     const int64_t inChannel,
     const int64_t inWidth,
@@ -505,6 +573,7 @@ static inline void k16_c1024x(
     const int64_t inGroupOffset,
     const int64_t outGroupOffset,
     const int64_t kernGroupOffset,
+    const int64_t biasGroupOffset,
     const int64_t oPixels,
     const int64_t n,
     const int64_t k,
@@ -526,6 +595,33 @@ static inline void k16_c1024x(
   __vr vrsumAB = _vel_pvbrd_vsl(0UL, vl) ;
   __vr vrsumCD = _vel_pvbrd_vsl(0UL, vl) ;
   __vr vrsumEF = _vel_pvbrd_vsl(0UL, vl) ;
+
+  if(pBias) {
+    const uint64_t uint_bias01 = _vel_pack_f32p(pBias+biasGroupOffset+k,
+                                                pBias+biasGroupOffset+k+1);
+    const uint64_t uint_bias23 = _vel_pack_f32p(pBias+biasGroupOffset+k+2,
+                                                pBias+biasGroupOffset+k+3);
+    const uint64_t uint_bias45 = _vel_pack_f32p(pBias+biasGroupOffset+k+4,
+                                                pBias+biasGroupOffset+k+5);
+    const uint64_t uint_bias67 = _vel_pack_f32p(pBias+biasGroupOffset+k+6,
+                                                pBias+biasGroupOffset+k+7);
+    const uint64_t uint_bias89 = _vel_pack_f32p(pBias+biasGroupOffset+k+8,
+                                                pBias+biasGroupOffset+k+9);
+    const uint64_t uint_biasAB = _vel_pack_f32p(pBias+biasGroupOffset+k+10,
+                                                pBias+biasGroupOffset+k+11);
+    const uint64_t uint_biasCD = _vel_pack_f32p(pBias+biasGroupOffset+k+12,
+                                                pBias+biasGroupOffset+k+13);
+    const uint64_t uint_biasEF = _vel_pack_f32p(pBias+biasGroupOffset+k+14,
+                                                pBias+biasGroupOffset+k+15);
+    vrsum01 = _vel_pvbrd_vsl(uint_bias01, vl);
+    vrsum23 = _vel_pvbrd_vsl(uint_bias23, vl);
+    vrsum45 = _vel_pvbrd_vsl(uint_bias45, vl);
+    vrsum67 = _vel_pvbrd_vsl(uint_bias67, vl);
+    vrsum89 = _vel_pvbrd_vsl(uint_bias89, vl);
+    vrsumAB = _vel_pvbrd_vsl(uint_biasAB, vl);
+    vrsumCD = _vel_pvbrd_vsl(uint_biasCD, vl);
+    vrsumEF = _vel_pvbrd_vsl(uint_biasEF, vl);
+  }
 
   for(int64_t c0=0; c0<inChannelGroup; c0+=512) {
 
@@ -676,6 +772,7 @@ vednnConvolutionForward_direct_dil1_str1_pad0_ker1_T_subkernel(
 
   const float * restrict pIn     = (const float*)pDataIn;
   const float * restrict pKernel = (const float*)pDataKernel;
+  const float * restrict pBias   = (const float*)pDataBias;
   float * restrict const pOut    = (float*)pDataOut;
 
   const int oPixels= outHeight*outWidth ;
@@ -684,6 +781,7 @@ vednnConvolutionForward_direct_dil1_str1_pad0_ker1_T_subkernel(
     const int64_t inGroupOffset   = g * inChannelGroup * inHeight * inWidth;
     const int64_t outGroupOffset  = g * outChannelGroup * outHeight * outWidth;
     const int64_t kernGroupOffset = g * outChannelGroup * inChannelGroup ;
+    const int64_t biasGroupOffset = g * outChannelGroup;
 
     int64_t op = curOutPixelPrime * VLEN;
     int ocgRemainder = outChannelGroup % 16;
@@ -691,39 +789,43 @@ vednnConvolutionForward_direct_dil1_str1_pad0_ker1_T_subkernel(
     if(curOutChannelGroupPrime == 0 && ocgRemainder) {
       int k = 0 ;
       if ( (outChannelGroup & 0x01) == 1 ) {
-        k1(pIn, pKernel, pOut,
+        k1(pIn, pKernel, pBias, pOut,
             inChannel, inWidth, inHeight,
             outChannel, outWidth, outHeight,
             inChannelGroup, outChannelGroup,
             inGroupOffset, outGroupOffset,
-            kernGroupOffset, oPixels, n, k, op) ;
+            kernGroupOffset, biasGroupOffset,
+            oPixels, n, k, op) ;
         k++ ;
       }
       if ( ((outChannelGroup >> 1) & 0x01) == 1 ) {
-        k2(pIn, pKernel, pOut,
+        k2(pIn, pKernel, pBias, pOut,
             inChannel, inWidth, inHeight,
             outChannel, outWidth, outHeight,
             inChannelGroup, outChannelGroup,
             inGroupOffset, outGroupOffset,
-            kernGroupOffset, oPixels, n, k, op) ;
+            kernGroupOffset, biasGroupOffset,
+            oPixels, n, k, op) ;
         k+=2 ;
       }
       if ( ((outChannelGroup >> 2) & 0x01) == 1 ) {
-        k4(pIn, pKernel, pOut,
+        k4(pIn, pKernel, pBias, pOut,
             inChannel, inWidth, inHeight,
             outChannel, outWidth, outHeight,
             inChannelGroup, outChannelGroup,
             inGroupOffset, outGroupOffset,
-            kernGroupOffset, oPixels, n, k, op) ;
+            kernGroupOffset, biasGroupOffset,
+            oPixels, n, k, op) ;
         k+=4 ;
       }
       if ( ((outChannelGroup >> 3) & 0x01) == 1 ) {
-        k8(pIn, pKernel, pOut,
+        k8(pIn, pKernel, pBias, pOut,
             inChannel, inWidth, inHeight,
             outChannel, outWidth, outHeight,
             inChannelGroup, outChannelGroup,
             inGroupOffset, outGroupOffset,
-            kernGroupOffset, oPixels, n, k, op) ;
+            kernGroupOffset, biasGroupOffset,
+            oPixels, n, k, op) ;
         k+=8 ;
       }
       return VEDNN_SUCCESS;
@@ -734,21 +836,23 @@ vednnConvolutionForward_direct_dil1_str1_pad0_ker1_T_subkernel(
             curOutChannelGroupPrime * 16 ;
 
     if ( inChannelGroup % 1024 == 0 && (((uint64_t)pDataKernel) & 0x7) == 0 ) {
-      k16_c1024x(pIn, pKernel, pOut,
+      k16_c1024x(pIn, pKernel, pBias, pOut,
           inChannel, inWidth, inHeight,
           outChannel, outWidth, outHeight,
           inChannelGroup, outChannelGroup,
           inGroupOffset, outGroupOffset,
-          kernGroupOffset, oPixels, n, k, op);
+          kernGroupOffset, biasGroupOffset,
+          oPixels, n, k, op);
     }
     else
     {
-      k16(pIn, pKernel, pOut,
+      k16(pIn, pKernel, pBias, pOut,
           inChannel, inWidth, inHeight,
           outChannel, outWidth, outHeight,
           inChannelGroup, outChannelGroup,
           inGroupOffset, outGroupOffset,
-          kernGroupOffset, oPixels, n, k, op) ;
+          kernGroupOffset, biasGroupOffset,
+          oPixels, n, k, op) ;
     }
   }
 
