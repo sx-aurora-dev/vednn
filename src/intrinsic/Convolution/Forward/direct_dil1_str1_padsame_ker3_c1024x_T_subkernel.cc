@@ -48,6 +48,7 @@ vednnConvolutionForward_direct_dil1_str1_padsame_ker3_c1024x_T_subkernel(
 
   const float * restrict pIn     = (const float*)pDataIn;
   const float * restrict pKernel = (const float*)pDataKernel;
+  const float * restrict pBias   = (const float*)pDataBias;
   float * restrict const pOut    = (float*)pDataOut;
 
   const int oPixels= outHeight*outWidth ;
@@ -56,6 +57,7 @@ vednnConvolutionForward_direct_dil1_str1_padsame_ker3_c1024x_T_subkernel(
     const int64_t inGroupOffset   = g * inChannelGroup * inHeight * inWidth;
     const int64_t outGroupOffset  = g * outChannelGroup * outHeight * outWidth;
     const int64_t kernGroupOffset = g * outChannelGroup * inChannelGroup * kernHeight * kernWidth;
+    const int64_t biasGroupOffset = g * outChannelGroup;
 
     int64_t op = curOutPixelPrime * VLEN;
     int ocgRemainder = outChannelGroup % 8;
@@ -67,7 +69,8 @@ vednnConvolutionForward_direct_dil1_str1_padsame_ker3_c1024x_T_subkernel(
 
         const int64_t vl = oPixels - op < VLEN ? oPixels - op : VLEN ;
 
-        __vr vrsum = _vel_vbrds_vsl(0.0f, vl) ;
+        __vr vrsum = pBias ? _vel_vbrds_vsl(pBias[biasGroupOffset+k], vl)
+                           : _vel_vbrds_vsl(0.0f, vl) ;
 
         __vr vrseq = _vel_vseq_vl(vl) ;                     // xy
         __vr vridx = _vel_vaddsl_vsvl(op, vrseq, vl) ;      // op + xy
@@ -156,6 +159,12 @@ vednnConvolutionForward_direct_dil1_str1_padsame_ker3_c1024x_T_subkernel(
         const int64_t vl = oPixels - op < VLEN ? oPixels - op : VLEN ;
 
         __vr vrsum01 = _vel_pvbrd_vsl(0UL, vl) ;
+
+        if(pBias) {
+          const uint64_t uint_bias = _vel_pack_f32p(pBias+biasGroupOffset+k,
+                                                    pBias+biasGroupOffset+k+1);
+          vrsum01 = _vel_pvbrd_vsl(uint_bias, vl);
+        }
 
         __vr vrseq = _vel_vseq_vl(vl) ;                     // xy
         __vr vridx = _vel_vaddsl_vsvl(op, vrseq, vl) ;      // op + xy
@@ -258,6 +267,15 @@ vednnConvolutionForward_direct_dil1_str1_padsame_ker3_c1024x_T_subkernel(
 
         __vr vrsum01 = _vel_pvbrd_vsl(0UL, vl) ;
         __vr vrsum23 = _vel_pvbrd_vsl(0UL, vl) ;
+
+        if(pBias) {
+          const uint64_t uint_bias01 = _vel_pack_f32p(pBias+biasGroupOffset+k,
+                                                      pBias+biasGroupOffset+k+1);
+          const uint64_t uint_bias23 = _vel_pack_f32p(pBias+biasGroupOffset+k+2,
+                                                      pBias+biasGroupOffset+k+3);
+          vrsum01 = _vel_pvbrd_vsl(uint_bias01, vl);
+          vrsum23 = _vel_pvbrd_vsl(uint_bias23, vl);
+        }
 
         __vr vrseq = _vel_vseq_vl(vl) ;                     // xy
         __vr vridx = _vel_vaddsl_vsvl(op, vrseq, vl) ;      // op + xy
@@ -372,6 +390,21 @@ vednnConvolutionForward_direct_dil1_str1_padsame_ker3_c1024x_T_subkernel(
     __vr vrsum23 = _vel_pvbrd_vsl(0UL, vl) ;
     __vr vrsum45 = _vel_pvbrd_vsl(0UL, vl) ;
     __vr vrsum67 = _vel_pvbrd_vsl(0UL, vl) ;
+
+    if(pBias) {
+      const uint64_t uint_bias01 = _vel_pack_f32p(pBias+biasGroupOffset+k,
+                                                  pBias+biasGroupOffset+k+1);
+      const uint64_t uint_bias23 = _vel_pack_f32p(pBias+biasGroupOffset+k+2,
+                                                  pBias+biasGroupOffset+k+3);
+      const uint64_t uint_bias45 = _vel_pack_f32p(pBias+biasGroupOffset+k+4,
+                                                  pBias+biasGroupOffset+k+5);
+      const uint64_t uint_bias67 = _vel_pack_f32p(pBias+biasGroupOffset+k+6,
+                                                  pBias+biasGroupOffset+k+7);
+      vrsum01 = _vel_pvbrd_vsl(uint_bias01, vl);
+      vrsum23 = _vel_pvbrd_vsl(uint_bias23, vl);
+      vrsum45 = _vel_pvbrd_vsl(uint_bias45, vl);
+      vrsum67 = _vel_pvbrd_vsl(uint_bias67, vl);
+    }
 
     __vr vrseq = _vel_vseq_vl(vl) ;                     // xy
     __vr vridx = _vel_vaddsl_vsvl(op, vrseq, vl) ;      // op + xy
