@@ -6,7 +6,7 @@
 #include "vednn.h"
 
 #include "velintrin.h"
-#define VLEN	(256)
+//#define VLEN	(192)
 
 template <int BATCH>
 static inline void func(
@@ -14,11 +14,12 @@ static inline void func(
   const uint64_t	outDim,
   const float * 	pIn,
   const float * 	pWeight,
-  float * 		pOut
+  float * 		pOut,
+  const uint64_t 	mvl
 )
 {
-  for(int64_t o=0; o<outDim; o+=2*VLEN) {
-    const int64_t vl = (outDim-o < 2*VLEN ? outDim - o : 2*VLEN) >> 1 ;
+  for(int64_t o=0; o<outDim; o+=2*mvl) {
+    const int64_t vl = (outDim-o < 2*mvl ? outDim - o : 2*mvl) >> 1 ;
 
 
     __vr vrsum[BATCH] ;
@@ -167,40 +168,50 @@ vednnError_t vednnLinearForward_o2X_woaligned(
   int64_t n=0;
   int64_t batchRemain = nBatch & 0x07 ;
 
+  int64_t mvl ;
+  if( outDim % (256*2) == 0 )
+    mvl = 256 ;
+  else if ( outDim % (192*2) == 0 )
+    mvl = 192 ;
+  else if( outDim % (256*2) < outDim % (192*2) )
+    mvl = 192 ;
+  else
+    mvl = 256 ;
+
   switch( batchRemain ) {
   case 1 :
-    func<1>(inDim, outDim, pIn+n*inDim, pWeight, pOut+n*outDim) ;
+    func<1>(inDim, outDim, pIn+n*inDim, pWeight, pOut+n*outDim, mvl) ;
     n+=1 ;
     break ;
   case 2 :
-    func<2>(inDim, outDim, pIn+n*inDim, pWeight, pOut+n*outDim) ;
+    func<2>(inDim, outDim, pIn+n*inDim, pWeight, pOut+n*outDim, mvl) ;
     n+=2 ;
     break ;
   case 3 :
-    func<3>(inDim, outDim, pIn+n*inDim, pWeight, pOut+n*outDim) ;
+    func<3>(inDim, outDim, pIn+n*inDim, pWeight, pOut+n*outDim, mvl) ;
     n+=3 ;
     break ;
   case 4 :
-    func<4>(inDim, outDim, pIn+n*inDim, pWeight, pOut+n*outDim) ;
+    func<4>(inDim, outDim, pIn+n*inDim, pWeight, pOut+n*outDim, mvl) ;
     n+=4 ;
     break ;
   case 5 :
-    func<5>(inDim, outDim, pIn+n*inDim, pWeight, pOut+n*outDim) ;
+    func<5>(inDim, outDim, pIn+n*inDim, pWeight, pOut+n*outDim, mvl) ;
     n+=5 ;
     break ;
   case 6 :
-    func<6>(inDim, outDim, pIn+n*inDim, pWeight, pOut+n*outDim) ;
+    func<6>(inDim, outDim, pIn+n*inDim, pWeight, pOut+n*outDim, mvl) ;
     n+=6 ;
     break ;
   case 7 :
-    func<7>(inDim, outDim, pIn+n*inDim, pWeight, pOut+n*outDim) ;
+    func<7>(inDim, outDim, pIn+n*inDim, pWeight, pOut+n*outDim, mvl) ;
     n+=7 ;
     break ;
   default :
     break ;
   }
   for(; n<nBatch; n+=8) {
-    func<8>(inDim, outDim, pIn+n*inDim, pWeight, pOut+n*outDim) ;
+    func<8>(inDim, outDim, pIn+n*inDim, pWeight, pOut+n*outDim, mvl) ;
   }
 
   return VEDNN_SUCCESS ;
