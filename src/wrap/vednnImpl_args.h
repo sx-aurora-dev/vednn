@@ -21,8 +21,8 @@ extern "C" {
     const vednnTensorParam_t *      restrict pParamOut, \
     const vednnConvolutionParam_t * restrict pParamConv, \
     vednnConvolutionAlgorithm_t     algo
-#define VEDNN_PARAMS_CONV_FORWARD_LIST pParamIn, pParamKernel, pParamBias, \
-    pParamOut, pParamConv, algo
+#define VEDNN_PARAMS_CONV_FORWARD_LIST pParamIn, pParamKernel, \
+    pParamBias, pParamOut, pParamConv, algo
 
 #define VEDNN_DATARG_CONV_FORWARD_OPENMP /* tbd? */
 #define VEDNN_DATARG_CONV_FORWARD \
@@ -32,7 +32,8 @@ extern "C" {
     const void * restrict pDataBias, \
     void *       restrict pDataOut \
     VEDNN_DATARG_CONV_FORWARD_OPENMP
-#define VEDNN_DATARG_CONV_FORWARD_LIST pDataIn, pDataKernel, pDataBias, pDataOut
+#define VEDNN_DATARG_CONV_FORWARD_LIST pDataIn, pDataKernel, \
+    pDataBias, pDataOut
 
 #if 0
 #define VEDNN_PARAMS_CONV_FORWARDADDBIAS \
@@ -42,7 +43,8 @@ extern "C" {
     const vednnTensorParam_t *      restrict pParamOut, \
     const vednnConvolutionParam_t * restrict pParamConv, \
     vednnConvolutionAlgorithm_t     algo
-#define VEDNN_PARAMS_CONV_FORWARDADDBIAS_LIST pParamIn, pParamKernel, pParamBias, pParamOut, pParamConv, algo
+#define VEDNN_PARAMS_CONV_FORWARDADDBIAS_LIST pParamIn, pParamKernel, \
+    pParamBias, pParamOut, pParamConv, algo
 
 #define VEDNN_DATARG_CONV_FORWARDBIAS_OPENMP /* tbd? */
 #define VEDNN_DATARG_CONV_FORWARDADDBIAS \
@@ -52,7 +54,8 @@ extern "C" {
     void const * restrict pDataBias, \
     void *       restrict pDataOut \
     VEDNN_DATARG_CONV_FORWARDBIAS_OPENMP
-#define VEDNN_DATARG_CONV_FORWARDADDBIAS_LIST pDataIn, pDataKernel, pDataBias, pDataOut
+#define VEDNN_DATARG_CONV_FORWARDADDBIAS_LIST pDataIn, pDataKernel, \
+    pDataBias, pDataOut
 #endif
 
 #define VEDNN_PARAMS_CONV_BACKWARD_DATA \

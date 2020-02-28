@@ -1,18 +1,19 @@
 PRJ:=vednn
+#PRJ:=vednnx
 CMAKE_SHARED:='-DBUILD_SHARED_LIB=ON'
-CMAKE_ARGS:='-DCMAKE_BUILD_TYPE=Release ${CMAKE_SHARED}'
+CMAKE_ARGS:="-DCMAKE_BUILD_TYPE=Release ${CMAKE_SHARED}"
 all: force-build lib${PRJ}.tar.gz lib${PRJ}-ftrace1.tar.gz test
 # unpack one of the distro tarballs only in external projects.
 # -ft1 tarball will need to be linked with veperf library
 .PHONY: test build empty-build force-build clean realclean
-MKJOB:=VERBOSE=1 -j8
+MKJOB:=VERBOSE=1 -j1
 lib${PRJ}.tar.gz:
 	rm -rf ${PRJ}
 	# now for sequential
 	rm -rf build-${PRJ} ${PRJ}
 	mkdir build-${PRJ} ${PRJ}
 	cd build-${PRJ} && cmake -DCMAKE_INSTALL_PREFIX=../${PRJ} -DUSE_OPENMP=OFF ${CMAKE_ARGS} .. 2>&1 | tee ../mk-${PRJ}.log
-	cd build-${PRJ} && make ${MKJOB} >> ../mk-${PRJ}.log 2>&1
+	cd build-${PRJ} && make ${MKJOB} VERBOSE=1 >> ../mk-${PRJ}.log 2>&1
 	cd build-${PRJ} && make VERBOSE=1 install 2>&1 | tee -a ../mk-${PRJ}.log
 	ls -l ${PRJ}
 	# now for omp
@@ -20,25 +21,25 @@ lib${PRJ}.tar.gz:
 	rm -rf build-${PRJ}_omp
 	mkdir build-${PRJ}_omp
 	cd build-${PRJ}_omp && cmake -DCMAKE_INSTALL_PREFIX=../${PRJ} -DUSE_OPENMP=ON ${CMAKE_ARGS} .. 2>&1 | tee ../mk-${PRJ}_omp.log
-	cd build-${PRJ}_omp && make ${MKJOB} >> ../mk-${PRJ}_omp.log 2>&1
+	cd build-${PRJ}_omp && make ${MKJOB} VERBOSE=1 >> ../mk-${PRJ}_omp.log 2>&1
 	cd build-${PRJ}_omp && make VERBOSE=1 install 2>&1 | tee -a ../mk-${PRJ}_omp.log
 	# tarball
 	rm -f ${PRJ}.tar.gz
 	tar cvzf ${PRJ}.tar.gz ${PRJ} 2>&1 | tee -a mk-${PRJ}.log
-lib${PRJ}-ftrace1.tar.gz: # CHECK USE_FTRACE setting (sometimes I set it to 2 instead)
+lib${PRJ}-ftrace1.tar.gz: # NOTE check USE_FTRACE value (sometimes I switch it to 2)
 	rm -rf ${PRJ}
 	# now for sequential + ftrace 1
 	rm -rf build-ft1-${PRJ} ${PRJ}
 	mkdir build-ft1-${PRJ}
 	cd build-ft1-${PRJ} && cmake -DCMAKE_INSTALL_PREFIX=../${PRJ} -DUSE_OPENMP=OFF -DUSE_FTRACE=2 ${CMAKE_ARGS} .. 2>&1 | tee ../mk-ft1-${PRJ}.log
-	cd build-ft1-${PRJ} && make ${MKJOB} >> ../mk-ft1-${PRJ}.log 2>&1
+	cd build-ft1-${PRJ} && make ${MKJOB} VERBOSE=1 >> ../mk-ft1-${PRJ}.log 2>&1
 	cd build-ft1-${PRJ} && make VERBOSE=1 install >> ../mk-ft1-${PRJ}.log 2>&1
 	# now for omp + ftrace 1
 	echo "--- see mk-ft1-${PRJ}_omp.log for the USE_FTRACE=1 omp build log ---" >> mk-${PRJ}.log
 	rm -rf build-ft1-${PRJ}_omp
 	mkdir build-ft1-${PRJ}_omp
 	cd build-ft1-${PRJ}_omp && cmake -DCMAKE_INSTALL_PREFIX=../${PRJ} -DUSE_OPENMP=ON -DUSE_FTRACE=2 ${CMAKE_ARGS} .. >& ../mk-ft1-${PRJ}_omp.log
-	cd build-ft1-${PRJ}_omp && make ${MKJOB} >> ../mk-ft1-${PRJ}_omp.log 2>&1
+	cd build-ft1-${PRJ}_omp && make ${MKJOB} VERBOSE=1 >> ../mk-ft1-${PRJ}_omp.log 2>&1
 	cd build-ft1-${PRJ}_omp && make VERBOSE=1 install >> ../mk-ft1-${PRJ}_omp.log 2>&1
 	# tarball
 	rm -f ${PRJ}-ftrace1.tar.gz
@@ -93,7 +94,7 @@ clean:
 	rm -rf build-${PRJ}* build-ft1* ${PRJ} mk-build.log mk-${PRJ}.log mk-${PRJ}_omp.log mk-ft1-${PRJ}.log mk-ft1-${PRJ}_omp.log
 	$(MAKE) -C test clean
 realclean: clean
-	rm -rf build build-vednn build-vednn_omp install vednnx ${PRJ}.tar.gz ${PRJ}-ftrace1.tar.gz
+	-rm -rf build build-vednn build-vednn_omp install vednnx ${PRJ}.tar.gz ${PRJ}-ftrace1.tar.gz
 	$(MAKE) -C src/wrap realclean
 	$(MAKE) -C test realclean
 #

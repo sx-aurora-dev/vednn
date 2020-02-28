@@ -8,6 +8,7 @@ set(CMAKE_CXX_COMPILER ${NCXX})
 if(USE_FTRACE AND USE_FTRACE STREQUAL 2)
     set(CMAKE_C_FLAGS   "${CMAKE_C_FLAGS}   -ftrace")
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -ftrace")
+    # check whether compile/link needs -pthread for ftrace correctness XXX
     #set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -pthread")
 endif()
 
@@ -22,6 +23,8 @@ if(BUILD_SHARED_LIB)
     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fPIC")
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fPIC")
 endif()
+
+message(STATUS "src/wrap/ CMAKE_C_FLAGS=${CMAKE_C_FLAGS}")
 
 include_directories(".." "../C")
 include_directories("vconv/include/gen-dnn/vgemm")

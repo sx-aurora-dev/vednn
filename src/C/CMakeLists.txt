@@ -3,6 +3,8 @@ cmake_minimum_required(VERSION 3.0)
 # Isn't this propagated to us?
 set(CMAKE_C_COMPILER ${NCC})
 set(CMAKE_CXX_COMPILER ${NCXX})
+
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DXX_BEG")
 # Need some targets with different compile flags
 #set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -O4 -DNDEBUG")
 #set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O4 -finline -finline-functions -DNDEBUG")
@@ -26,6 +28,10 @@ if(BUILD_SHARED_LIB)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fPIC")
 endif()
 
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DXX_END")
+message(STATUS "src/C/ CMAKE_C_FLAGS=${CMAKE_C_FLAGS}")
+message(STATUS "src/C/ CMAKE_CXX_FLAGS=${CMAKE_CXX_FLAGS}")
+
 set(CMAKE_C_FLAGS   "${CMAKE_C_FLAGS}   -DCMK_C")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DCMK_C")
 message(STATUS "src/C/ CMAKE_C_FLAGS=${CMAKE_C_FLAGS}")
@@ -35,6 +41,10 @@ include_directories("../" "gen-dnn")
 
 add_library(vednn_c_code OBJECT
 	vednnConvolutionForward.c
+    vednnConvolutionForward_dil1_str1_padsame_ker3_T.cpp
+    vednnConvolutionForward_dil1_str1_pad0_ker1_T.cpp
+    vednnConvolutionForward_owU128_T.cpp
+    vednnConvolutionForward_dil1_str1_padsame_ker3_c1024x_T.cpp
 	vednnConvolutionBackwardData.c
 	vednnConvolutionBackwardFilter.c
 	vednnLinearForward.c
@@ -69,7 +79,6 @@ target_compile_options(vednn_gemm_convolution PRIVATE
     $<$<CONFIG:Debug>:-O0 -DVERBOSE=1 -DTMP05>
     )
 
-
 # libvednnx iterator exposes low-level calls (with different parameter ordering)
 # Some external projects may want to directly access the low-level libvednn
 # impls, with their slightly different parameter ordering... for now.
@@ -82,5 +91,8 @@ install(FILES
     #vednnConvolutionForwardAddBias.h
     vednnConvolutionBackwardData.h
     vednnConvolutionBackwardFilter.h
+    ve_fastdiv.h
+    vednn-def.h
+    vednn-def.hpp
     DESTINATION include/C)
 # vim: et ts=4 sw=4 ai

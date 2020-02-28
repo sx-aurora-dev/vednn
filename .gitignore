@@ -10,13 +10,14 @@
 **/?.log
 **/*.diff
 **/*.gch
+**/ftrace.out
 vednn
+vednnx
 build
 vednnx
 vejit
 vednn*.tar.gz
-build-vednn*
-build-ft1*
+build-*
 mk-vednn*.log
 mk-ft1*.log
 mk-build.log
@@ -25,6 +26,5 @@ mk-ft1*.log
 mk-build.log
 vejit-ncc*gz
 install
-**/ftrace.out
 mk*.log
 ?.log

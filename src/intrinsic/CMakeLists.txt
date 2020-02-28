@@ -1,5 +1,6 @@
 cmake_minimum_required(VERSION 3.0)
 
+message(STATUS "src/intrinsic CMAKE_C_FLAGS     ${CMAKE_C_FLAGS}")
 set(CMAKE_C_COMPILER ${LLVM_INSTALL_PREFIX}/bin/clang)
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -target ve -O3 -mllvm -show-spill-message-vec -fno-vectorize -fno-unroll-loops -fno-slp-vectorize -fno-crash-diagnostics")
 
@@ -18,7 +19,10 @@ if(BUILD_SHARED_LIB)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fPIC")
 endif()
 
+message(STATUS "src/intrinsic CMAKE_C_FLAGS --> ${CMAKE_C_FLAGS}")
+
 include_directories("../")
+# include_directories("../C/vconv/include/gen-dnn/vgemm")
 
 add_subdirectory(Linear/Forward)
 add_subdirectory(Linear/BackwardData)

@@ -54,7 +54,10 @@ static vednnConvForwardImpls vednnConvForwardList_[] = {
     // d1s1pS
     IMPL_FNS(vednnConvolutionForward_direct_dil1_str1_padsame_ker3_c1_owU128,"cnvFwd-d1s1pSk3c1owU128"),
     IMPL_FNS(vednnConvolutionForward_direct_dil1_str1_padsame_ker3_c1,"cnvFwd-d1s1pSk3_c1"),
-    //IMPL_WRAPNONE_EASY_FNS(vednnConvolutionForward_direct_dil1_str1_padsame_ker3_T,"cnvFwd-d1s1pSk3_T"),
+    IMPL_WRAPNONE_FNS(Forward,dil1_str1_padsame_ker3_c1024x_T,"cnvFwd-d1s1pSk3c1024x_T"),
+    IMPL_WRAPNONE_FNS(Forward,dil1_str1_padsame_ker3_T,"cnvFwd-d1s1pSk3_T"),
+    IMPL_WRAPNONE_FNS(Forward,owU128_T, "cnvFwd-owU128_T"),
+    IMPL_WRAPNONE_FNS(Forward,dil1_str1_pad0_ker1_T,"cnvFwd-s1p0k1_T"),
     IMPL_FNS(vednnConvolutionForward_direct_dil1_str1_padsame_ker3,"cnvFwd-d1s1pSk3"),
     IMPL_FNS(vednnConvolutionForward_direct_dil1_str1_padsame_ker5_owU128,"cnvFwd-d1s1pSk5owU128"),
     IMPL_FNS(vednnConvolutionForward_direct_dil1_str1_padsame_ker5,"cnvFwd-d1s1pSk5"),

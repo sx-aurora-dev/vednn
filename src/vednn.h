@@ -6,9 +6,25 @@
 #define VEDNN_PATCHLEVEL   5
 #define VEDNN_VERSION    (VEDNN_MAJOR * 1000 + VEDNN_MINOR * 100 + VEDNN_PATCHLEVEL)
 
-#if defined(__cplusplus) && !defined(restrict)
-#define restrict __restrict__
+#if defined(__clang)
+// maybe this accepts restrict 'as is'
+
+#elif defined(__ve)
+#   if defined(__cplusplus)
+#      ifndef __restrict
+#         warning "nc++ restrict-->__restrict"
+#          define restrict __restrict 
+#      endif
+#   else
+#      if !defined(restrict)
+#         warning "ncc restrict-->__restrict"
+#         define restrict __restrict // ncc uses __restrict in C headers
+#      endif
+#   endif
+#else
+#error "how do you handle 'restrict'?"
 #endif
+
 
 #ifdef __cplusplus
 extern "C" { /*}*/

@@ -2,6 +2,8 @@ cmake_minimum_required(VERSION 3.0)
 
 set(CMAKE_C_COMPILER ${NCC})
 set(CMAKE_CXX_COMPILER ${NCXX})
+# vednn   : core vednn library
+# vednnx  : extensions for tests (is impl ok? iteration over ok impls)
 
 if(USE_OPENMP)
 	set(LIBNAME vednn_openmp)

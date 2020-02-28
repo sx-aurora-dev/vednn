@@ -31,31 +31,22 @@ if(NOT IS_DIRECTORY "${NLCDIR}") # usually set in some higher CMakeLists.txt ...
     set(NLCDIR "/opt/nec/ve/nlc/2.0.0" CACHE STRING "VE blas install directory")
 endif()
 
-#add_custom_target(vconv_unPack ALL)
-#add_custom_command(TARGET vconv_unPack PRE_BUILD
-#    COMMAND ${CMAKE_COMMAND} -E remove_directory ${CMAKE_CURRENT_SOURCE_DIR}/include/
-#    COMMAND ${CMAKE_COMMAND} -E remove_directory ${CMAKE_CURRENT_SOURCE_DIR}/lib/
-#    COMMAND ${CMAKE_COMMAND} -E remove_directory ${CMAKE_CURRENT_SOURCE_DIR}/src/
-#    COMMAND ${CMAKE_COMMAND} -E tar xzf ${PROJECT_SOURCE_DIR}/vconv-ve.tar.gz
-#    WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
-#    DEPENDS ${PROJECT_SOURCE_DIR}/vconv-ve.tar.gz
-#    COMMENT "Unpacking vconv-ve.tar.gz into ${CMAKE_SOURCE_DIR}"
-#    VERBATIM)
+# I now have local changes (for ncc 3.0 'restrict')
 # unpack has to run at **cmake** time. add_custom_target...i
 #        PRE_BUILD is not quite good enough.
-if(( (NOT IS_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/include/)
-    OR (NOT IS_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/lib/)
-    OR (NOT IS_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/src/)
-    ) AND EXISTS ${PROJECT_SOURCE_DIR}/vconv-ve.tar.gz)
-    message(STATUS "Unpacking vconv-ve.tar.gz distribution")
-    execute_process(
-        COMMAND ${CMAKE_COMMAND} -E remove_directory ${CMAKE_CURRENT_SOURCE_DIR}/include/
-        COMMAND ${CMAKE_COMMAND} -E remove_directory ${CMAKE_CURRENT_SOURCE_DIR}/lib/
-        COMMAND ${CMAKE_COMMAND} -E remove_directory ${CMAKE_CURRENT_SOURCE_DIR}/src/
-        COMMAND ${CMAKE_COMMAND} -E tar xzf ${PROJECT_SOURCE_DIR}/vconv-ve.tar.gz
-        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
-        )
-endif()
+#if(( (NOT IS_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/include/)
+#    OR (NOT IS_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/lib/)
+#    OR (NOT IS_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/src/)
+#    ) AND EXISTS ${PROJECT_SOURCE_DIR}/vconv-ve.tar.gz)
+#    message(STATUS "Unpacking vconv-ve.tar.gz distribution")
+#    execute_process(
+#        COMMAND ${CMAKE_COMMAND} -E remove_directory ${CMAKE_CURRENT_SOURCE_DIR}/include/
+#        COMMAND ${CMAKE_COMMAND} -E remove_directory ${CMAKE_CURRENT_SOURCE_DIR}/lib/
+#        COMMAND ${CMAKE_COMMAND} -E remove_directory ${CMAKE_CURRENT_SOURCE_DIR}/src/
+#        COMMAND ${CMAKE_COMMAND} -E tar xzf ${PROJECT_SOURCE_DIR}/vconv-ve.tar.gz
+#        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+#        )
+#endif()
 file(GLOB_RECURSE VCONV_HEADERS
     ${CMAKE_CURRENT_SOURCE_DIR}/include/*.h
     ${CMAKE_CURRENT_SOURCE_DIR}/include/*.hpp

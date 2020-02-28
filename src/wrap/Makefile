@@ -33,13 +33,14 @@ LLVM_DIR	= /proj/share/local/x86_64/llvm
 CLANG		= ${LLVM_DIR}/bin/clang
 CLANG_FLAGS	= -O3 ${USE_FPIC} -fno-vectorize -fno-slp-vectorize -fno-crash-diagnostics -target ve -I../
 
-BLAS_DIR	= /opt/nec/ve/nlc/1.0.0
+BLAS_DIR	= /opt/nec/ve/nlc/2.0.0
 BLAS_INC_DIR	= $(BLAS_DIR)/include
 BLAS_LIB_DIR	= $(BLAS_DIR)/lib
 COPTS		+= -I$(BLAS_INC_DIR) 
 
 VEDNN_DIR	= ..
 COPTS  += -I${VEDNN_DIR} -I${VEDNN_DIR}/C
+CLANG_FLAGS += -I${VEDNN_DIR} -I${VEDNN_DIR}/C
 
 ifeq ($(OPENMP),YES)
 CFLAGS      += -fopenmp -DVEDNN_USE_OPENMP
@@ -53,6 +54,13 @@ LDLIBS	+= -L$(BLAS_LIB_DIR) -lblas_sequential
 endif
 
 ifeq ($(FTRACE),YES)
+#  #VEPERF_DIR	= /usr/uhome/aurora/mpc/pub/veperf/180218-ELF
+#  #VEPERF_INC_DIR	= $(VEPERF_DIR)/include
+#  #VEPERF_LIB_DIR	= $(VEPERF_DIR)/lib
+#  #CFLAGS		+= -I$(VEPERF_INC_DIR) -DFTRACE
+#  #LDLIBS		+= -L$(VEPERF_LIB_DIR) -Wl,-rpath,$(realpath $(VEPERF_LIB_DIR)) -ftrace
+#  CFLAGS		+= -ftrace -DFTRACE
+#  LDLIBS		+= -ftrace
 VEPERF_DIR	= /usr/uhome/aurora/mpc/pub/veperf/180218-ELF
 VEPERF_INC_DIR	= $(VEPERF_DIR)/include
 VEPERF_LIB_DIR	= $(VEPERF_DIR)/lib

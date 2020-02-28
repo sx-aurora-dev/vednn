@@ -59,7 +59,7 @@ VEDNN_SUFFIX:=_sequential
 endif
 LIBVEDNN:=vednn$(VEDNN_SUFFIX)
 LIBVEDNNX:=vednnx$(VEDNN_SUFFIX)
-./vednn: ../vednnx.tar.gz
+./vednn: ../vednn.tar.gz
 	rm -rf tmp-v; mkdir tmp-v
 	cd tmp-v && tar xzmf ../$^
 	rm -rf $@; mv tmp-v/vednn $@; rm -rf tmp-v

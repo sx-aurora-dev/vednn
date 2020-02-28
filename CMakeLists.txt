@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.0)
 project(vednn)
 
 option(USE_OPENMP   "Use OpenMP" ON)
-option(BUILD_SHARED "Build Shared Library" OFF)
+option(BUILD_SHARED_LIB "Build Shared Library" OFF)
 option(LOCAL_LLVM   "Try llvm+clang from .local? (use to avoid system clang, if nec.)" OFF)
 set(USE_FTRACE CACHE STRING "ftrace+veperf support [0]|1|2, 1 instruments less than 2" )
 set_property(CACHE USE_FTRACE PROPERTY STRINGS OFF 1 2) # informative only
