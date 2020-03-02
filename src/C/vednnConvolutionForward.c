@@ -79,11 +79,13 @@ vednnError_t vednnConvolutionForwardBody(
     vednnConvolutionForward_wrapper, \
     VEDNN_CONVFWD_ARGS_LIST)
 
+#ifdef VEDNN_ALT_PARALLEL
   // alternate ||ism handled internally via some other means
   // XXX public or private API?
   // These can use the private API !!!
 #define ALT_RET( IMPL ) return vednnConvolutionForward_direct_##IMPL( \
     VEDNN_CONVFWD_ARGS_LIST )
+#endif
 
   if (algo == VEDNN_CONV_ALGORITHM_DIRECT)
   {
@@ -116,7 +118,7 @@ vednnError_t vednnConvolutionForwardBody(
       {
         OMPWRAP(vecC);
       }
-#if 1 // resnext branch : AGGRESSIVE use of gemm for all stride > 1 ?
+#ifdef VEDNN_ALT_PARALLEL // resnext branch : AGGRESSIVE use of gemm for all stride > 1 ?
     }else if (pParamConv->strideWidth > 1 || pParamConv->strideHeight > 1) {
       // try using gemm in most cases with stride > 1
       if(pParamOut->channel / pParamConv->group <= 256
@@ -132,15 +134,15 @@ vednnError_t vednnConvolutionForwardBody(
         && pParamIn->width == pParamOut->width )
     { // d1s1pS ...
       if (pParamKernel->width == 1 && pParamKernel->height == 1){
-#if 0
-        OMPWRAP(dil1_str1_pad0_ker1);
-#else // new: CHECKME
+#ifdef VEDNN_ALT_PARALLEL // new: CHECKME
         if(pParamOut->width <= 128) {
           ALT_RET(dil1_str1_pad0_ker1_T);
         } else {
           //OMPWRAP(dil1_str1_pad0_ker1);
           ALT_RET(gemm); // always faster?
         }
+#else
+        OMPWRAP(dil1_str1_pad0_ker1);
 #endif
       }else if (pParamKernel->height == 3 && pParamKernel->width == 3){ // d1s1pSk3
         if (pParamIn->channel == pParamConv->group){ // aka inputChannelGroup==1
@@ -149,13 +151,14 @@ vednnError_t vednnConvolutionForwardBody(
           else
             OMPWRAP(dil1_str1_padsame_ker3_c1);
         }else{
-#if 0
-          OMPWRAP(dil1_str1_padsame_ker3); // is this ever faster?
-#else
+#ifdef VEDNN_ALT_PARALLEL
           if (pParamKernel->inChannel % 1024 == 0)
             ALT_RET(dil1_str1_padsame_ker3_c1024x_T);
           else
             ALT_RET(dil1_str1_padsame_ker3_T);
+#else
+          OMPWRAP(dil1_str1_padsame_ker3); // is this ever faster?
+
 #endif
         }
       }else if (pParamKernel->height == 5 && pParamKernel->width == 5){ // d1s1pSk5
@@ -193,9 +196,7 @@ vednnError_t vednnConvolutionForwardBody(
           OMPWRAP(dil1_pad0_ker1);
       }else{ // d1s>1p0k>1
         if (pParamOut->width <= 128){
-#if 0
-          OMPWRAP(dil1_pad0_owU128);
-#else
+#ifdef VEDNN_ALT_PARALLEL
           // XXX 3 possibilities:
           //  OMPWRAP(dil1_pad0_owU128);
           //  ALT_RET(owU128_T);
@@ -204,12 +205,14 @@ vednnError_t vednnConvolutionForwardBody(
             ALT_RET(owU128_T); // NEW
           else
             ALT_RET(gemm); // NEW: is this case always faster than dil1_pad0_owU128?
+#else
+          OMPWRAP(dil1_pad0_owU128);
 #endif
         }else{
-#if 0
-          OMPWRAP(dil1_pad0);
-#else
+#ifdef VEDNN_ALT_PARALLEL
           ALT_RET(gemm); // always faster than dil1_pad0 ?
+#else
+          OMPWRAP(dil1_pad0);
 #endif
         }
       }
@@ -236,8 +239,11 @@ vednnError_t vednnConvolutionForwardBody(
     return VEDNN_ERROR_INVALID_PARAM ;
   }
 }
+
 #undef OMPWRAP
+#ifdef VEDNN_ALT_PARALLEL
 #undef ALT_RET
+#endif
 
 /* ----------------------------------------------------------------------- */
 vednnError_t vednnConvolutionForwardAddBias(
