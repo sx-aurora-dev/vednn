@@ -6,7 +6,96 @@
 #include "vednn.h"
 
 #include "velintrin.h"
-#define VLEN	(256)
+
+template <int BATCH, bool UPDATE>
+static inline void funcUseScratchPad(
+  const uint64_t	inDim,
+  const uint64_t	outDim,
+  const uint64_t	nInDim,
+  const float * 	pIn,
+  const float * 	pGOut,
+  float * 		pGWeight,
+  const uint64_t 	mvl
+)
+{
+  float __attribute__ ((aligned(8))) scratch[BATCH*256*2] ;
+
+  for(int64_t o=0; o<outDim; o+=2*mvl) {
+    const int64_t vl = (outDim-o < 2*mvl ? outDim - o : 2*mvl) >> 1 ;
+
+    __vr vrgout[BATCH] ;
+#pragma clang loop unroll(full)
+    for(int64_t b=0; b<BATCH; b++) {
+      vrgout[b] = _vel_vld_vssl(8, pGOut+b*outDim+o, vl) ;
+    }
+
+    for(int64_t i0=0; i0<nInDim; i0+=256) {
+      const int64_t ilen = nInDim - i0 < 256 ? nInDim - i0 : 256 ;
+
+      // copy Input to Scratch
+      {
+	__vr vri[BATCH] ;
+#pragma clang loop unroll(full)
+	for(int64_t b=0; b<BATCH; b++) {
+	  vri[b] = _vel_vldu_vssl(4, pIn+b*inDim+i0, ilen) ;
+	}
+#pragma clang loop unroll(full)
+	for(int64_t b=0; b<BATCH; b++) {
+	  _vel_vstu_vssl(vri[b], 4, scratch+b*ilen, ilen) ;
+	}
+      }
+
+      int64_t i1=0;
+      if(ilen & 0x1) {
+#define CALC_STORE(I) {							\
+	  __vr vrgw ;							\
+	  if(UPDATE) {							\
+	    vrgw = _vel_vld_vssl(8, pGWeight+(i0+(I))*outDim+o, vl) ;	\
+	    const uint64_t in = _vel_pack_f32a(scratch+0*ilen+(I)) ;	\
+	    vrgw = _vel_pvfmad_vvsvl(vrgw, in, vrgout[0], vl) ;		\
+	  }								\
+	  else {							\
+	    const uint64_t in = _vel_pack_f32a(scratch+0*ilen+(I)) ;	\
+	    vrgw = _vel_pvfmul_vsvl(in, vrgout[0], vl) ;		\
+	  }								\
+	  _Pragma("clang loop unroll(full)")				\
+	  for(int64_t b=1; b<BATCH; b++) {				\
+	    const uint64_t in = _vel_pack_f32a(scratch+b*ilen+(I)) ;	\
+	    vrgw = _vel_pvfmad_vvsvl(vrgw, in, vrgout[b], vl) ;		\
+	  }								\
+	  _vel_vst_vssl(vrgw, 8, pGWeight+(i0+(I))*outDim+o, vl) ;	\
+	}
+
+	CALC_STORE(i1+0) ;
+	i1+=1;
+      }
+      if((ilen>>1) & 0x1) {
+	CALC_STORE(i1+0) ;
+	CALC_STORE(i1+1) ;
+	i1+=2 ;
+      }
+      if((ilen>>2) & 0x1) {
+	CALC_STORE(i1+0) ;
+	CALC_STORE(i1+1) ;
+	CALC_STORE(i1+2) ;
+	CALC_STORE(i1+3) ;
+	i1+=4 ;
+      }
+      for(; i1<ilen; i1+=8) {
+	CALC_STORE(i1+0) ;
+	CALC_STORE(i1+1) ;
+	CALC_STORE(i1+2) ;
+	CALC_STORE(i1+3) ;
+	CALC_STORE(i1+4) ;
+	CALC_STORE(i1+5) ;
+	CALC_STORE(i1+6) ;
+	CALC_STORE(i1+7) ;
+#undef CALC_STORE
+      }
+    }
+  }
+}
+
 
 template <int BATCH, bool UPDATE>
 static inline void func(
@@ -15,439 +104,66 @@ static inline void func(
   const uint64_t	nInDim,
   const float * 	pIn,
   const float * 	pGOut,
-  float * 		pGWeight
+  float * 		pGWeight,
+  const uint64_t 	mvl
 )
 {
-  for(int64_t o=0; o<outDim; o+=2*VLEN) {
-    const int64_t vl = (outDim-o < 2*VLEN ? outDim - o : 2*VLEN) >> 1 ;
+  for(int64_t o=0; o<outDim; o+=2*mvl) {
+    const int64_t vl = (outDim-o < 2*mvl ? outDim - o : 2*mvl) >> 1 ;
 
-    __vr vrgout_b0 = _vel_vld_vssl(8, pGOut+0*outDim+o, vl) ;
-    __vr vrgout_b1 = _vel_vld_vssl(8, pGOut+1*outDim+o, vl) ;
-    __vr vrgout_b2 = _vel_vld_vssl(8, pGOut+2*outDim+o, vl) ;
-    __vr vrgout_b3 = _vel_vld_vssl(8, pGOut+3*outDim+o, vl) ;
-    __vr vrgout_b4 = _vel_vld_vssl(8, pGOut+4*outDim+o, vl) ;
-    __vr vrgout_b5 = _vel_vld_vssl(8, pGOut+5*outDim+o, vl) ;
-    __vr vrgout_b6 = _vel_vld_vssl(8, pGOut+6*outDim+o, vl) ;
-    __vr vrgout_b7 = _vel_vld_vssl(8, pGOut+7*outDim+o, vl) ;
+
+    __vr vrgout[BATCH] ;
+#pragma clang loop unroll(full)
+    for(int64_t b=0; b<BATCH; b++) {
+      vrgout[b] = _vel_vld_vssl(8, pGOut+b*outDim+o, vl) ;
+    }
 
     int64_t i=0;
     if(nInDim & 0x1) {
-      __vr vrgw ;
-
-      if(UPDATE) {
-	vrgw = _vel_vld_vssl(8, pGWeight+(i+0)*outDim+o, vl) ;
-
-	const uint64_t in_b0 = _vel_pack_f32a(pIn+0*inDim+i) ;
-	vrgw = _vel_pvfmad_vvsvl(vrgw, in_b0, vrgout_b0, vl) ;
-      }
-      else {
-	const uint64_t in_b0 = _vel_pack_f32a(pIn+0*inDim+i) ;
-	vrgw = _vel_pvfmul_vsvl(in_b0, vrgout_b0, vl) ;
-      }
-
-      if(BATCH>=2)  {
-	const uint64_t in_b1 = _vel_pack_f32a(pIn+1*inDim+i) ;
-	vrgw = _vel_pvfmad_vvsvl(vrgw, in_b1, vrgout_b1, vl) ;
-      }
-      if(BATCH>=3) {
-	const uint64_t in_b2 = _vel_pack_f32a(pIn+2*inDim+i) ;
-	vrgw = _vel_pvfmad_vvsvl(vrgw, in_b2, vrgout_b2, vl) ;
-      }
-      if(BATCH>=4) {
-	const uint64_t in_b3 = _vel_pack_f32a(pIn+3*inDim+i) ;
-	vrgw = _vel_pvfmad_vvsvl(vrgw, in_b3, vrgout_b3, vl) ;
-      }
-      if(BATCH>=5) {
-	const uint64_t in_b4 = _vel_pack_f32a(pIn+4*inDim+i) ;
-	vrgw = _vel_pvfmad_vvsvl(vrgw, in_b4, vrgout_b4, vl) ;
-      }
-      if(BATCH>=6) {
-	const uint64_t in_b5 = _vel_pack_f32a(pIn+5*inDim+i) ;
-	vrgw = _vel_pvfmad_vvsvl(vrgw, in_b5, vrgout_b5, vl) ;
-      }
-      if(BATCH>=7) {
-	const uint64_t in_b6 = _vel_pack_f32a(pIn+6*inDim+i) ;
-	vrgw = _vel_pvfmad_vvsvl(vrgw, in_b6, vrgout_b6, vl) ;
-      }
-      if(BATCH>=8) {
-	const uint64_t in_b7 = _vel_pack_f32a(pIn+7*inDim+i) ;
-	vrgw = _vel_pvfmad_vvsvl(vrgw, in_b7, vrgout_b7, vl) ;
+#define CALC_STORE(I) {						\
+	__vr vrgw ;						\
+	if(UPDATE) {						\
+	  vrgw = _vel_vld_vssl(8, pGWeight+(I)*outDim+o, vl) ;	\
+	  const uint64_t in = _vel_pack_f32a(pIn+0*inDim+(I)) ;	\
+	  vrgw = _vel_pvfmad_vvsvl(vrgw, in, vrgout[0], vl) ;	\
+	}							\
+	else {							\
+	  const uint64_t in = _vel_pack_f32a(pIn+0*inDim+(I)) ;	\
+	  vrgw = _vel_pvfmul_vsvl(in, vrgout[0], vl) ;		\
+	}							\
+	_Pragma("clang loop unroll(full)")			\
+	for(int64_t b=1; b<BATCH; b++) {			\
+	  const uint64_t in = _vel_pack_f32a(pIn+b*inDim+(I)) ;	\
+	  vrgw = _vel_pvfmad_vvsvl(vrgw, in, vrgout[b], vl) ;	\
+	}							\
+	_vel_vst_vssl(vrgw, 8, pGWeight+(I)*outDim+o, vl) ;	\
       }
 
-      _vel_vst_vssl(vrgw, 8, pGWeight+i*outDim+o, vl) ;
-
+      CALC_STORE(i+0) ;
       i+=1;
     }
     if((nInDim>>1) & 0x1) {
-      __vr vrgw_i0 ;
-      __vr vrgw_i1 ;
-
-      if(UPDATE) {
-	vrgw_i0 = _vel_vld_vssl(8, pGWeight+(i+0)*outDim+o, vl) ;
-	vrgw_i1 = _vel_vld_vssl(8, pGWeight+(i+1)*outDim+o, vl) ;
-
-	const uint64_t in_i0_b0 = _vel_pack_f32a(pIn+0*inDim+i+0) ;
-	const uint64_t in_i1_b0 = _vel_pack_f32a(pIn+0*inDim+i+1) ;
-	vrgw_i0 = _vel_pvfmad_vvsvl(vrgw_i0, in_i0_b0, vrgout_b0, vl) ;
-	vrgw_i1 = _vel_pvfmad_vvsvl(vrgw_i1, in_i1_b0, vrgout_b0, vl) ;
-      }
-      else {
-	const uint64_t in_i0_b0 = _vel_pack_f32a(pIn+0*inDim+i+0) ;
-	const uint64_t in_i1_b0 = _vel_pack_f32a(pIn+0*inDim+i+1) ;
-	vrgw_i0 = _vel_pvfmul_vsvl(in_i0_b0, vrgout_b0, vl) ;
-	vrgw_i1 = _vel_pvfmul_vsvl(in_i1_b0, vrgout_b0, vl) ;
-      }
-
-      if(BATCH>=2)  {
-	const uint64_t in_i0_b1 = _vel_pack_f32a(pIn+1*inDim+i+0) ;
-	const uint64_t in_i1_b1 = _vel_pack_f32a(pIn+1*inDim+i+1) ;
-	vrgw_i0 = _vel_pvfmad_vvsvl(vrgw_i0, in_i0_b1, vrgout_b1, vl) ;
-	vrgw_i1 = _vel_pvfmad_vvsvl(vrgw_i1, in_i1_b1, vrgout_b1, vl) ;
-      }
-      if(BATCH>=3) {
-	const uint64_t in_i0_b2 = _vel_pack_f32a(pIn+2*inDim+i+0) ;
-	const uint64_t in_i1_b2 = _vel_pack_f32a(pIn+2*inDim+i+1) ;
-	vrgw_i0 = _vel_pvfmad_vvsvl(vrgw_i0, in_i0_b2, vrgout_b2, vl) ;
-	vrgw_i1 = _vel_pvfmad_vvsvl(vrgw_i1, in_i1_b2, vrgout_b2, vl) ;
-      }
-      if(BATCH>=4) {
-	const uint64_t in_i0_b3 = _vel_pack_f32a(pIn+3*inDim+i+0) ;
-	const uint64_t in_i1_b3 = _vel_pack_f32a(pIn+3*inDim+i+1) ;
-	vrgw_i0 = _vel_pvfmad_vvsvl(vrgw_i0, in_i0_b3, vrgout_b3, vl) ;
-	vrgw_i1 = _vel_pvfmad_vvsvl(vrgw_i1, in_i1_b3, vrgout_b3, vl) ;
-      }
-      if(BATCH>=5) {
-	const uint64_t in_i0_b4 = _vel_pack_f32a(pIn+4*inDim+i+0) ;
-	const uint64_t in_i1_b4 = _vel_pack_f32a(pIn+4*inDim+i+1) ;
-	vrgw_i0 = _vel_pvfmad_vvsvl(vrgw_i0, in_i0_b4, vrgout_b4, vl) ;
-	vrgw_i1 = _vel_pvfmad_vvsvl(vrgw_i1, in_i1_b4, vrgout_b4, vl) ;
-      }
-      if(BATCH>=6) {
-	const uint64_t in_i0_b5 = _vel_pack_f32a(pIn+5*inDim+i+0) ;
-	const uint64_t in_i1_b5 = _vel_pack_f32a(pIn+5*inDim+i+1) ;
-	vrgw_i0 = _vel_pvfmad_vvsvl(vrgw_i0, in_i0_b5, vrgout_b5, vl) ;
-	vrgw_i1 = _vel_pvfmad_vvsvl(vrgw_i1, in_i1_b5, vrgout_b5, vl) ;
-      }
-      if(BATCH>=7) {
-	const uint64_t in_i0_b6 = _vel_pack_f32a(pIn+6*inDim+i+0) ;
-	const uint64_t in_i1_b6 = _vel_pack_f32a(pIn+6*inDim+i+1) ;
-	vrgw_i0 = _vel_pvfmad_vvsvl(vrgw_i0, in_i0_b6, vrgout_b6, vl) ;
-	vrgw_i1 = _vel_pvfmad_vvsvl(vrgw_i1, in_i1_b6, vrgout_b6, vl) ;
-      }
-      if(BATCH>=8) {
-	const uint64_t in_i0_b7 = _vel_pack_f32a(pIn+7*inDim+i+0) ;
-	const uint64_t in_i1_b7 = _vel_pack_f32a(pIn+7*inDim+i+1) ;
-	vrgw_i0 = _vel_pvfmad_vvsvl(vrgw_i0, in_i0_b7, vrgout_b7, vl) ;
-	vrgw_i1 = _vel_pvfmad_vvsvl(vrgw_i1, in_i1_b7, vrgout_b7, vl) ;
-      }
-
-      _vel_vst_vssl(vrgw_i0, 8, pGWeight+(i+0)*outDim+o, vl) ;
-      _vel_vst_vssl(vrgw_i1, 8, pGWeight+(i+1)*outDim+o, vl) ;
-
+      CALC_STORE(i+0) ;
+      CALC_STORE(i+1) ;
       i+=2 ;
     }
     if((nInDim>>2) & 0x1) {
-      __vr vrgw_i0 ;
-      __vr vrgw_i1 ;
-      __vr vrgw_i2 ;
-      __vr vrgw_i3 ;
-
-
-      if(UPDATE) {
-	vrgw_i0 = _vel_vld_vssl(8, pGWeight+(i+0)*outDim+o, vl) ;
-	vrgw_i1 = _vel_vld_vssl(8, pGWeight+(i+1)*outDim+o, vl) ;
-	vrgw_i2 = _vel_vld_vssl(8, pGWeight+(i+2)*outDim+o, vl) ;
-	vrgw_i3 = _vel_vld_vssl(8, pGWeight+(i+3)*outDim+o, vl) ;
-
-	const uint64_t in_i0_b0 = _vel_pack_f32a(pIn+0*inDim+i+0) ;
-	const uint64_t in_i1_b0 = _vel_pack_f32a(pIn+0*inDim+i+1) ;
-	const uint64_t in_i2_b0 = _vel_pack_f32a(pIn+0*inDim+i+2) ;
-	const uint64_t in_i3_b0 = _vel_pack_f32a(pIn+0*inDim+i+3) ;
-	vrgw_i0 = _vel_pvfmad_vvsvl(vrgw_i0, in_i0_b0, vrgout_b0, vl) ;
-	vrgw_i1 = _vel_pvfmad_vvsvl(vrgw_i1, in_i1_b0, vrgout_b0, vl) ;
-	vrgw_i2 = _vel_pvfmad_vvsvl(vrgw_i2, in_i2_b0, vrgout_b0, vl) ;
-	vrgw_i3 = _vel_pvfmad_vvsvl(vrgw_i3, in_i3_b0, vrgout_b0, vl) ;
-      }
-      else {
-	const uint64_t in_i0_b0 = _vel_pack_f32a(pIn+0*inDim+i+0) ;
-	const uint64_t in_i1_b0 = _vel_pack_f32a(pIn+0*inDim+i+1) ;
-	const uint64_t in_i2_b0 = _vel_pack_f32a(pIn+0*inDim+i+2) ;
-	const uint64_t in_i3_b0 = _vel_pack_f32a(pIn+0*inDim+i+3) ;
-	vrgw_i0 = _vel_pvfmul_vsvl(in_i0_b0, vrgout_b0, vl) ;
-	vrgw_i1 = _vel_pvfmul_vsvl(in_i1_b0, vrgout_b0, vl) ;
-	vrgw_i2 = _vel_pvfmul_vsvl(in_i2_b0, vrgout_b0, vl) ;
-	vrgw_i3 = _vel_pvfmul_vsvl(in_i3_b0, vrgout_b0, vl) ;
-      }
-
-      if(BATCH>=2)  {
-	const uint64_t in_i0_b1 = _vel_pack_f32a(pIn+1*inDim+i+0) ;
-	const uint64_t in_i1_b1 = _vel_pack_f32a(pIn+1*inDim+i+1) ;
-	const uint64_t in_i2_b1 = _vel_pack_f32a(pIn+1*inDim+i+2) ;
-	const uint64_t in_i3_b1 = _vel_pack_f32a(pIn+1*inDim+i+3) ;
-	vrgw_i0 = _vel_pvfmad_vvsvl(vrgw_i0, in_i0_b1, vrgout_b1, vl) ;
-	vrgw_i1 = _vel_pvfmad_vvsvl(vrgw_i1, in_i1_b1, vrgout_b1, vl) ;
-	vrgw_i2 = _vel_pvfmad_vvsvl(vrgw_i2, in_i2_b1, vrgout_b1, vl) ;
-	vrgw_i3 = _vel_pvfmad_vvsvl(vrgw_i3, in_i3_b1, vrgout_b1, vl) ;
-      }
-      if(BATCH>=3) {
-	const uint64_t in_i0_b2 = _vel_pack_f32a(pIn+2*inDim+i+0) ;
-	const uint64_t in_i1_b2 = _vel_pack_f32a(pIn+2*inDim+i+1) ;
-	const uint64_t in_i2_b2 = _vel_pack_f32a(pIn+2*inDim+i+2) ;
-	const uint64_t in_i3_b2 = _vel_pack_f32a(pIn+2*inDim+i+3) ;
-	vrgw_i0 = _vel_pvfmad_vvsvl(vrgw_i0, in_i0_b2, vrgout_b2, vl) ;
-	vrgw_i1 = _vel_pvfmad_vvsvl(vrgw_i1, in_i1_b2, vrgout_b2, vl) ;
-	vrgw_i2 = _vel_pvfmad_vvsvl(vrgw_i2, in_i2_b2, vrgout_b2, vl) ;
-	vrgw_i3 = _vel_pvfmad_vvsvl(vrgw_i3, in_i3_b2, vrgout_b2, vl) ;
-      }
-      if(BATCH>=4) {
-	const uint64_t in_i0_b3 = _vel_pack_f32a(pIn+3*inDim+i+0) ;
-	const uint64_t in_i1_b3 = _vel_pack_f32a(pIn+3*inDim+i+1) ;
-	const uint64_t in_i2_b3 = _vel_pack_f32a(pIn+3*inDim+i+2) ;
-	const uint64_t in_i3_b3 = _vel_pack_f32a(pIn+3*inDim+i+3) ;
-	vrgw_i0 = _vel_pvfmad_vvsvl(vrgw_i0, in_i0_b3, vrgout_b3, vl) ;
-	vrgw_i1 = _vel_pvfmad_vvsvl(vrgw_i1, in_i1_b3, vrgout_b3, vl) ;
-	vrgw_i2 = _vel_pvfmad_vvsvl(vrgw_i2, in_i2_b3, vrgout_b3, vl) ;
-	vrgw_i3 = _vel_pvfmad_vvsvl(vrgw_i3, in_i3_b3, vrgout_b3, vl) ;
-      }
-      if(BATCH>=5) {
-	const uint64_t in_i0_b4 = _vel_pack_f32a(pIn+4*inDim+i+0) ;
-	const uint64_t in_i1_b4 = _vel_pack_f32a(pIn+4*inDim+i+1) ;
-	const uint64_t in_i2_b4 = _vel_pack_f32a(pIn+4*inDim+i+2) ;
-	const uint64_t in_i3_b4 = _vel_pack_f32a(pIn+4*inDim+i+3) ;
-	vrgw_i0 = _vel_pvfmad_vvsvl(vrgw_i0, in_i0_b4, vrgout_b4, vl) ;
-	vrgw_i1 = _vel_pvfmad_vvsvl(vrgw_i1, in_i1_b4, vrgout_b4, vl) ;
-	vrgw_i2 = _vel_pvfmad_vvsvl(vrgw_i2, in_i2_b4, vrgout_b4, vl) ;
-	vrgw_i3 = _vel_pvfmad_vvsvl(vrgw_i3, in_i3_b4, vrgout_b4, vl) ;
-      }
-      if(BATCH>=6) {
-	const uint64_t in_i0_b5 = _vel_pack_f32a(pIn+5*inDim+i+0) ;
-	const uint64_t in_i1_b5 = _vel_pack_f32a(pIn+5*inDim+i+1) ;
-	const uint64_t in_i2_b5 = _vel_pack_f32a(pIn+5*inDim+i+2) ;
-	const uint64_t in_i3_b5 = _vel_pack_f32a(pIn+5*inDim+i+3) ;
-	vrgw_i0 = _vel_pvfmad_vvsvl(vrgw_i0, in_i0_b5, vrgout_b5, vl) ;
-	vrgw_i1 = _vel_pvfmad_vvsvl(vrgw_i1, in_i1_b5, vrgout_b5, vl) ;
-	vrgw_i2 = _vel_pvfmad_vvsvl(vrgw_i2, in_i2_b5, vrgout_b5, vl) ;
-	vrgw_i3 = _vel_pvfmad_vvsvl(vrgw_i3, in_i3_b5, vrgout_b5, vl) ;
-      }
-      if(BATCH>=7) {
-	const uint64_t in_i0_b6 = _vel_pack_f32a(pIn+6*inDim+i+0) ;
-	const uint64_t in_i1_b6 = _vel_pack_f32a(pIn+6*inDim+i+1) ;
-	const uint64_t in_i2_b6 = _vel_pack_f32a(pIn+6*inDim+i+2) ;
-	const uint64_t in_i3_b6 = _vel_pack_f32a(pIn+6*inDim+i+3) ;
-	vrgw_i0 = _vel_pvfmad_vvsvl(vrgw_i0, in_i0_b6, vrgout_b6, vl) ;
-	vrgw_i1 = _vel_pvfmad_vvsvl(vrgw_i1, in_i1_b6, vrgout_b6, vl) ;
-	vrgw_i2 = _vel_pvfmad_vvsvl(vrgw_i2, in_i2_b6, vrgout_b6, vl) ;
-	vrgw_i3 = _vel_pvfmad_vvsvl(vrgw_i3, in_i3_b6, vrgout_b6, vl) ;
-      }
-      if(BATCH>=8) {
-	const uint64_t in_i0_b7 = _vel_pack_f32a(pIn+7*inDim+i+0) ;
-	const uint64_t in_i1_b7 = _vel_pack_f32a(pIn+7*inDim+i+1) ;
-	const uint64_t in_i2_b7 = _vel_pack_f32a(pIn+7*inDim+i+2) ;
-	const uint64_t in_i3_b7 = _vel_pack_f32a(pIn+7*inDim+i+3) ;
-	vrgw_i0 = _vel_pvfmad_vvsvl(vrgw_i0, in_i0_b7, vrgout_b7, vl) ;
-	vrgw_i1 = _vel_pvfmad_vvsvl(vrgw_i1, in_i1_b7, vrgout_b7, vl) ;
-	vrgw_i2 = _vel_pvfmad_vvsvl(vrgw_i2, in_i2_b7, vrgout_b7, vl) ;
-	vrgw_i3 = _vel_pvfmad_vvsvl(vrgw_i3, in_i3_b7, vrgout_b7, vl) ;
-      }
-
-      _vel_vst_vssl(vrgw_i0, 8, pGWeight+(i+0)*outDim+o, vl) ;
-      _vel_vst_vssl(vrgw_i1, 8, pGWeight+(i+1)*outDim+o, vl) ;
-      _vel_vst_vssl(vrgw_i2, 8, pGWeight+(i+2)*outDim+o, vl) ;
-      _vel_vst_vssl(vrgw_i3, 8, pGWeight+(i+3)*outDim+o, vl) ;
-
+      CALC_STORE(i+0) ;
+      CALC_STORE(i+1) ;
+      CALC_STORE(i+2) ;
+      CALC_STORE(i+3) ;
       i+=4 ;
     }
     for(; i<nInDim; i+=8) {
-      __vr vrgw_i0 ;
-      __vr vrgw_i1 ;
-      __vr vrgw_i2 ;
-      __vr vrgw_i3 ;
-      __vr vrgw_i4 ;
-      __vr vrgw_i5 ;
-      __vr vrgw_i6 ;
-      __vr vrgw_i7 ;
-
-      if(UPDATE) {
-	vrgw_i0 = _vel_vld_vssl(8, pGWeight+(i+0)*outDim+o, vl) ;
-	vrgw_i1 = _vel_vld_vssl(8, pGWeight+(i+1)*outDim+o, vl) ;
-	vrgw_i2 = _vel_vld_vssl(8, pGWeight+(i+2)*outDim+o, vl) ;
-	vrgw_i3 = _vel_vld_vssl(8, pGWeight+(i+3)*outDim+o, vl) ;
-	vrgw_i4 = _vel_vld_vssl(8, pGWeight+(i+4)*outDim+o, vl) ;
-	vrgw_i5 = _vel_vld_vssl(8, pGWeight+(i+5)*outDim+o, vl) ;
-	vrgw_i6 = _vel_vld_vssl(8, pGWeight+(i+6)*outDim+o, vl) ;
-	vrgw_i7 = _vel_vld_vssl(8, pGWeight+(i+7)*outDim+o, vl) ;
-
-	const uint64_t in_i0_b0 = _vel_pack_f32a(pIn+0*inDim+i+0) ;
-	const uint64_t in_i1_b0 = _vel_pack_f32a(pIn+0*inDim+i+1) ;
-	const uint64_t in_i2_b0 = _vel_pack_f32a(pIn+0*inDim+i+2) ;
-	const uint64_t in_i3_b0 = _vel_pack_f32a(pIn+0*inDim+i+3) ;
-	const uint64_t in_i4_b0 = _vel_pack_f32a(pIn+0*inDim+i+4) ;
-	const uint64_t in_i5_b0 = _vel_pack_f32a(pIn+0*inDim+i+5) ;
-	const uint64_t in_i6_b0 = _vel_pack_f32a(pIn+0*inDim+i+6) ;
-	const uint64_t in_i7_b0 = _vel_pack_f32a(pIn+0*inDim+i+7) ;
-	vrgw_i0 = _vel_pvfmad_vvsvl(vrgw_i0, in_i0_b0, vrgout_b0, vl) ;
-	vrgw_i1 = _vel_pvfmad_vvsvl(vrgw_i1, in_i1_b0, vrgout_b0, vl) ;
-	vrgw_i2 = _vel_pvfmad_vvsvl(vrgw_i2, in_i2_b0, vrgout_b0, vl) ;
-	vrgw_i3 = _vel_pvfmad_vvsvl(vrgw_i3, in_i3_b0, vrgout_b0, vl) ;
-	vrgw_i4 = _vel_pvfmad_vvsvl(vrgw_i4, in_i4_b0, vrgout_b0, vl) ;
-	vrgw_i5 = _vel_pvfmad_vvsvl(vrgw_i5, in_i5_b0, vrgout_b0, vl) ;
-	vrgw_i6 = _vel_pvfmad_vvsvl(vrgw_i6, in_i6_b0, vrgout_b0, vl) ;
-	vrgw_i7 = _vel_pvfmad_vvsvl(vrgw_i7, in_i7_b0, vrgout_b0, vl) ;
-      }
-      else {
-	const uint64_t in_i0_b0 = _vel_pack_f32a(pIn+0*inDim+i+0) ;
-	const uint64_t in_i1_b0 = _vel_pack_f32a(pIn+0*inDim+i+1) ;
-	const uint64_t in_i2_b0 = _vel_pack_f32a(pIn+0*inDim+i+2) ;
-	const uint64_t in_i3_b0 = _vel_pack_f32a(pIn+0*inDim+i+3) ;
-	const uint64_t in_i4_b0 = _vel_pack_f32a(pIn+0*inDim+i+4) ;
-	const uint64_t in_i5_b0 = _vel_pack_f32a(pIn+0*inDim+i+5) ;
-	const uint64_t in_i6_b0 = _vel_pack_f32a(pIn+0*inDim+i+6) ;
-	const uint64_t in_i7_b0 = _vel_pack_f32a(pIn+0*inDim+i+7) ;
-	vrgw_i0 = _vel_pvfmul_vsvl(in_i0_b0, vrgout_b0, vl) ;
-	vrgw_i1 = _vel_pvfmul_vsvl(in_i1_b0, vrgout_b0, vl) ;
-	vrgw_i2 = _vel_pvfmul_vsvl(in_i2_b0, vrgout_b0, vl) ;
-	vrgw_i3 = _vel_pvfmul_vsvl(in_i3_b0, vrgout_b0, vl) ;
-	vrgw_i4 = _vel_pvfmul_vsvl(in_i4_b0, vrgout_b0, vl) ;
-	vrgw_i5 = _vel_pvfmul_vsvl(in_i5_b0, vrgout_b0, vl) ;
-	vrgw_i6 = _vel_pvfmul_vsvl(in_i6_b0, vrgout_b0, vl) ;
-	vrgw_i7 = _vel_pvfmul_vsvl(in_i7_b0, vrgout_b0, vl) ;
-      }
-
-      if(BATCH>=2)  {
-	const uint64_t in_i0_b1 = _vel_pack_f32a(pIn+1*inDim+i+0) ;
-	const uint64_t in_i1_b1 = _vel_pack_f32a(pIn+1*inDim+i+1) ;
-	const uint64_t in_i2_b1 = _vel_pack_f32a(pIn+1*inDim+i+2) ;
-	const uint64_t in_i3_b1 = _vel_pack_f32a(pIn+1*inDim+i+3) ;
-	const uint64_t in_i4_b1 = _vel_pack_f32a(pIn+1*inDim+i+4) ;
-	const uint64_t in_i5_b1 = _vel_pack_f32a(pIn+1*inDim+i+5) ;
-	const uint64_t in_i6_b1 = _vel_pack_f32a(pIn+1*inDim+i+6) ;
-	const uint64_t in_i7_b1 = _vel_pack_f32a(pIn+1*inDim+i+7) ;
-	vrgw_i0 = _vel_pvfmad_vvsvl(vrgw_i0, in_i0_b1, vrgout_b1, vl) ;
-	vrgw_i1 = _vel_pvfmad_vvsvl(vrgw_i1, in_i1_b1, vrgout_b1, vl) ;
-	vrgw_i2 = _vel_pvfmad_vvsvl(vrgw_i2, in_i2_b1, vrgout_b1, vl) ;
-	vrgw_i3 = _vel_pvfmad_vvsvl(vrgw_i3, in_i3_b1, vrgout_b1, vl) ;
-	vrgw_i4 = _vel_pvfmad_vvsvl(vrgw_i4, in_i4_b1, vrgout_b1, vl) ;
-	vrgw_i5 = _vel_pvfmad_vvsvl(vrgw_i5, in_i5_b1, vrgout_b1, vl) ;
-	vrgw_i6 = _vel_pvfmad_vvsvl(vrgw_i6, in_i6_b1, vrgout_b1, vl) ;
-	vrgw_i7 = _vel_pvfmad_vvsvl(vrgw_i7, in_i7_b1, vrgout_b1, vl) ;
-      }
-      if(BATCH>=3) {
-	const uint64_t in_i0_b2 = _vel_pack_f32a(pIn+2*inDim+i+0) ;
-	const uint64_t in_i1_b2 = _vel_pack_f32a(pIn+2*inDim+i+1) ;
-	const uint64_t in_i2_b2 = _vel_pack_f32a(pIn+2*inDim+i+2) ;
-	const uint64_t in_i3_b2 = _vel_pack_f32a(pIn+2*inDim+i+3) ;
-	const uint64_t in_i4_b2 = _vel_pack_f32a(pIn+2*inDim+i+4) ;
-	const uint64_t in_i5_b2 = _vel_pack_f32a(pIn+2*inDim+i+5) ;
-	const uint64_t in_i6_b2 = _vel_pack_f32a(pIn+2*inDim+i+6) ;
-	const uint64_t in_i7_b2 = _vel_pack_f32a(pIn+2*inDim+i+7) ;
-	vrgw_i0 = _vel_pvfmad_vvsvl(vrgw_i0, in_i0_b2, vrgout_b2, vl) ;
-	vrgw_i1 = _vel_pvfmad_vvsvl(vrgw_i1, in_i1_b2, vrgout_b2, vl) ;
-	vrgw_i2 = _vel_pvfmad_vvsvl(vrgw_i2, in_i2_b2, vrgout_b2, vl) ;
-	vrgw_i3 = _vel_pvfmad_vvsvl(vrgw_i3, in_i3_b2, vrgout_b2, vl) ;
-	vrgw_i4 = _vel_pvfmad_vvsvl(vrgw_i4, in_i4_b2, vrgout_b2, vl) ;
-	vrgw_i5 = _vel_pvfmad_vvsvl(vrgw_i5, in_i5_b2, vrgout_b2, vl) ;
-	vrgw_i6 = _vel_pvfmad_vvsvl(vrgw_i6, in_i6_b2, vrgout_b2, vl) ;
-	vrgw_i7 = _vel_pvfmad_vvsvl(vrgw_i7, in_i7_b2, vrgout_b2, vl) ;
-      }
-      if(BATCH>=4) {
-	const uint64_t in_i0_b3 = _vel_pack_f32a(pIn+3*inDim+i+0) ;
-	const uint64_t in_i1_b3 = _vel_pack_f32a(pIn+3*inDim+i+1) ;
-	const uint64_t in_i2_b3 = _vel_pack_f32a(pIn+3*inDim+i+2) ;
-	const uint64_t in_i3_b3 = _vel_pack_f32a(pIn+3*inDim+i+3) ;
-	const uint64_t in_i4_b3 = _vel_pack_f32a(pIn+3*inDim+i+4) ;
-	const uint64_t in_i5_b3 = _vel_pack_f32a(pIn+3*inDim+i+5) ;
-	const uint64_t in_i6_b3 = _vel_pack_f32a(pIn+3*inDim+i+6) ;
-	const uint64_t in_i7_b3 = _vel_pack_f32a(pIn+3*inDim+i+7) ;
-	vrgw_i0 = _vel_pvfmad_vvsvl(vrgw_i0, in_i0_b3, vrgout_b3, vl) ;
-	vrgw_i1 = _vel_pvfmad_vvsvl(vrgw_i1, in_i1_b3, vrgout_b3, vl) ;
-	vrgw_i2 = _vel_pvfmad_vvsvl(vrgw_i2, in_i2_b3, vrgout_b3, vl) ;
-	vrgw_i3 = _vel_pvfmad_vvsvl(vrgw_i3, in_i3_b3, vrgout_b3, vl) ;
-	vrgw_i4 = _vel_pvfmad_vvsvl(vrgw_i4, in_i4_b3, vrgout_b3, vl) ;
-	vrgw_i5 = _vel_pvfmad_vvsvl(vrgw_i5, in_i5_b3, vrgout_b3, vl) ;
-	vrgw_i6 = _vel_pvfmad_vvsvl(vrgw_i6, in_i6_b3, vrgout_b3, vl) ;
-	vrgw_i7 = _vel_pvfmad_vvsvl(vrgw_i7, in_i7_b3, vrgout_b3, vl) ;
-      }
-      if(BATCH>=5) {
-	const uint64_t in_i0_b4 = _vel_pack_f32a(pIn+4*inDim+i+0) ;
-	const uint64_t in_i1_b4 = _vel_pack_f32a(pIn+4*inDim+i+1) ;
-	const uint64_t in_i2_b4 = _vel_pack_f32a(pIn+4*inDim+i+2) ;
-	const uint64_t in_i3_b4 = _vel_pack_f32a(pIn+4*inDim+i+3) ;
-	const uint64_t in_i4_b4 = _vel_pack_f32a(pIn+4*inDim+i+4) ;
-	const uint64_t in_i5_b4 = _vel_pack_f32a(pIn+4*inDim+i+5) ;
-	const uint64_t in_i6_b4 = _vel_pack_f32a(pIn+4*inDim+i+6) ;
-	const uint64_t in_i7_b4 = _vel_pack_f32a(pIn+4*inDim+i+7) ;
-	vrgw_i0 = _vel_pvfmad_vvsvl(vrgw_i0, in_i0_b4, vrgout_b4, vl) ;
-	vrgw_i1 = _vel_pvfmad_vvsvl(vrgw_i1, in_i1_b4, vrgout_b4, vl) ;
-	vrgw_i2 = _vel_pvfmad_vvsvl(vrgw_i2, in_i2_b4, vrgout_b4, vl) ;
-	vrgw_i3 = _vel_pvfmad_vvsvl(vrgw_i3, in_i3_b4, vrgout_b4, vl) ;
-	vrgw_i4 = _vel_pvfmad_vvsvl(vrgw_i4, in_i4_b4, vrgout_b4, vl) ;
-	vrgw_i5 = _vel_pvfmad_vvsvl(vrgw_i5, in_i5_b4, vrgout_b4, vl) ;
-	vrgw_i6 = _vel_pvfmad_vvsvl(vrgw_i6, in_i6_b4, vrgout_b4, vl) ;
-	vrgw_i7 = _vel_pvfmad_vvsvl(vrgw_i7, in_i7_b4, vrgout_b4, vl) ;
-      }
-      if(BATCH>=6) {
-	const uint64_t in_i0_b5 = _vel_pack_f32a(pIn+5*inDim+i+0) ;
-	const uint64_t in_i1_b5 = _vel_pack_f32a(pIn+5*inDim+i+1) ;
-	const uint64_t in_i2_b5 = _vel_pack_f32a(pIn+5*inDim+i+2) ;
-	const uint64_t in_i3_b5 = _vel_pack_f32a(pIn+5*inDim+i+3) ;
-	const uint64_t in_i4_b5 = _vel_pack_f32a(pIn+5*inDim+i+4) ;
-	const uint64_t in_i5_b5 = _vel_pack_f32a(pIn+5*inDim+i+5) ;
-	const uint64_t in_i6_b5 = _vel_pack_f32a(pIn+5*inDim+i+6) ;
-	const uint64_t in_i7_b5 = _vel_pack_f32a(pIn+5*inDim+i+7) ;
-	vrgw_i0 = _vel_pvfmad_vvsvl(vrgw_i0, in_i0_b5, vrgout_b5, vl) ;
-	vrgw_i1 = _vel_pvfmad_vvsvl(vrgw_i1, in_i1_b5, vrgout_b5, vl) ;
-	vrgw_i2 = _vel_pvfmad_vvsvl(vrgw_i2, in_i2_b5, vrgout_b5, vl) ;
-	vrgw_i3 = _vel_pvfmad_vvsvl(vrgw_i3, in_i3_b5, vrgout_b5, vl) ;
-	vrgw_i4 = _vel_pvfmad_vvsvl(vrgw_i4, in_i4_b5, vrgout_b5, vl) ;
-	vrgw_i5 = _vel_pvfmad_vvsvl(vrgw_i5, in_i5_b5, vrgout_b5, vl) ;
-	vrgw_i6 = _vel_pvfmad_vvsvl(vrgw_i6, in_i6_b5, vrgout_b5, vl) ;
-	vrgw_i7 = _vel_pvfmad_vvsvl(vrgw_i7, in_i7_b5, vrgout_b5, vl) ;
-      }
-      if(BATCH>=7) {
-	const uint64_t in_i0_b6 = _vel_pack_f32a(pIn+6*inDim+i+0) ;
-	const uint64_t in_i1_b6 = _vel_pack_f32a(pIn+6*inDim+i+1) ;
-	const uint64_t in_i2_b6 = _vel_pack_f32a(pIn+6*inDim+i+2) ;
-	const uint64_t in_i3_b6 = _vel_pack_f32a(pIn+6*inDim+i+3) ;
-	const uint64_t in_i4_b6 = _vel_pack_f32a(pIn+6*inDim+i+4) ;
-	const uint64_t in_i5_b6 = _vel_pack_f32a(pIn+6*inDim+i+5) ;
-	const uint64_t in_i6_b6 = _vel_pack_f32a(pIn+6*inDim+i+6) ;
-	const uint64_t in_i7_b6 = _vel_pack_f32a(pIn+6*inDim+i+7) ;
-	vrgw_i0 = _vel_pvfmad_vvsvl(vrgw_i0, in_i0_b6, vrgout_b6, vl) ;
-	vrgw_i1 = _vel_pvfmad_vvsvl(vrgw_i1, in_i1_b6, vrgout_b6, vl) ;
-	vrgw_i2 = _vel_pvfmad_vvsvl(vrgw_i2, in_i2_b6, vrgout_b6, vl) ;
-	vrgw_i3 = _vel_pvfmad_vvsvl(vrgw_i3, in_i3_b6, vrgout_b6, vl) ;
-	vrgw_i4 = _vel_pvfmad_vvsvl(vrgw_i4, in_i4_b6, vrgout_b6, vl) ;
-	vrgw_i5 = _vel_pvfmad_vvsvl(vrgw_i5, in_i5_b6, vrgout_b6, vl) ;
-	vrgw_i6 = _vel_pvfmad_vvsvl(vrgw_i6, in_i6_b6, vrgout_b6, vl) ;
-	vrgw_i7 = _vel_pvfmad_vvsvl(vrgw_i7, in_i7_b6, vrgout_b6, vl) ;
-      }
-      if(BATCH>=8) {
-	const uint64_t in_i0_b7 = _vel_pack_f32a(pIn+7*inDim+i+0) ;
-	const uint64_t in_i1_b7 = _vel_pack_f32a(pIn+7*inDim+i+1) ;
-	const uint64_t in_i2_b7 = _vel_pack_f32a(pIn+7*inDim+i+2) ;
-	const uint64_t in_i3_b7 = _vel_pack_f32a(pIn+7*inDim+i+3) ;
-	const uint64_t in_i4_b7 = _vel_pack_f32a(pIn+7*inDim+i+4) ;
-	const uint64_t in_i5_b7 = _vel_pack_f32a(pIn+7*inDim+i+5) ;
-	const uint64_t in_i6_b7 = _vel_pack_f32a(pIn+7*inDim+i+6) ;
-	const uint64_t in_i7_b7 = _vel_pack_f32a(pIn+7*inDim+i+7) ;
-	vrgw_i0 = _vel_pvfmad_vvsvl(vrgw_i0, in_i0_b7, vrgout_b7, vl) ;
-	vrgw_i1 = _vel_pvfmad_vvsvl(vrgw_i1, in_i1_b7, vrgout_b7, vl) ;
-	vrgw_i2 = _vel_pvfmad_vvsvl(vrgw_i2, in_i2_b7, vrgout_b7, vl) ;
-	vrgw_i3 = _vel_pvfmad_vvsvl(vrgw_i3, in_i3_b7, vrgout_b7, vl) ;
-	vrgw_i4 = _vel_pvfmad_vvsvl(vrgw_i4, in_i4_b7, vrgout_b7, vl) ;
-	vrgw_i5 = _vel_pvfmad_vvsvl(vrgw_i5, in_i5_b7, vrgout_b7, vl) ;
-	vrgw_i6 = _vel_pvfmad_vvsvl(vrgw_i6, in_i6_b7, vrgout_b7, vl) ;
-	vrgw_i7 = _vel_pvfmad_vvsvl(vrgw_i7, in_i7_b7, vrgout_b7, vl) ;
-      }
-
-      _vel_vst_vssl(vrgw_i0, 8, pGWeight+(i+0)*outDim+o, vl) ;
-      _vel_vst_vssl(vrgw_i1, 8, pGWeight+(i+1)*outDim+o, vl) ;
-      _vel_vst_vssl(vrgw_i2, 8, pGWeight+(i+2)*outDim+o, vl) ;
-      _vel_vst_vssl(vrgw_i3, 8, pGWeight+(i+3)*outDim+o, vl) ;
-      _vel_vst_vssl(vrgw_i4, 8, pGWeight+(i+4)*outDim+o, vl) ;
-      _vel_vst_vssl(vrgw_i5, 8, pGWeight+(i+5)*outDim+o, vl) ;
-      _vel_vst_vssl(vrgw_i6, 8, pGWeight+(i+6)*outDim+o, vl) ;
-      _vel_vst_vssl(vrgw_i7, 8, pGWeight+(i+7)*outDim+o, vl) ;
+      CALC_STORE(i+0) ;
+      CALC_STORE(i+1) ;
+      CALC_STORE(i+2) ;
+      CALC_STORE(i+3) ;
+      CALC_STORE(i+4) ;
+      CALC_STORE(i+5) ;
+      CALC_STORE(i+6) ;
+      CALC_STORE(i+7) ;
+#undef CALC_STORE
     }
   }
 }
@@ -478,57 +194,115 @@ vednnError_t vednnLinearBackwardWeight_o2X_woaligned(
 #endif
 
   int64_t n=0;
-  int64_t batchRemain = nBatch % 8 ;
+  int64_t batchRemain = nBatch & 0xf ;
+
+  int64_t mvl ;
+  if( outDim % (256*2) == 0 )
+    mvl = 256 ;
+  else if ( outDim % (192*2) == 0 )
+    mvl = 192 ;
+  else if( outDim % (256*2) < outDim % (192*2) )
+    mvl = 192 ;
+  else
+    mvl = 256 ;
 
   switch( batchRemain ) {
   case 1 :
     func<1,false>(inDim, outDim, inDimEnd-inDimBegin,
-	          pIn+inDimBegin+n*inDim, pGOut+n*outDim, pGWeight+inDimBegin*outDim) ;
+	          pIn+inDimBegin+n*inDim, pGOut+n*outDim, pGWeight+inDimBegin*outDim, mvl) ;
     n+=1 ;
     break ;
   case 2 :
    func<2,false>(inDim, outDim, inDimEnd-inDimBegin,
-	         pIn+inDimBegin+n*inDim, pGOut+n*outDim, pGWeight+inDimBegin*outDim) ;
+	         pIn+inDimBegin+n*inDim, pGOut+n*outDim, pGWeight+inDimBegin*outDim, mvl) ;
     n+=2 ;
     break ;
   case 3 :
     func<3,false>(inDim, outDim, inDimEnd-inDimBegin,
-	          pIn+inDimBegin+n*inDim, pGOut+n*outDim, pGWeight+inDimBegin*outDim) ;
+	          pIn+inDimBegin+n*inDim, pGOut+n*outDim, pGWeight+inDimBegin*outDim, mvl) ;
     n+=3 ;
     break ;
   case 4 :
     func<4,false>(inDim, outDim, inDimEnd-inDimBegin,
-	          pIn+inDimBegin+n*inDim, pGOut+n*outDim, pGWeight+inDimBegin*outDim) ;
+	          pIn+inDimBegin+n*inDim, pGOut+n*outDim, pGWeight+inDimBegin*outDim, mvl) ;
     n+=4 ;
     break ;
   case 5 :
     func<5,false>(inDim, outDim, inDimEnd-inDimBegin,
-	          pIn+inDimBegin+n*inDim, pGOut+n*outDim, pGWeight+inDimBegin*outDim) ;
+	          pIn+inDimBegin+n*inDim, pGOut+n*outDim, pGWeight+inDimBegin*outDim, mvl) ;
     n+=5 ;
     break ;
   case 6 :
     func<6,false>(inDim, outDim, inDimEnd-inDimBegin,
-	          pIn+inDimBegin+n*inDim, pGOut+n*outDim, pGWeight+inDimBegin*outDim) ;
+	          pIn+inDimBegin+n*inDim, pGOut+n*outDim, pGWeight+inDimBegin*outDim, mvl) ;
     n+=6 ;
     break ;
   case 7 :
     func<7,false>(inDim, outDim, inDimEnd-inDimBegin,
-	          pIn+inDimBegin+n*inDim, pGOut+n*outDim, pGWeight+inDimBegin*outDim) ;
+	          pIn+inDimBegin+n*inDim, pGOut+n*outDim, pGWeight+inDimBegin*outDim, mvl) ;
     n+=7 ;
     break ;
+  case 8 :
+    func<8,false>(inDim, outDim, inDimEnd-inDimBegin,
+	          pIn+inDimBegin+n*inDim, pGOut+n*outDim, pGWeight+inDimBegin*outDim, mvl) ;
+    n+=8 ;
+    break ;
+  case 9 :
+    func<9,false>(inDim, outDim, inDimEnd-inDimBegin,
+	          pIn+inDimBegin+n*inDim, pGOut+n*outDim, pGWeight+inDimBegin*outDim, mvl) ;
+    n+=9 ;
+    break ;
+  case 10 :
+    func<10,false>(inDim, outDim, inDimEnd-inDimBegin,
+	          pIn+inDimBegin+n*inDim, pGOut+n*outDim, pGWeight+inDimBegin*outDim, mvl) ;
+    n+=10 ;
+    break ;
+  case 11 :
+    func<11,false>(inDim, outDim, inDimEnd-inDimBegin,
+	          pIn+inDimBegin+n*inDim, pGOut+n*outDim, pGWeight+inDimBegin*outDim, mvl) ;
+    n+=11 ;
+    break ;
+  case 12 :
+    func<12,false>(inDim, outDim, inDimEnd-inDimBegin,
+	          pIn+inDimBegin+n*inDim, pGOut+n*outDim, pGWeight+inDimBegin*outDim, mvl) ;
+    n+=12 ;
+    break ;
+  case 13 :
+    func<13,false>(inDim, outDim, inDimEnd-inDimBegin,
+	          pIn+inDimBegin+n*inDim, pGOut+n*outDim, pGWeight+inDimBegin*outDim, mvl) ;
+    n+=13 ;
+    break ;
+  case 14 :
+    func<14,false>(inDim, outDim, inDimEnd-inDimBegin,
+	          pIn+inDimBegin+n*inDim, pGOut+n*outDim, pGWeight+inDimBegin*outDim, mvl) ;
+    n+=14 ;
+    break ;
+  case 15 :
+    func<15,false>(inDim, outDim, inDimEnd-inDimBegin,
+	          pIn+inDimBegin+n*inDim, pGOut+n*outDim, pGWeight+inDimBegin*outDim, mvl) ;
+    n+=15 ;
+    break ;
   default :
-    if( nBatch >= 8 ) {
-      func<8,false>(inDim, outDim, inDimEnd-inDimBegin,
-		    pIn+inDimBegin+n*inDim, pGOut+n*outDim, pGWeight+inDimBegin*outDim) ;
-      n+=8 ;
+    if( nBatch >= 16 ) {
+      func<16,false>(inDim, outDim, inDimEnd-inDimBegin,
+		    pIn+inDimBegin+n*inDim, pGOut+n*outDim, pGWeight+inDimBegin*outDim, mvl) ;
+      n+=16 ;
     }
     break ;
   }
 
-  for(; n<nBatch; n+=8) {
-    func<8,true>(inDim, outDim, inDimEnd-inDimBegin,
-		 pIn+inDimBegin+n*inDim, pGOut+n*outDim, pGWeight+inDimBegin*outDim) ;
+  if( inDim % 1024 < 8 || inDim % 1024 > 1024-8) {
+    // to avoid l1 cache miss, use scratch-pad
+    for(; n<nBatch; n+=16) {
+      funcUseScratchPad<16,true>(inDim, outDim, inDimEnd-inDimBegin,
+  		 pIn+inDimBegin+n*inDim, pGOut+n*outDim, pGWeight+inDimBegin*outDim, mvl) ;
+    }
   }
-
+  else {
+    for(; n<nBatch; n+=16) {
+      func<16,true>(inDim, outDim, inDimEnd-inDimBegin,
+  		 pIn+inDimBegin+n*inDim, pGOut+n*outDim, pGWeight+inDimBegin*outDim, mvl) ;
+    }
+  }
   return VEDNN_SUCCESS ;
 }
