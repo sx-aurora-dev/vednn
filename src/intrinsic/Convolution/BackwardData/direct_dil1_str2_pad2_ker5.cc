@@ -38,6 +38,8 @@ static inline void func(
     for (int64_t w = 0; w < gInWidth ; w += VLEN ) {
       const int64_t vl = gInWidth - w < VLEN ? gInWidth - w  : VLEN ;
 
+      const int64_t vlhalf = (vl >> 1) + (vl & 0x1) ;
+
       const int64_t xmin_s0 = (w+2) / 2 ;
       const int64_t xmin_s2 = (w+0) / 2 ;
       const int64_t xmin_s4 = w >= 2 ? (w-2) / 2 : 0 ;
@@ -75,11 +77,11 @@ static inline void func(
       __vm256 vmx_s3 = _vel_andm_mmm(vmx0_s3, vmx_s34) ;
       __vm256 vmx_s4 = _vel_andm_mmm(vmx0_s4, vmx_s34) ;
 
-      __vr vrsum0_s0  = _vel_vbrds_vsl(0.f, vl/2) ;
-      __vr vrsum0_s1  = _vel_vbrds_vsl(0.f, vl/2) ;
-      __vr vrsum0_s2  = _vel_vbrds_vsl(0.f, vl/2) ;
-      __vr vrsum0_s3  = _vel_vbrds_vsl(0.f, vl/2) ;
-      __vr vrsum0_s4  = _vel_vbrds_vsl(0.f, vl/2) ;
+      __vr vrsum0_s0  = _vel_vbrds_vsl(0.f, vlhalf) ;
+      __vr vrsum0_s1  = _vel_vbrds_vsl(0.f, vlhalf) ;
+      __vr vrsum0_s2  = _vel_vbrds_vsl(0.f, vlhalf) ;
+      __vr vrsum0_s3  = _vel_vbrds_vsl(0.f, vlhalf) ;
+      __vr vrsum0_s4  = _vel_vbrds_vsl(0.f, vlhalf) ;
       __vr vrsum_s0[nPacked] ;
       __vr vrsum_s1[nPacked] ;
       __vr vrsum_s2[nPacked] ;
@@ -87,11 +89,11 @@ static inline void func(
       __vr vrsum_s4[nPacked] ;
 #pragma clang loop unroll(full)
       for(int64_t cc=0; cc<nPacked; cc++) {
-	vrsum_s0[cc] = _vel_pvbrd_vsl(0UL, vl/2) ;
-	vrsum_s1[cc] = _vel_pvbrd_vsl(0UL, vl/2) ;
-	vrsum_s2[cc] = _vel_pvbrd_vsl(0UL, vl/2) ;
-	vrsum_s3[cc] = _vel_pvbrd_vsl(0UL, vl/2) ;
-	vrsum_s4[cc] = _vel_pvbrd_vsl(0UL, vl/2) ;
+	vrsum_s0[cc] = _vel_pvbrd_vsl(0UL, vlhalf) ;
+	vrsum_s1[cc] = _vel_pvbrd_vsl(0UL, vlhalf) ;
+	vrsum_s2[cc] = _vel_pvbrd_vsl(0UL, vlhalf) ;
+	vrsum_s3[cc] = _vel_pvbrd_vsl(0UL, vlhalf) ;
+	vrsum_s4[cc] = _vel_pvbrd_vsl(0UL, vlhalf) ;
       }
 
       for (int64_t r=0; r<kernHeight; r++) {
@@ -102,23 +104,23 @@ static inline void func(
 	for (int64_t k=0; k<gOutChannelGroup; k++) {
 	  int64_t gOutIndex    = gOutGroupOffset + ((n * gOutChannel + k) * gOutHeight) * gOutWidth ;
 
-	  __vr vrgout_s01 = _vel_vldu_vssl(4, pGOut+gOutIndex+gOutWidth*y + xmin_s0 , vl/2) ;
-	  __vr vrgout_s23 = _vel_vldu_vssl(4, pGOut+gOutIndex+gOutWidth*y + xmin_s2 , vl/2) ;
-	  __vr vrgout_s4  = _vel_vldu_vssl(4, pGOut+gOutIndex+gOutWidth*y + xmin_s4 , vl/2) ;
+	  __vr vrgout_s01 = _vel_vldu_vssl(4, pGOut+gOutIndex+gOutWidth*y + xmin_s0 , vlhalf) ;
+	  __vr vrgout_s23 = _vel_vldu_vssl(4, pGOut+gOutIndex+gOutWidth*y + xmin_s2 , vlhalf) ;
+	  __vr vrgout_s4  = _vel_vldu_vssl(4, pGOut+gOutIndex+gOutWidth*y + xmin_s4 , vlhalf) ;
 
 #define FILTER_OFFSET(k,c,r,s) ( kernGroupOffset + filter_index<FLAYOUT>(k,c,r,s, gInChannelGroup, gOutChannelGroup, kernHeight, kernWidth) )
 
 #define VFADD(VRGOUT, VRSUM, VRSUM0, K,R,S) {						\
-	    __vr vrgoutP = _vel_vshf_vvvsl(VRGOUT, VRGOUT, VE_VSHUFFLE_YUZU, vl/2) ;	\
+	    __vr vrgoutP = _vel_vshf_vvvsl(VRGOUT, VRGOUT, VE_VSHUFFLE_YUZU, vlhalf) ;	\
 	    if ( remain ) {								\
 	      const float    kerValue0  = pKernel[FILTER_OFFSET(K,c+ 0,R,S)] ;		\
-	      VRSUM0 = _vel_vfmads_vvsvl(VRSUM0, kerValue0, VRGOUT, vl/2) ;		\
+	      VRSUM0 = _vel_vfmads_vvsvl(VRSUM0, kerValue0, VRGOUT, vlhalf) ;		\
 	    }										\
 	    _Pragma("clang loop unroll(full)")						\
 	    for(int64_t cc=0; cc<nPacked; cc++) {					\
 	      const uint64_t kerValue = _vel_pack_f32p(pKernel + FILTER_OFFSET(K,c+2*cc+remain,  R,S),		\
 						       pKernel + FILTER_OFFSET(K,c+2*cc+remain+1,R,S)) ;	\
-              VRSUM[cc] = _vel_pvfmad_vvsvl(VRSUM[cc], kerValue, vrgoutP, vl/2) ;		\
+              VRSUM[cc] = _vel_pvfmad_vvsvl(VRSUM[cc], kerValue, vrgoutP, vlhalf) ;		\
 	    }										\
 	  }
 
