@@ -225,7 +225,7 @@ static inline void convloop(
   __vr vrx_s2  = _vel_vsubsl_vvvl(vrseq2, _vel_vmulul_vsvl(inWidthHalf,vry_s2, VLEN), VLEN) ;
   __vm256 vm_s2 =  _vel_vfmklgt_mvl(_vel_vcmpsl_vsvl(gOutWidthHalf, vrx_s2, VLEN), VLEN) ; // condition(x<gOutWidthHalf)
 
-  for (int64_t g = beginGroup; g < nGroup; g++) {
+  for (int64_t g = beginGroup; g < beginGroup + nGroup; g++) {
     int64_t inGroupOffset    = g * inChannelGroup  * inHeight  * inWidth;
     int64_t gOutGroupOffset  = g * gOutChannelGroup * gOutHeight * gOutWidth;
     int64_t gKernGroupOffset = g * gOutChannelGroup * inChannelGroup * gKernHeight * gKernWidth;
@@ -298,21 +298,21 @@ static inline void convloop(
 
 extern "C" vednnError_t
 vednnConvolutionBackwardFilter_direct_dil1_str1_pad0_ker3_ow2X_iw2XU256_igoaligned (
-    const vednnTensorParam_t * restrict 	pParamIn,
-    const void * restrict 			pDataIn,
-    const vednnTensorParam_t * restrict 	pParamGradOut,
-    const void * restrict 			pDataGradOut,
-    const vednnConvolutionParam_t * restrict 	pParamConv,
-    const vednnFilterParam_t * restrict 	pParamGradKernel,
-    void * restrict 				pDataGradKernel
+    const vednnTensorParam_t *  	pParamIn,
+    const void *  			pDataIn,
+    const vednnTensorParam_t *  	pParamGradOut,
+    const void *  			pDataGradOut,
+    const vednnConvolutionParam_t *  	pParamConv,
+    const vednnFilterParam_t *  	pParamGradKernel,
+    void *  				pDataGradKernel
 #ifdef VEDNN_USE_OPENMP
     ,
-    const int64_t				beginOChannel,
-    const int64_t				nOChannel
+    const int64_t			beginOChannel,
+    const int64_t			nOChannel
 #ifdef VEDNN_OMP_GROUP_PARALLEL
     ,
-    const int64_t				beginGroup,
-    const int64_t				nGroup
+    const int64_t			beginGroup,
+    const int64_t			nGroup
 #endif
 #endif
 )

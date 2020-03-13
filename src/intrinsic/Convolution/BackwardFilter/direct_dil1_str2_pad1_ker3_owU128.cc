@@ -520,7 +520,7 @@ static inline void convloop(
 
   const int64_t ialigned = ((((uint64_t) pIn) & 0x7) == 0) && ((inWidth & 0x1) == 0) ;
 
-  for (int64_t g = beginGroup; g < nGroup; g++) {
+  for (int64_t g = beginGroup; g < beginGroup + nGroup; g++) {
     int64_t inGroupOffset    = g * inChannelGroup  * inHeight  * inWidth;
     int64_t gOutGroupOffset  = g * gOutChannelGroup * gOutHeight * gOutWidth;
     int64_t gKernGroupOffset = g * gOutChannelGroup * inChannelGroup * gKernHeight * gKernWidth;
@@ -773,21 +773,21 @@ static inline void convloop(
 extern "C"
 vednnError_t
 vednnConvolutionBackwardFilter_direct_dil1_str2_pad1_ker3_owU128(
-    const vednnTensorParam_t * __restrict__ 		pParamIn,
-    const void * __restrict__ 				pDataIn,
-    const vednnTensorParam_t * __restrict__ 		pParamGradOut,
-    const void * __restrict__ 				pDataGradOut,
-    const vednnConvolutionParam_t * __restrict__ 	pParamConv,
-    const vednnFilterParam_t * __restrict__ 		pParamGradKernel,
-    void * __restrict__ 				pDataGradKernel
+    const vednnTensorParam_t *  	pParamIn,
+    const void *  			pDataIn,
+    const vednnTensorParam_t *  	pParamGradOut,
+    const void *  			pDataGradOut,
+    const vednnConvolutionParam_t *  	pParamConv,
+    const vednnFilterParam_t *  	pParamGradKernel,
+    void *  				pDataGradKernel
 #ifdef VEDNN_USE_OPENMP
     ,
-    const int64_t				beginOChannel,
-    const int64_t				nOChannel
+    const int64_t			beginOChannel,
+    const int64_t			nOChannel
 #ifdef VEDNN_OMP_GROUP_PARALLEL
     ,
-    const int64_t				beginGroup,
-    const int64_t				nGroup
+    const int64_t			beginGroup,
+    const int64_t			nGroup
 #endif
 #endif
 )

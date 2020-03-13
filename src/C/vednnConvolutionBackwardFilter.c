@@ -91,7 +91,7 @@ vednnConvolutionBackwardFilter_wrapper(
 	  rc |= VEDNN_SUCCESS ;
 	}
 	else  {
-	  rc |= pFunc(VEDNN_CONVBKF_ARGS_LIST, 0, gOutChannelGroup, beginGroup, nGroup);
+	  rc |= pFunc(VEDNN_CONVBKF_ARGS_LIST, 0, gOutChannelGroup, beginGroup, myGroup);
 	}
       }
     }

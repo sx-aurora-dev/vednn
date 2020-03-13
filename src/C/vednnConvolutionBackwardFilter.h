@@ -13,13 +13,13 @@ extern "C" { //}
 
 // basic arg list
 #define VEDNN_CONVBKF_ARGS \
-const vednnTensorParam_t * restrict      pParamIn, \
-const void * restrict                    pDataIn, \
-const vednnTensorParam_t * restrict      pParamGradOut, \
-const void * restrict                    pDataGradOut, \
-const vednnConvolutionParam_t * restrict pParamConv, \
-const vednnFilterParam_t * restrict      pParamGradKernel, \
-void * restrict                          pDataGradKernel
+const vednnTensorParam_t *       pParamIn, \
+const void *                     pDataIn, \
+const vednnTensorParam_t *       pParamGradOut, \
+const void *                     pDataGradOut, \
+const vednnConvolutionParam_t *  pParamConv, \
+const vednnFilterParam_t *       pParamGradKernel, \
+void *                           pDataGradKernel
 #define VEDNN_CONVBKF_ARGS_LIST pParamIn, pDataIn, pParamGradOut, pDataGradOut, \
     pParamConv, pParamGradKernel, pDataGradKernel /*, beginOChannel, nOChannel*/
 
