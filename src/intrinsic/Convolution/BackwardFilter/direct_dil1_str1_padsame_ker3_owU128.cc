@@ -176,8 +176,6 @@ static inline void func(
 	{
 	  const int64_t vl = gOutWidth * (gOutHeight - y) ;
 
-	  int64_t y = gOutHeight - 1 ;
-
 	  const float *pInChannel = pIn + inGroupOffset + ((n * inChannel + c) * inHeight * inWidth ) ;
 
 	  const int64_t outIndex = gOutGroupOffset + ((n * gOutChannel + k) * gOutHeight + y) * gOutWidth ;
