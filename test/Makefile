@@ -20,10 +20,13 @@ TARGETS:=vednn_conv_test vednn_linear_test vednn_pool_test
 .PHONY: Makefile all vars
 all: vars $(TARGETS)
 vars:
-	echo 'COMPILE_TYPE      $(COMPILE_TYPE)'
-	echo 'LIBVEDNN          $(LIBVEDNN)'
-	echo 'MAKECMDGOALS      $(MAKECMDGOALS)'
-	echo 'first             $(word 1,$(MAKECMDGOALS))'
+	@echo 'test/Makefile vars:'
+	@echo 'COMPILE_TYPE      $(COMPILE_TYPE)'
+	@echo 'LIBVEDNN          $(LIBVEDNN)'
+	@echo 'MAKECMDGOALS      $(MAKECMDGOALS)'
+	@echo 'first             $(word 1,$(MAKECMDGOALS))'
+	@echo 'TARGETS           $(TARGETS)'
+	@echo 'LDLIBS            $(LDLIBS)'
 
 SRCS	= vednn_conv_test.c vednn_linear_test.c vednn_pool_test.c vednn_helper.c convolution_gemm.c linear_gemm.c maxpooling.c
 OBJS	= $(SRCS:%.c=%.o)
@@ -33,7 +36,7 @@ CFLAGS	= $(COPTS)
 LDLIBS	= $(COPTS) -lm
 AR	= $(VE_BIN_DIR)/nar
 
-BLAS_DIR	= /opt/nec/ve/nlc/1.0.0
+BLAS_DIR	= /opt/nec/ve/nlc/2.0.0
 BLAS_INC_DIR	= $(BLAS_DIR)/include
 BLAS_LIB_DIR	= $(BLAS_DIR)/lib
 CFLAGS		+= -I$(BLAS_INC_DIR) 
@@ -48,6 +51,7 @@ else
 LDLIBS	+= -L$(BLAS_LIB_DIR) -lblas_sequential
 endif
 
+LDFLAGS += -Wl,-rpath,$(BLAS_LIB_DIR)
 ifeq ($(FTRACE),YES)
 CFLAGS		+= -ftrace -pthread -DFTRACE
 LDLIBS		+= -ftrace

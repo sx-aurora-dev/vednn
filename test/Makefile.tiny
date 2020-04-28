@@ -85,6 +85,13 @@ vednn_pool_test : vednn_pool_test.o vednn_helper.o maxpooling.o
 
 clean:
 	rm -f $(OBJS) $(TARGETS) *.L *.O *.s ftrace.out *~
-realclean: clean	
+clean_vednn:
+	@for d in vednn vednn-ftrace1; do \
+		if [ -d "$${d}" ]; then \
+		echo "Removing subdir $${d}"; \
+		chmod -R ugo+rw "$${d}"; rm -rf "$${d}"; \
+		fi; \
+		done;
+realclean: clean clean_vednn
 	rm -rf ./vednn-ftrace1 ./vednn
 #
