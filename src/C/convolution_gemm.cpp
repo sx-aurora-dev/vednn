@@ -306,7 +306,7 @@ vednn_im2col(const float * restrict data_im, const int64_t channels,
 }
 
 /** maskless specialization: kh1, a stride != 1.
- * kh1sh1 is a "no in2col" situation. Hmmm. very little speedup? */
+ * kh1sh1 is a "no im2col" situation. Hmmm. very little speedup? */
   static inline void
 vednn_im2col_k1p0_str(const float * restrict data_im, const int64_t channels,
     const int64_t height, const int64_t width,

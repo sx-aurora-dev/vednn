@@ -38,10 +38,14 @@ $ ftrace
   - src/test/ codes that use libvednnx still have to be copied over
 
 - src/wrap/vconv has:
-  - a subset of gen-dnn (v0.16) that supports im2col convolution,
+  - a subset of gen-dnn (v0.16) that supports im2col convolution (+3d),
   - as well as some useful C++ objects like parallel_nd_iterator.
   - (not fully hooked up to src/C/ yet, mostly for speed comparison)
 
 - a simple im2col-gemm, good for low minibatch until parallel_nd intrinsics
   get merged into this branch. im2col should be done with intrinsics, though.
-
+- probably should decide whether libvednn should use nlc libcblas,
+  as it is likely faster than the C++ gemm grabbed from mkl-dnn
+- Method:
+  - extended_sgemm can be compiled with USE_CBLAS flag,
+    and linked with nlc version of libcblas
