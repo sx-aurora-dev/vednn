@@ -52,7 +52,7 @@ typedef vednnConvForward_t vednnConvForward_nowrap_t;
 
 VEDNN_DECL_CONVFWD(default);
 VEDNN_DECL_CONVFWD(gemm); ///< same parms, but do \b not call via omp wrapper
-  VEDNN_DECL_CONVFWD(gemmA); // ??
+//  VEDNN_DECL_CONVFWD(gemmA); // ??
 VEDNN_DECL_CONVFWD(vecC);
 VEDNN_DECL_CONVFWD(vecC_dil1_str1_pad1_ker3);
 VEDNN_DECL_CONVFWD(vecC_dil1_pad0_ker1);

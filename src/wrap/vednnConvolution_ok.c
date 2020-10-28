@@ -43,6 +43,7 @@ FWD_FN_OK(vednnConvolutionForward_direct_##IMPL) { \
            &&  (((uint64_t)P2) & 0x07) == 0  ); \
     return ok? VEDNN_SUCCESS: VEDNN_ERROR_INVALID_PARAM; \
 }
+
 FWD_FN_OK(vednnConvolutionForward_direct_default)
 {
     int ok = algo == VEDNN_CONV_ALGORITHM_DIRECT
@@ -59,12 +60,29 @@ FWD_FN_OK(vednnConvolutionForward_direct_default)
         && pParamConv->strideHeight > 0
         && pParamConv->dilationWidth > 0
         && pParamConv->dilationHeight > 0
-        && pParamKernel->width >= 1
-        && pParamKernel->height >= 1
+        && pParamKernel->width > 0
+        && pParamKernel->height > 0
         ;
     return ok? VEDNN_SUCCESS: VEDNN_ERROR_INVALID_PARAM;
 }
 
+#define CHK_vecC ( \
+        pParamOut->height * pParamOut->width <= 16 \
+        || (   (pParamOut->height * pParamOut->width < 64) \
+            && (pParamOut->height * pParamOut->width <  pParamIn->channel) \
+         /*&& ( pParamConv->dilationHeight | pParamConv->dilationWidth */ \
+         /*  | pParamConv->strideHeight | pParamConv->strideWidth */ \
+         /*  | pParamKernel->height | pParamKernel->width) != 1 ) */ \
+           ) \
+        )
+#define DIL(N) (pParamConv->dilationHeight == (N) && pParamConv->dilationWidth == (N))
+#define PAD(N) (pParamConv->padHeight == (N) && pParamConv->padWidth == (N))
+#define STR(N) (pParamConv->strideHeight == (N) && pParamConv->strideWidth == (N))
+#define KER(N) (pParamKernel->width == (N) && pParamKernel->height == (N))
+#define IWU(N) (pParamIn->width <= (N))
+#define OWU(N) (pParamOut->width <= (N))
+#define ICoGU(N) (pParamIn->channel / pParamConv->group <= (N))
+#define OCoGU(N) (pParamOut->channel / pParamConv->group <= (N))
 //FWD_FN_OK(vednnConvolutionForward_direct_default2)
 //{
 //    int ok = FWD_LIKE(default);
@@ -72,98 +90,55 @@ FWD_FN_OK(vednnConvolutionForward_direct_default)
 //}
 FWD_FN_OK_LIKE(gendnn, default, 1); // Note: this one comes in libvednnx [wip]
 FWD_FN_OK_LIKE(gemm, default, pParamKernel->layout==VEDNN_FILTER_LAYOUT_NCHW );
-FWD_FN_OK_LIKE(default2, default, 1);
-FWD_FN_OK_LIKE(default2p, default, 1);
-FWD_FN_OK_LIKE(default3, default, 1);
-FWD_FN_OK_LIKE(default3b, default, 1);
-FWD_FN_OK_LIKE(alt, default, 1);
-FWD_FN_OK_LIKE(defaultA, default, 1);
-FWD_FN_OK_LIKE(owU128, default, pParamOut->width <= 128);
-FWD_FN_OK_LIKE(owU128A, owU128, 1);
+//FWD_FN_OK_LIKE(default2, default, 1);
+//FWD_FN_OK_LIKE(default2p, default, 1);
+//FWD_FN_OK_LIKE(default3, default, 1);
+//FWD_FN_OK_LIKE(default3b, default, 1);
+//FWD_FN_OK_LIKE(alt, default, 1);
+//FWD_FN_OK_LIKE(defaultA, default, 1);
+FWD_FN_OK_LIKE(owU128, default, OWU(128));
+//FWD_FN_OK_LIKE(owU128A, owU128, 1);
 FWD_FN_OK_LIKE(owU128_T, owU128, 1);
+FWD_FN_OK_LIKE(vecC, default, CHK_vecC); // mainly oh*ow <= 16
 
-
-FWD_FN_OK_LIKE(dil1_str2_pad1_ker3_owU128, owU128,
-        pParamConv->strideHeight == 2 && pParamConv->strideWidth == 2
-        && pParamConv->dilationHeight == 1 && pParamConv->dilationWidth == 1
-        && pParamConv->padHeight == 1 && pParamConv->padWidth == 1
-        && pParamKernel->height == 3 && pParamKernel->width == 3);
-
-FWD_FN_OK_LIKE(vecC, default,
-        pParamOut->height * pParamOut->width <= 16
-        );
-
+// d1p0
 FWD_FN_OK_LIKE(dil1_pad0, default,
         pParamConv->dilationHeight == 1 && pParamConv->dilationWidth == 1
         && pParamConv->padHeight == 0  && pParamConv->padWidth == 0
         && pParamOut->height == (pParamIn->height - pParamKernel->height) / pParamConv->strideHeight + 1
         && pParamOut->width == (pParamIn->width - pParamKernel->width) / pParamConv->strideWidth + 1
         );
-FWD_FN_OK_LIKE(dil1_pad0A, dil1_pad0, 1);
-
-FWD_FN_OK_LIKE(dil1_str1_padsame, default,
-        pParamConv->strideWidth==1
-        && pParamConv->strideHeight==1
-        && pParamConv->dilationWidth==1
-        && pParamConv->dilationHeight==1
-        && pParamKernel->width == 2*pParamConv->padWidth + 1
-        && pParamKernel->height == 2*pParamConv->padHeight + 1 );
-FWD_FN_OK_LIKE(dil1_str1_padsameA, dil1_str1_padsame, 1);
-FWD_FN_OK_LIKE(dil1_str1_padsameB, dil1_str1_padsame, 1);
-FWD_FN_OK_LIKE(dil1_str1_padsameAB, dil1_str1_padsame, 1);
-
-FWD_FN_OK_LIKE(dil1_str1_pad0, dil1_pad0,
-        pParamConv->strideWidth==1 && pParamConv->strideHeight==1);
-FWD_FN_OK_LIKE(dil1_str1_pad0A, dil1_str1_pad0, 1);
-
-FWD_FN_OK_LIKE(dil1_str1_pad0_ker1, dil1_str1_pad0,
-        pParamKernel->width == 1 && pParamKernel->height == 1);
-FWD_FN_OK_LIKE(dil1_str1_pad0_ker1A, dil1_str1_pad0_ker1, 1);
-FWD_FN_OK_LIKE(dil1_str1_pad0_ker1_T, dil1_str1_pad0_ker1, 1);
-
+FWD_FN_OK_LIKE(dil1_pad0_owU128, dil1_pad0, pParamOut->width <= 128);
+FWD_FN_OK_LIKE(vecC_dil1_pad0_ker1, dil1_pad0_ker1, CHK_vecC);
+FWD_FN_OK_LIKE(vecC_dil1_pad0_ker1_cU1024, vecC_dil1_pad0_ker1,
+        pParamKernel->inChannel / pParamConv->group <= 1024);
 FWD_FN_OK_LIKE(dil1_pad0_ker1, dil1_pad0,
         pParamKernel->width == 1 && pParamKernel->height == 1);
-FWD_FN_OK_LIKE(dil1_pad0_ker1A, dil1_pad0_ker1, 1);
-
-FWD_FN_OK_LIKE(dil1_pad0_owU128_ker1, dil1_pad0_ker1, pParamOut->width <= 128);
-FWD_FN_OK_LIKE(dil1_pad0_owU128_ker1A, dil1_pad0_owU128_ker1, 1);
-
-FWD_FN_OK_LIKE(dil1_str1_padsame_ker3, dil1_str1_padsame,
-        pParamKernel->width == 3 && pParamKernel->height == 3);
-FWD_FN_OK_LIKE(dil1_str1_padsame_ker3A, dil1_str1_padsame_ker3, 1);
-FWD_FN_OK_LIKE(dil1_str1_padsame_ker3_T, dil1_str1_padsame_ker3, 1);
-
-//FWD_FN_OK_LIKE(dil1_str1_padsame_ker3_c1024x, dil1_str1_padsame_ker3,
-//        1 /* CAN validly run in other cases! ParamKernel->inChannel % 1024 == 0 */
-//        );
-//FWD_FN_OK_LIKE(dil1_str1_padsame_ker3_c1024xA, dil1_str1_padsame_ker3_c1024x, 1);
-FWD_FN_OK_LIKE(dil1_str1_padsame_ker3_c1024x_T, dil1_str1_padsame_ker3,
-               pParamKernel->inChannel % 1024 == 0);
-
-FWD_FN_OK_LIKE(dil1_str1_padsame_ker3_c1, dil1_str1_padsame_ker3,
-        pParamIn->channel == pParamConv->group);
-FWD_FN_OK_LIKE(dil1_str1_padsame_ker3_c1A, dil1_str1_padsame_ker3_c1, 1);
-
-FWD_FN_OK_LIKE(dil1_str1_padsame_ker3_c1_owU128, dil1_str1_padsame_ker3_c1,
+FWD_FN_OK_LIKE(dil1_pad0_owU128_ker1, dil1_pad0_ker1,
         pParamOut->width <= 128);
-FWD_FN_OK_LIKE(dil1_str1_padsame_ker3_c1_owU128A, dil1_str1_padsame_ker3_c1_owU128, 1);
 
-FWD_FN_OK_LIKE(dil1_str1_padsame_ker5, dil1_str1_padsame,
-        pParamKernel->width == 5 && pParamKernel->height == 5);
-FWD_FN_OK_LIKE(dil1_str1_padsame_ker5A, dil1_str1_padsame_ker5, 1);
+// d1s2
+FWD_FN_OK_LIKE(dil1_str2_pad1_ker3_owU128, owU128,
+        pParamConv->strideHeight == 2 && pParamConv->strideWidth == 2
+        && pParamConv->dilationHeight == 1 && pParamConv->dilationWidth == 1
+        && pParamConv->padHeight == 1 && pParamConv->padWidth == 1
+        && pParamKernel->height == 3 && pParamKernel->width == 3);
+FWD_FN_OK_LIKE(dil1_str2_pad1_ker4_owU128, owU128,
+        pParamConv->strideHeight == 2 && pParamConv->strideWidth == 2
+        && pParamConv->dilationHeight == 1 && pParamConv->dilationWidth == 1
+        && pParamConv->padHeight == 1 && pParamConv->padWidth == 1
+        && pParamKernel->height == 4 && pParamKernel->width == 4);
 
-FWD_FN_OK_LIKE(dil1_str1_padsame_ker5_owU128, dil1_str1_padsame_ker5,
-        pParamOut->width <= 128);
-FWD_FN_OK_LIKE(dil1_str1_padsame_ker5_owU128A, dil1_str1_padsame_ker5_owU128, 1);
-
-FWD_FN_OK_LIKE(dil1_str1_padsame_ker2, dil1_str1_padsame,
-        pParamKernel->width == 2 && pParamKernel->height == 2);
-FWD_FN_OK_LIKE(dil1_str1_padsame_ker2A, dil1_str1_padsame_ker2, 1);
-
-FWD_FN_OK_LIKE(dil1_str1_padsame_ker2_owU128, dil1_str1_padsame_ker2,
-        pParamOut->width <= 128);
-FWD_FN_OK_LIKE(dil1_str1_padsame_ker2_owU128A, dil1_str1_padsame_ker2_owU128, 1);
-
+// d1s1p0
+FWD_FN_OK_LIKE(dil1_str1_pad0, dil1_pad0,
+        pParamConv->strideWidth==1 && pParamConv->strideHeight==1);
+FWD_FN_OK_LIKE(dil1_str1_pad0_owU128, dil1_str1_pad0, pParamOut->width <= 128);
+FWD_FN_OK_LIKE(dil1_str1_pad0_ker1, dil1_str1_pad0,
+        pParamKernel->width == 1 && pParamKernel->height == 1);
+FWD_FN_OK_LIKE(dil1_str1_pad0_ker1_T, dil1_str1_pad0_ker1, 1);
+FWD_FN_OK_LIKE(dil1_str1_pad0_ker4_iwU256, dil1_str1_pad0,
+        pParamKernel->width == 4 && pParamKernel->height == 4
+        && pParamKernel->inChannel <= 256);
 FWD_FN_OK_LIKE(dil1_str1_pad0_ker3_iw2XU256_ow2X_ioaligned, dil1_str1_pad0,
         pParamKernel->width == 3 && pParamKernel->height == 3
         && (pParamOut->width <= 256)
@@ -172,12 +147,47 @@ FWD_FN_OK_LIKE(dil1_str1_pad0_ker3_iw2XU256_ow2X_ioaligned, dil1_str1_pad0,
 FWD_RT_OK(vednnConvolutionForward_direct_dil1_str1_pad0_ker3_iw2XU256_ow2X_ioaligned)
     CHK2_ALIGN8(pDataIn,pDataOut);
 
-FWD_FN_OK_LIKE(dil1_str1_pad0_owU128, dil1_str1_pad0, pParamOut->width <= 128);
-FWD_FN_OK_LIKE(dil1_str1_pad0_owU128A, dil1_str1_pad0_owU128, 1);
+// d1s1pS
+FWD_FN_OK_LIKE(dil1_str1_padsame, default,
+        pParamConv->strideWidth==1
+        && pParamConv->strideHeight==1
+        && pParamConv->dilationWidth==1
+        && pParamConv->dilationHeight==1
+        && pParamKernel->width == 2*pParamConv->padWidth + 1
+        && pParamKernel->height == 2*pParamConv->padHeight + 1 );
+FWD_FN_OK_LIKE(dil1_str1_padsame_ker2, dil1_str1_padsame,
+        pParamKernel->width == 2 && pParamKernel->height == 2);
+//FWD_FN_OK_LIKE(dil1_str1_padsame_ker2_owU128, dil1_str1_padsame_ker2,
+//        pParamOut->width <= 128);
+FWD_FN_OK_LIKE(dil1_str1_padsame_ker5, dil1_str1_padsame,
+        pParamKernel->width == 5 && pParamKernel->height == 5);
+FWD_FN_OK_LIKE(dil1_str1_padsame_ker5_owU128, dil1_str1_padsame_ker5,
+        pParamOut->width <= 128);
+FWD_FN_OK_LIKE(dil1_str1_padsame_ker3, dil1_str1_padsame,
+        pParamKernel->width == 3 && pParamKernel->height == 3);
+FWD_FN_OK_LIKE(dil1_str1_padsame_ker3_T, dil1_str1_padsame_ker3, 1);
+FWD_FN_OK_LIKE(vecC_dil1_str1_pad1_ker3, dil1_str1_padsame_ker3, CHK_vecC); // equiv padsame
+//FWD_FN_OK_LIKE(vecC_dil1_str1_padsame_ker3_cU1024, vecC_dil1_str1_padsame_ker3,
+//        pParamKernel->inChannel <= 1024);
+//FWD_FN_OK_LIKE(dil1_str1_padsame_ker3_c1024x, dil1_str1_padsame_ker3,
+//        1 /* CAN validly run in other cases! ParamKernel->inChannel % 1024 == 0 */
+//        );
+FWD_FN_OK_LIKE(dil1_str1_padsame_ker3_c1024x_T, dil1_str1_padsame_ker3,
+               pParamKernel->inChannel % 1024 == 0);
+FWD_FN_OK_LIKE(dil1_str1_padsame_ker3_c1, dil1_str1_padsame_ker3,
+        pParamIn->channel == pParamConv->group);
+FWD_FN_OK_LIKE(dil1_str1_padsame_ker3_c1_owU128, dil1_str1_padsame_ker3_c1,
+        pParamOut->width <= 128);
 
-FWD_FN_OK_LIKE(dil1_pad0_owU128, dil1_pad0, pParamOut->width <= 128);
-FWD_FN_OK_LIKE(dil1_pad0_owU128A, dil1_pad0_owU128, 1);
 //---------------------
+#undef OCoGU
+#undef ICoGU
+#undef OWU
+#undef IWU
+#undef KER
+#undef STR
+#undef PAD
+#undef DIL
 #undef FWD_FN_OK_LIKE
 #undef FWD_LIKE
 #undef FWD_FN_OK
@@ -250,10 +260,6 @@ FWDBIAS_FN_OK(vednnConvolutionForwardAddBias_direct_dil1_str1_pad0_ker1_c1024x)
         int ok = BKWD_LIKE(PREV_IMPL) && (EXTRA_COND); \
         return ok? VEDNN_SUCCESS: VEDNN_ERROR_INVALID_PARAM; \
     }
-#define DIL(N) pParamConv->dilationHeight == (N) && pParamConv->dilationWidth == (N)
-#define PAD(N) pParamConv->padHeight == (N) && pParamConv->padWidth == (N)
-#define STR(N) pParamConv->strideHeight == (N) && pParamConv->strideWidth == (N)
-#define KER(N) pParamKernel->width == (N) && pParamKernel->height == (N)
 
 BKWD_FN_OK(vednnConvolutionBackwardData_direct_default)
 {
@@ -275,68 +281,62 @@ BKWD_FN_OK(vednnConvolutionBackwardData_direct_default)
         ;
     return ok? VEDNN_SUCCESS: VEDNN_ERROR_INVALID_PARAM;
 }
+#define DIL(N) pParamConv->dilationHeight == (N) && pParamConv->dilationWidth == (N)
+#define PAD(N) pParamConv->padHeight == (N) && pParamConv->padWidth == (N)
+#define STR(N) pParamConv->strideHeight == (N) && pParamConv->strideWidth == (N)
+#define KER(N) pParamKernel->width == (N) && pParamKernel->height == (N)
+#define IWU(N) pParamGradIn->width <= (N)
+#define OWU(N) pParamGradOut->width <= (N)
 BKWD_FN_OK_LIKE(gemm,           default, pParamKernel->layout==VEDNN_FILTER_LAYOUT_NCHW );
 BKWD_FN_OK_LIKE(iwU128,         default, pParamGradIn->width <= 128);
 BKWD_FN_OK_LIKE(ker5,           default,    KER(5));
 BKWD_FN_OK_LIKE(ker3_iwU128,    iwU128,     KER(3));
 BKWD_FN_OK_LIKE(ker5_iwU128,    iwU128,     KER(5));
+BKWD_FN_OK_LIKE(dil1_str1,      default, DIL(1) && STR(1));
+BKWD_FN_OK_LIKE(dil1_str1_iwU128, dil1_str1, IWU(128));
+BKWD_FN_OK_LIKE(dil1_pad0_ker1_owU128, default, DIL(1) && PAD(0) && KER(1) && OWU(128));
 
 BKWD_FN_OK_LIKE(vecC, default,
         ( pParamGradIn->height * pParamGradIn->width <= 16 ||
           ( pParamGradIn->height * pParamGradIn->width < 64
             && pParamGradIn->height * pParamGradIn->width < pParamGradIn->channel / pParamConv->group )));
-
-BKWD_FN_OK_LIKE(dil1_str1, default, DIL(1) && STR(1));
-
-BKWD_FN_OK_LIKE(dil1_str2_ker3_iwU256, default,
-        DIL(1) && STR(2) && KER(3) && pParamGradIn->width <= 256 );
-BKWD_FN_OK_LIKE(dil1_str2_pad1_ker3_iwU256, dil1_str2_ker3_iwU256, PAD(1));
-
+// d1s2
+BKWD_FN_OK_LIKE(dil1_str2_pad2_ker5,          default,               DIL(1) && STR(2) && PAD(2) && KER(5));
+BKWD_FN_OK_LIKE(dil1_str2_pad2_ker5_iwU128,   dil1_str2_pad2_ker5,   IWU(128));
+BKWD_FN_OK_LIKE(dil1_str2_pad1_ker4_iwU128,   default,               DIL(1) && STR(2) && PAD(1) && KER(4) && IWU(256));
+BKWD_FN_OK_LIKE(dil1_str2_pad1_ker4_iwU256,   default,               DIL(1) && STR(2) && PAD(1) && KER(4) && IWU(256));
+BKWD_FN_OK_LIKE(dil1_str2_pad1_ker4_iw2xU256, dil1_str2_pad1_ker4_iwU256, (pParamGradIn->width & 0x1) == 0 )
+BKWD_FN_OK_LIKE(dil1_str2_ker3_iwU256,        default,               DIL(1) && STR(2) && KER(3) && IWU(256));
+BKWD_FN_OK_LIKE(dil1_str2_pad1_ker3_iwU256,   dil1_str2_ker3_iwU256, PAD(1));
+// d1s1pS
 BKWD_FN_OK_LIKE(dil1_str1_padsame, dil1_str1,
         /* could instead ask in- and out-Widths and -Heights to match */
         pParamKernel->width == 2*pParamConv->padWidth + 1
         && pParamKernel->height == 2*pParamConv->padHeight + 1);
-BKWD_FN_OK_LIKE(dil1_str1_iwU128, dil1_str1,
-        pParamGradIn->width <= 128);
-
 BKWD_FN_OK_LIKE(dil1_str1_padsame_ker5, dil1_str1_padsame, KER(5));
 BKWD_FN_OK_LIKE(dil1_str1_padsame_ker3, dil1_str1_padsame, KER(3));
 BKWD_FN_OK_LIKE(dil1_str1_padsame_ker2, dil1_str1_padsame, KER(2));
 BKWD_FN_OK_LIKE(dil1_str1_padsame_ker1, dil1_str1_padsame, KER(1));
-
+// d1s1p0
+BKWD_FN_OK_LIKE(dil1_str1_pad0_ker4_iwU128, dil1_str1_iwU128,  PAD(0) && KER(4));
+BKWD_FN_OK_LIKE(dil1_str1_pad0_ker3_iwU128, dil1_str1_iwU128,  PAD(0) && KER(3));
 BKWD_RT_OK(vednnConvolutionBackwardData_direct_dil1_str1_pad0_ker3_iw2XU256_ow2X_ioaligned)
     CHK2_ALIGN8(pDataGradIn,pDataGradOut);
 BKWD_FN_OK_LIKE(dil1_str1_pad0_ker3_iw2XU256_ow2X_ioaligned, dil1_str1,
-        pParamConv->padHeight == 0 && pParamConv->padWidth == 0
-        /* TODO check output size correct */
-        && KER(3)
-        && pParamGradIn->width <=256
+        PAD(0) && KER(3) && IWU(256) /* TODO check output size correct */
         && (pParamGradIn->width & 0x01) == 0
         && (pParamGradOut->width & 0x01) == 0
         /*&& (((uint64_t)pDataGradIn) & 0x07) == 0*/
         /*&& (((uint64_t)pDataGradOut) & 0x07) == 0*/
         );
-
 BKWD_RT_OK(vednnConvolutionBackwardData_direct_dil1_str1_pad0_ker3_iw2XU32_ow2X_ioaligned)
     CHK2_ALIGN8(pDataGradIn,pDataGradOut);
-BKWD_FN_OK_LIKE(dil1_str1_pad0_ker3_iw2XU32_ow2X_ioaligned, dil1_str1_pad0_ker3_iw2XU256_ow2X_ioaligned,
-        pParamGradIn->width <=256);
+BKWD_FN_OK_LIKE(dil1_str1_pad0_ker3_iw2XU32_ow2X_ioaligned,
+        dil1_str1_pad0_ker3_iw2XU256_ow2X_ioaligned,
+        IWU(32));
 
-BKWD_FN_OK_LIKE(dil1_str1_pad0_iwU128, dil1_str1, pParamGradIn->width <= 128)
-BKWD_FN_OK_LIKE(dil1_str1_pad0_ker3_iwU128, dil1_str1_iwU128,
-        PAD(0) && KER(3)); /* TODO check output size correct */
-
-BKWD_FN_OK_LIKE(dil1_str2_pad2_ker5, default, KER(5) && STR(2) && PAD(2) && DIL(1));
-BKWD_FN_OK_LIKE(dil1_str2_pad2_ker5_iwU128, dil1_str2_pad2_ker5,
-        pParamGradIn->width <= 128);
-
-BKWD_FN_OK_LIKE(dil1_pad0_ker1_owU128, default,
-        pParamConv->dilationHeight == 1 && pParamConv->dilationWidth == 1
-        && pParamConv->padHeight == 0 && pParamConv->padWidth == 0
-        && KER(1)
-        && pParamGradOut->width <= 128 );
-
-
+#undef OWU
+#undef IWU
 #undef KER
 #undef STR
 #undef PAD
@@ -357,8 +357,6 @@ BKWD_FN_OK_LIKE(dil1_pad0_ker1_owU128, default,
         int ok = BKWF_LIKE(PREV_IMPL) && (EXTRA_COND); \
         return ok? VEDNN_SUCCESS: VEDNN_ERROR_INVALID_PARAM; \
     }
-#define KER(N) pParamGradKernel->width == (N) && pParamGradKernel->height == (N)
-#define OW(N) pParamGradOut->width <= (N)
 
 // see src/C/vednnConvolutionBackwardFilter.c and mirror those cases.
 BKWF_FN_OK(vednnConvolutionBackwardFilter_direct_default)
@@ -384,51 +382,55 @@ BKWF_FN_OK(vednnConvolutionBackwardFilter_direct_default)
 //BKWF_FN_OK_LIKE(gendnn, default, 1);
 BKWF_FN_OK_LIKE(gemm, default, pParamGradKernel->layout==VEDNN_FILTER_LAYOUT_NCHW );
 
-BKWF_FN_OK_LIKE(dil1_str1_padsame, default,
-        pParamConv->strideWidth==1 && pParamConv->strideHeight==1
-        && pParamConv->dilationWidth==1 && pParamConv->dilationHeight==1
+#define DIL(N) (pParamConv->dilationHeight == (N) && pParamConv->dilationWidth == (N))
+#define PAD(N) (pParamConv->padHeight == (N) && pParamConv->padWidth == (N))
+#define STR(N) (pParamConv->strideHeight == (N) && pParamConv->strideWidth == (N))
+#define KER(N) (pParamGradKernel->width == (N) && pParamGradKernel->height == (N))
+#define IWU(N) (pParamIn->width <= (N))
+#define OWU(N) (pParamGradOut->width <= (N))
+#define OHWU(N) (pParamGradOut->width * pParamGradOut->height <= (N))
+BKWF_FN_OK_LIKE(dil1_str1_padsame, default, STR(1) && DIL(1)
         && pParamIn->height == pParamGradOut->height
         && pParamIn->width == pParamGradOut->width);
-BKWF_FN_OK_LIKE(dil1_str1_padsame_ker1, dil1_str1_padsame, KER(1));
-BKWF_FN_OK_LIKE(dil1_str1_padsame_ker2, dil1_str1_padsame, KER(2));
-BKWF_FN_OK_LIKE(dil1_str1_padsame_ker3, dil1_str1_padsame, KER(3));
-BKWF_FN_OK_LIKE(dil1_str1_padsame_ker5, dil1_str1_padsame, KER(5));
+BKWF_FN_OK_LIKE(dil1_str1_padsame_ker1,         dil1_str1_padsame,      KER(1));
+BKWF_FN_OK_LIKE(dil1_str1_padsame_ker3,         dil1_str1_padsame,      KER(3));
+BKWF_FN_OK_LIKE(dil1_str1_padsame_ker3_ohwU256, dil1_str1_padsame_ker3, pParamGradOut->width * pParamGradOut->height <= 256);
+BKWF_FN_OK_LIKE(dil1_str1_padsame_ker3_owU128,  dil1_str1_padsame_ker3, OWU(128));
+BKWF_FN_OK_LIKE(dil1_str1_padsame_ker5,         dil1_str1_padsame,      KER(5));
+BKWF_FN_OK_LIKE(dil1_str1_padsame_ker5_owU128,  dil1_str1_padsame_ker5, OWU(128));
+BKWF_FN_OK_LIKE(dil1_str1_padsame_ker2,         dil1_str1_padsame,      KER(2));
+BKWF_FN_OK_LIKE(dil1_str1_padsame_ker2_owU128,  dil1_str1_padsame_ker2, OWU(128));
 
-BKWF_FN_OK_LIKE(dil1_str1_padsame_ker2_owU128, dil1_str1_padsame_ker2, OW(128));
-BKWF_FN_OK_LIKE(dil1_str1_padsame_ker3_ohwU256, dil1_str1_padsame_ker3,
-        pParamGradOut->width * pParamGradOut->height <= 256);
-BKWF_FN_OK_LIKE(dil1_str1_padsame_ker3_owU128, dil1_str1_padsame_ker3, OW(128));
-BKWF_FN_OK_LIKE(dil1_str1_padsame_ker5_owU128, dil1_str1_padsame_ker5, OW(128));
-
-BKWF_FN_OK_LIKE(dil1_pad0, default,
-        pParamConv->dilationHeight == 1 && pParamConv->dilationWidth == 1
-        && pParamConv->padHeight == 0 && pParamConv->padWidth == 0
+BKWF_FN_OK_LIKE(dil1_pad0, default, DIL(1) && PAD(0)
         && pParamGradOut->height == (pParamIn->height - pParamGradKernel->height) / pParamConv->strideHeight + 1
         && pParamGradOut->width == (pParamIn->width - pParamGradKernel->width) / pParamConv->strideWidth + 1);
-BKWF_FN_OK_LIKE(dil1_pad0_owU32, dil1_pad0, OW(32));
-
 BKWF_FN_OK_LIKE(dil1_str1_pad0_ker3_ow2X_iw2XU256_igoaligned, dil1_pad0,
-        KER(3)
-        && pParamConv->strideHeight == 1 && pParamConv->strideWidth == 1
-        && pParamIn->width <= 256
-        && (pParamIn->width & 0x01) == 0      /*RT: && (((uint64_t)pDataIn) & 0x07) == 0*/
-        && (pParamGradOut->width & 0x01) == 0 /*RT: && (((uint64_t)pDataGradOut) & 0x07) == 0*/
+        KER(3) && STR(1) && IWU(256)
+        && (pParamIn->width & 0x01) == 0 && (pParamGradOut->width & 0x01) == 0
         );
 BKWF_RT_OK(vednnConvolutionBackwardFilter_direct_dil1_str1_pad0_ker3_ow2X_iw2XU256_igoaligned) {
     CHK2_ALIGN8(pDataIn,pDataGradOut);
 }
+BKWF_FN_OK_LIKE(dil1_pad0_owU32, dil1_pad0, OWU(32));
 
-BKWF_FN_OK_LIKE(dil1_pad0_ker1, dil1_pad0, KER(1));
-BKWF_FN_OK_LIKE(dil1_pad0_ker1_owU32, dil1_pad0_ker1, OW(32));
-BKWF_FN_OK_LIKE(dil1_pad0_ker1_ohwU64, dil1_pad0_ker1,
-        pParamGradOut->height * pParamGradOut->width <= 64);
-BKWF_FN_OK_LIKE(dil1_pad0_ker1_ohwU128, dil1_pad0_ker1,
-        pParamGradOut->height * pParamGradOut->width <= 128);
-BKWF_FN_OK_LIKE(dil1_pad0_ker3_owU128, dil1_pad0, KER(3) && OW(128));
-BKWF_FN_OK_LIKE(owU128, default, OW(128));
+BKWF_FN_OK_LIKE(dil1_pad0_ker1,         dil1_pad0,      KER(1));
+BKWF_FN_OK_LIKE(dil1_pad0_ker1_owU32,   dil1_pad0_ker1, OWU(32));
+BKWF_FN_OK_LIKE(dil1_pad0_ker1_ohwU64,  dil1_pad0_ker1, OHWU(64));
+BKWF_FN_OK_LIKE(dil1_pad0_ker1_ohwU128, dil1_pad0_ker1, OHWU(128));
+BKWF_FN_OK_LIKE(dil1_pad0_ker3_owU128,  dil1_pad0,      KER(3) && OWU(128));
 
-#undef OW
+BKWF_FN_OK_LIKE(owU128,                 default,        OWU(128));
+BKWF_FN_OK_LIKE(ker3_owU128,            owU128,         KER(3));
+BKWF_FN_OK_LIKE(dil1_str2_ker3_owU128,  ker3_owU128,    STR(2) && DIL(1));
+BKWF_FN_OK_LIKE(dil1_str2_pad1_ker4_owU128, owU128,     KER(4) && STR(2) && DIL(1) && PAD(1));
+
+#undef OHWU
+#undef OWU
+#undef IWU
 #undef KER
+#undef STR
+#undef PAD
+#undef DIL
 #undef BKWF_FN_OK_LIKE
 #undef BKWF_LIKE_
 #undef BKWF_LIKE

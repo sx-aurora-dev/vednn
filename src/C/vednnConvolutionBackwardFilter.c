@@ -131,114 +131,82 @@ vednnError_t vednnConvolutionBackwardFilter(
   {
 #define OMPWRAP( IMPL ) WRAP_RET(vednnConvolutionBackwardFilter_direct_##IMPL, \
     vednnConvolutionBackwardFilter_wrapper, VEDNN_CONVBKF_ARGS_LIST )
-    // [todo] add variations
+#define DIL(N) (pParamConv->dilationHeight == (N) && pParamConv->dilationWidth == (N))
+#define PAD(N) (pParamConv->padHeight == (N) && pParamConv->padWidth == (N))
+#define STR(N) (pParamConv->strideHeight == (N) && pParamConv->strideWidth == (N))
+#define KER(N) (pParamGradKernel->width == (N) && pParamGradKernel->height == (N))
+#define IWU(N) (pParamIn->width <= (N))
+#define OWU(N) (pParamGradOut->width <= (N))
+#define OHWU(N) (pParamGradOut->width * pParamGradOut->height <= (N))
     if ( pParamGradOut->height * pParamGradOut->width <= 16 ||
         ( pParamGradOut->height * pParamGradOut->width < 64
           && pParamGradOut->height * pParamGradOut->width < pParamIn->channel / pParamConv->group )  ) {
       OMPWRAP(vecC);
-    }else if (pParamConv->strideHeight == 1 && pParamConv->strideWidth == 1
-        && pParamConv->dilationHeight == 1 && pParamConv->dilationWidth == 1
+    }else if (STR(1) && DIL(1)
         && pParamIn->height == pParamGradOut->height
-        && pParamIn->width == pParamGradOut->width )
+        && pParamIn->width == pParamGradOut->width ) // d1s1pS
     {
-      if (pParamGradKernel->height == 1 && pParamGradKernel->width == 1)
-        OMPWRAP(dil1_str1_padsame_ker1);
-      else if (pParamGradKernel->height == 3 && pParamGradKernel->width == 3)
-      {
-        if( pParamGradOut->width * pParamGradOut->height <= 256)
-          OMPWRAP(dil1_str1_padsame_ker3_ohwU256);
-        else if( pParamGradOut->width <= 128)
-          OMPWRAP(dil1_str1_padsame_ker3_owU128);
-        else
-          OMPWRAP(dil1_str1_padsame_ker3);
-      }else if (pParamGradKernel->height == 5 && pParamGradKernel->width == 5) {
-        if( pParamGradOut->width <= 128)
-          OMPWRAP(dil1_str1_padsame_ker5_owU128);
-        else
-          OMPWRAP(dil1_str1_padsame_ker5);
-      } else if (pParamGradKernel->height == 2 && pParamGradKernel->width == 2) {
-        if( pParamGradOut->width <= 128 )
-          OMPWRAP(dil1_str1_padsame_ker2_owU128);
-        else
-          OMPWRAP(dil1_str1_padsame_ker2);
+      if (KER(3)) {
+        if (OHWU(256))     OMPWRAP(dil1_str1_padsame_ker3_ohwU256);
+        else if (OWU(128)) OMPWRAP(dil1_str1_padsame_ker3_owU128);
+        else               OMPWRAP(dil1_str1_padsame_ker3);
+      }else if (KER(1)) {  OMPWRAP(dil1_str1_padsame_ker1);
+      }else if (KER(5)) {
+        if (OWU(128))      OMPWRAP(dil1_str1_padsame_ker5_owU128);
+        else               OMPWRAP(dil1_str1_padsame_ker5);
+      }else if (KER(2)) {
+        if (OWU(128))      OMPWRAP(dil1_str1_padsame_ker2_owU128);
+        else               OMPWRAP(dil1_str1_padsame_ker2);
       }
-      else
-      {
-        OMPWRAP(dil1_str1_padsame);
-      }
+      OMPWRAP(dil1_str1_padsame);
     }
-    else if (pParamConv->dilationHeight == 1 && pParamConv->dilationWidth == 1
-        && pParamConv->padHeight == 0 && pParamConv->padWidth == 0
+    else if (DIL(1) && PAD(0)
         && pParamGradOut->height == (pParamIn->height - pParamGradKernel->height) / pParamConv->strideHeight + 1
         && pParamGradOut->width == (pParamIn->width - pParamGradKernel->width) / pParamConv->strideWidth + 1 )
     { // d1p0 and oh,ow correct for whatever stride
-      if ( pParamGradKernel->height == 3 && pParamGradKernel->width == 3
-          && pParamConv->strideHeight == 1 && pParamConv->strideWidth == 1
-          && pParamIn->width <= 256
-          && (pParamIn->width & 0x01) == 0 && (((uint64_t)pDataIn) & 0x07) == 0
-          && (pParamGradOut->width & 0x01) == 0 && (((uint64_t)pDataGradOut) & 0x07) == 0 )
+      if (KER(3) && STR(1) && IWU(256)
+          && (pParamIn->width & 0x01) == 0 && (pParamGradOut->width & 0x01) == 0
+          && (((uint64_t)pDataIn) & 0x07) == 0 && (((uint64_t)pDataGradOut) & 0x07) == 0 )
       {
         OMPWRAP(dil1_str1_pad0_ker3_ow2X_iw2XU256_igoaligned);
       }
-      else if (pParamGradOut->width <= 128 && pParamGradKernel->height == 3 && pParamGradKernel->width == 3 )
+      else if (KER(3) && OWU(128))
       {
-        if( pParamConv->strideHeight == 1 && pParamConv->strideWidth == 1 )
-          OMPWRAP(dil1_str1_pad0_ker3_owU128);
-        else
-          OMPWRAP(dil1_pad0_ker3_owU128);
+        if (STR(1)) OMPWRAP(dil1_str1_pad0_ker3_owU128);
+        else        OMPWRAP(dil1_pad0_ker3_owU128);
       }
-      else if (pParamGradOut->width <= 128 && pParamGradKernel->height == 4 && pParamGradKernel->width == 4
-	  && pParamConv->strideHeight == 1 && pParamConv->strideWidth == 1 )
+      else if (KER(1))
       {
-	OMPWRAP(dil1_str1_pad0_ker4_owU128);
+        if (OHWU(64))       OMPWRAP(dil1_pad0_ker1_ohwU64);
+        else if (OHWU(128)) OMPWRAP(dil1_pad0_ker1_ohwU128);
+        else if (OWU(32))   OMPWRAP(dil1_pad0_ker1_owU32);
+        else                OMPWRAP(dil1_pad0_ker1);
       }
-      else if (pParamGradKernel->height == 1 && pParamGradKernel->width == 1) {
-        if (pParamGradOut->height * pParamGradOut->width <= 64 )
-          OMPWRAP(dil1_pad0_ker1_ohwU64);
-        else if (pParamGradOut->height * pParamGradOut->width <= 128 )
-          OMPWRAP(dil1_pad0_ker1_ohwU128);
-        else if (pParamGradOut->width <= 32 )
-          OMPWRAP(dil1_pad0_ker1_owU32);
-        else
-          OMPWRAP(dil1_pad0_ker1);
-      }else if (pParamGradOut->width <= 32 )
-        OMPWRAP(dil1_pad0_owU32);
-      else
-        OMPWRAP(dil1_pad0);
+      else if (KER(4) && OWU(128) && STR(1)) OMPWRAP(dil1_str1_pad0_ker4_owU128);
+      else if (OWU(32)) OMPWRAP(dil1_pad0_owU32);
+      OMPWRAP(dil1_pad0);
     }
-    else if(pParamGradKernel->height == 3 && pParamGradKernel->width == 3
-	    && pParamGradOut->width <= 128 )
+    else if(OWU(128))
     {
-      if (pParamConv->strideHeight == 2 && pParamConv->strideWidth == 2
-      	&& pParamConv->dilationHeight == 1 && pParamConv->dilationWidth == 1
-      	&& pParamConv->padHeight == 1 && pParamConv->padWidth == 1 )
-      {
-	OMPWRAP(dil1_str2_pad1_ker3_owU128) ;
-      }
-      else {
-	OMPWRAP(ker3_owU128) ;
-      }
+      if (KER(3)) {
+        if (STR(2) && DIL(1) && PAD(1)) OMPWRAP(dil1_str2_pad1_ker3_owU128) ;
+        else                            OMPWRAP(ker3_owU128) ;
+      }else if (KER(4) && STR(2) && DIL(1) && PAD(1))
+        OMPWRAP(dil1_str2_pad1_ker4_owU128) ;
+      OMPWRAP(owU128);
     }
-    else if(pParamGradKernel->height == 4 && pParamGradKernel->width == 4
-	    && pParamGradOut->width <= 128 )
-    {
-      if (pParamConv->strideHeight == 2 && pParamConv->strideWidth == 2
-      	&& pParamConv->dilationHeight == 1 && pParamConv->dilationWidth == 1
-      	&& pParamConv->padHeight == 1 && pParamConv->padWidth == 1 )
-      {
-	OMPWRAP(dil1_str2_pad1_ker4_owU128) ;
-      }
-    }
-    else {
-      if (pParamGradOut->width <= 128)
-        OMPWRAP(owU128);
-      else
-        OMPWRAP(default);
-    }
+    OMPWRAP(default);
   }
   else {
     return VEDNN_ERROR_INVALID_PARAM ;
   }
+#undef OHWU
+#undef OWU
+#undef IWU
+#undef KER
+#undef STR
+#undef PAD
+#undef DIL
 #undef OMPWRAP
 }
 // vim: et sw=2 ts=2

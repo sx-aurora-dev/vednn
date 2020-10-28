@@ -50,31 +50,37 @@ extern "C" {
 // try to put most specialized first, because they are likely fastest
 static vednnConvForwardImpls vednnConvForwardList_[] = {
     // k1 NOTE: dil1 is irrelevant for ker1 (should remove from name/files)
-    IMPL_FNS(vednnConvolutionForward_direct_dil1_str2_pad1_ker3_owU128,"cnvFwd-d1s2pSk3_owU128"),
     // d1s1pS
-    IMPL_FNS(vednnConvolutionForward_direct_dil1_str1_padsame_ker3_c1_owU128,"cnvFwd-d1s1pSk3c1owU128"),
+    IMPL_FNS(vednnConvolutionForward_direct_dil1_str1_padsame_ker3_c1_owU128,"cnvFwd-d1s1pSk3_c1owU128"),
     IMPL_FNS(vednnConvolutionForward_direct_dil1_str1_padsame_ker3_c1,"cnvFwd-d1s1pSk3_c1"),
-    IMPL_WRAPNONE_FNS(Forward,dil1_str1_padsame_ker3_c1024x_T,"cnvFwd-d1s1pSk3c1024x_T"),
-    IMPL_WRAPNONE_FNS(Forward,dil1_str1_padsame_ker3_T,"cnvFwd-d1s1pSk3_T"),
-    IMPL_WRAPNONE_FNS(Forward,owU128_T, "cnvFwd-owU128_T"),
-    IMPL_WRAPNONE_FNS(Forward,dil1_str1_pad0_ker1_T,"cnvFwd-s1p0k1_T"),
+    IMPL_WRAPNONE_FNS(Forward,dil1_str1_padsame_ker3_c1024x_T,"cnvFwd-d1s1pSk3_c1024x_T"),
+    IMPL_FNS(vednnConvolutionForward_direct_vecC_dil1_str1_pad1_ker3,"cnvFwd-vecC-d1s1pSk3"),
     IMPL_FNS(vednnConvolutionForward_direct_dil1_str1_padsame_ker3,"cnvFwd-d1s1pSk3"),
+    IMPL_WRAPNONE_FNS(Forward,dil1_str1_padsame_ker3_T,"cnvFwd-d1s1pSk3_T"),
     IMPL_FNS(vednnConvolutionForward_direct_dil1_str1_padsame_ker5_owU128,"cnvFwd-d1s1pSk5owU128"),
     IMPL_FNS(vednnConvolutionForward_direct_dil1_str1_padsame_ker5,"cnvFwd-d1s1pSk5"),
     IMPL_FNS(vednnConvolutionForward_direct_dil1_str1_padsame_ker2,"cnvFwd-d1s1pSk2"),
     IMPL_FNS(vednnConvolutionForward_direct_dil1_str1_padsame,"cnvFwd-d1s1pS"),
     // d1s1p0
     IMPL_RTFNS(vednnConvolutionForward_direct_dil1_str1_pad0_ker3_iw2XU256_ow2X_ioaligned,"cnvFwd-d1s1p0k3iw2XU256_ow2X_ioaligned"),
+    IMPL_FNS(vednnConvolutionForward_direct_dil1_str1_pad0_ker4_iwU256,"cnvFwd-d1s1p0k4iwU256"),
     IMPL_FNS(vednnConvolutionForward_direct_dil1_str1_pad0_ker1,"cnvFwd-s1p0k1"),
+    IMPL_WRAPNONE_FNS(Forward,dil1_str1_pad0_ker1_T,"cnvFwd-s1p0k1_T"),
     IMPL_FNS(vednnConvolutionForward_direct_dil1_str1_pad0_owU128,"cnvFwd-d1s1p0_owU128"),
     IMPL_FNS(vednnConvolutionForward_direct_dil1_str1_pad0,"cnvFwd-d1s1p0"),
+    // d1s2
+    IMPL_FNS(vednnConvolutionForward_direct_dil1_str2_pad1_ker3_owU128,"cnvFwd-d1s2p1k3owU128"),
+    IMPL_FNS(vednnConvolutionForward_direct_dil1_str2_pad1_ker4_owU128,"cnvFwd-d1s2p1k4owU128"),
     // d1p0
     IMPL_FNS(vednnConvolutionForward_direct_dil1_pad0_owU128_ker1,"cnvFwd-p0k1_owU128"),
     IMPL_FNS(vednnConvolutionForward_direct_dil1_pad0_ker1,"cnvFwd-p0k1"),
+    IMPL_FNS(vednnConvolutionForward_direct_vecC_dil1_pad0_ker1_cU1024,"cnvFwd-vecC-d1p0k1cU1024"),
+    IMPL_FNS(vednnConvolutionForward_direct_vecC_dil1_pad0_ker1,"cnvFwd-vecC-d1p0k1"),
     IMPL_FNS(vednnConvolutionForward_direct_dil1_pad0_owU128,"cnvFwd-d1p0_owU128"),
     IMPL_FNS(vednnConvolutionForward_direct_dil1_pad0,"cnvFwd-d1p0"),
 	// generic libvednn
     IMPL_FNS(vednnConvolutionForward_direct_owU128,"cnvFwd-owU128"),
+    IMPL_WRAPNONE_FNS(Forward,owU128_T,"cnvFwd-owU128_T"),
     IMPL_FNS(vednnConvolutionForward_direct_vecC,"cnvFwd-vecC"),
     IMPL_FNS(vednnConvolutionForward_direct_default,"cnvFwd-def"),
     // customizations (stable, working, but win in isolated circumstances)
@@ -130,6 +136,10 @@ static vednnConvBackwardDataImpls vednnConvBackwardDataList_[] = {
     IMPL_FNS(vednnConvolutionBackwardData_direct_dil1_str1_pad0_ker3_iwU128,"cnvBkD-d1s1p0k3_iwU128"),
     IMPL_FNS(vednnConvolutionBackwardData_direct_dil1_str1_padsame_ker3,"cnvBkD-d1s1pS-k3"),
     IMPL_FNS(vednnConvolutionBackwardData_direct_ker3_iwU128,"cnvBkD-k3-iwU128"),
+    // k4
+    IMPL_FNS(vednnConvolutionBackwardData_direct_dil1_str1_pad0_ker4_iwU128,"cnvBkD-d1s1k4-iwU128"),
+    IMPL_FNS(vednnConvolutionBackwardData_direct_dil1_str2_pad1_ker4_iwU256,"cnvBkD-d1s2k4-iwU256"),
+    IMPL_FNS(vednnConvolutionBackwardData_direct_dil1_str2_pad1_ker4_iw2xU256,"cnvBkD-d1s2k4-iw2xU256"),
     // k5
     IMPL_FNS(vednnConvolutionBackwardData_direct_dil1_str2_pad2_ker5_iwU128,"cnvBkD-d1s2p2-k5-iwU128"),
     IMPL_FNS(vednnConvolutionBackwardData_direct_dil1_str2_pad2_ker5,   "cnvBkD-d1s2p2-k5"),
