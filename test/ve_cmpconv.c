@@ -536,7 +536,7 @@ void testForward(struct param *pNetwork, int nEntry, double HZ, int flagBias, in
                         //printf(" idx=%d",idx);
                         if( idx>=0 && idx < maxImpls ) {sum_times[idx] += c[1] - c[0]; ++rep_times[idx];}
 
-                        if (r == 0){
+                        if (r == 0){ // first time ONLY ...
                             if( pConv->pParamIn->batch == 1 ) {
                                 printf(" batch 1 group=%d inChannel=%d outChannel=%d",
                                         (int)(pConv->pParamConv->group),
@@ -623,6 +623,7 @@ void testForward(struct param *pNetwork, int nEntry, double HZ, int flagBias, in
                         // ignore out.status  (hopefully VEDNN_SUCCESS)
                         c[1] = __cycle();
                         FTRACE_END(name);
+
                         int idx = (actual - vednnConvForwardList);
                         //printf(" idx=%d",idx);
                         if( idx >= 0 && idx < maxImpls ) {
@@ -630,7 +631,7 @@ void testForward(struct param *pNetwork, int nEntry, double HZ, int flagBias, in
                         }
                         assert( out.actual == actual );
                         rv = out.status;
-                        if(r == 0 && actual != NULL){
+                        if(r == 0 /*asserted true: && actual != NULL*/){
                             if( pConv->pParamIn->batch == 1 ) {
                                 printf(" batch 1 group=%d inChannel=%d outChannel=%d",
                                         (int)(pConv->pParamConv->group),
@@ -639,7 +640,9 @@ void testForward(struct param *pNetwork, int nEntry, double HZ, int flagBias, in
                             }
                             //pConv->cycle += c[1] - c[0]; // this is reserved for the libvednn time
                             //printf(" %s %llu cycles", name, c[1]-c[0]);
-                            double diff = diffData(pConv->pParamOut, pConv->pDataOut, pConv->pBufRef);
+                            double diff = !doRef? -13.0
+                                : (rv != VEDNN_SUCCESS)? -1.0
+                                : diffData(pConv->pParamOut, pConv->pDataOut, pConv->pBufRef);
                             printf("%s DIFF = %f %s\n",(rv==VEDNN_SUCCESS?" OK":"BAD")
                                     , diff ,name);
                             fflush(stdout);
@@ -658,10 +661,13 @@ void testForward(struct param *pNetwork, int nEntry, double HZ, int flagBias, in
 #endif
                         }
 #if TESTDATA
-                        if(ntd < MAX_TEST_DATA){
+                        if(ntd < MAX_TEST_DATA){ // incl segfaults.
                             test_data[ntd].sum_times += c[1] - c[0];
                             test_data[ntd].reps = r+1;
                             ++ntd;
+                        }
+                        if(rv!=VEDNN_SUCCESS){
+                            test_data[ntd].diff = -1.0; // flag error in *any* rep of test
                         }
 #endif
                         if(++iter_cnt>=100) ERROR_EXIT("run-away iter over ConvForward impls?");
@@ -812,7 +818,10 @@ void testForward(struct param *pNetwork, int nEntry, double HZ, int flagBias, in
                                     (int)(pConv->pParamOut->channel));
                             //pConv->cycle += c[1] - c[0]; // this is reserved for the libvednn time
                             //printf(" %s %llu cycles", name, c[1]-c[0]);
-                            double diff = diffData(pConv->pParamOut, pConv->pDataOut, pConv->pBufRef);
+                            //double diff = diffData(pConv->pParamOut, pConv->pDataOut, pConv->pBufRef);
+                            double diff = !doRef? -13.0
+                                : (rv != VEDNN_SUCCESS)? -1.0
+                                : diffData(pConv->pParamOut, pConv->pDataOut, pConv->pBufRef);
                             if(diff > max_diff) max_diff = diff;
                             printf("%s DIFF = %f ~%f ms %s",(rv==VEDNN_SUCCESS?" OK":"BAD")
                                     , diff, (c[1]-c[0])*(1.e3/HZ), name);
@@ -881,7 +890,9 @@ void testForward(struct param *pNetwork, int nEntry, double HZ, int flagBias, in
 
 #if TESTDATA
     // final summary including all doStd,doItr,doJit implementations together
-    if( n_test_itr > 0 && n_test_jit > n_test_itr ){
+    //if( n_test_itr > 0 && n_test_jit > n_test_itr )
+    if( n_test_itr > 0                            ) // printt even if doJit==0
+    {
         printf("\n\n libvednn and JIT impls combined...");
         print_test_data(test_data,0,n_test_data,HZ); // test_data sorted by test, then avg speed.
         print_wins(test_data,0,n_test_data,HZ); // algorithm dominance matrix
@@ -1236,11 +1247,11 @@ int main(int argc, char **argv)
         // (exact output height width can be tricky to guess correctly).
         //
         dumpParam(&pParams[t],"BEFORE","");
-        printf("mkConsistent..%d\n",t);
+        printf("\nmkConsistent..%d\n",t);
         mkConsistent( &pParams[t] );
         dumpParam(&pParams[t],"AFTER","");
         char buf[100];
-        printf("mkl-dnn format : %s\n", param_cstr_short(&pParams[t],buf,100));
+        printf("\nmkl-dnn format : %s\n", param_cstr_short(&pParams[t],buf,100));
     }
 
 #ifdef USE_OPENMP

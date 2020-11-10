@@ -28,7 +28,7 @@
 //static inline pid_t gettid() { return syscall(__NR_gettid); }
 
 #ifndef VEDNN_SCRATCH_VERBOSE
-#define VEDNN_SCRATCH_VERBOSE 1
+#define VEDNN_SCRATCH_VERBOSE 0
 #endif
 #ifndef VEDNN_SCRATCH_DBG
 #if VEDNN_SCRATCH_VERBOSE
@@ -176,7 +176,13 @@ private:
 };
 
 /** growable local-use Scratchpad implemented as a shared pointer. Not thread-safe,
- * but can pass pointer to threads from OpenMP master. */
+ * but can pass pointer to threads from OpenMP master.
+ *
+ * Scenario: several objects disjointly need temporary workspace.
+ * Init phase: Every object initializes 1 ScratchpadShared
+ * Exec phase: Noncurrent executing objects get() workspace ptr.
+ *             Each disjointly executing object uses get() for a mem ptr
+ */
 struct ScratchpadShared : public ScratchpadBase {
     ScratchpadShared(size_t bytes) {
 #ifdef _OPENMP
@@ -240,16 +246,16 @@ private:
     }
 public:
     ScratchpadTLS(size_t bytes) {
-        unsigned tmp = ++reference_count_;
         // the following "keeps" a single TLS scratchpad open.
         // auto-init for omp was problematic -- no threadprivate
         // yet for VE ! :(
+        bytes = ((bytes+pad()*2U)+15U)/16U*16U;
+        unsigned tmp = ++reference_count_;
         if(tmp == 1){
             //printf(" vednn: scratchpadTLS INIT!\n");
             vednn_init_scratchpadTLS(bytes);
         }
         assert( reference_count_ >= 2U );
-        bytes = ((bytes+pad()*2U)+15U)/16U*16U;
         if (bytes > size_)
             free_malloc(bytes);
         //VEDNN_SCRATCH_DBG(" vednn-ompthr %d ScratchpadTLS[ %lu bytes ] @ %p REF %u\n",
@@ -273,6 +279,8 @@ private:
     static size_t page_size() { return 4096U; } // 2097152U ideally want page boundary (2M?)
     static void freeme();
     static void free_malloc(size_t const bytes);
+    // ncc historically had definite issues running thread_local object constructors.
+    // Here I ASSUME ncc will properly initialize thread_local fundamental types.
     thread_local static void *scratchpad_;
     thread_local static size_t size_;
     thread_local static volatile unsigned int reference_count_;
@@ -288,41 +296,56 @@ private:
 
 /* Implementation of the ScratchpadBase interface that uses a global
  * scratchpad (simple shared pointer) that grows by filling with 1.0f values.
- * The constructor size is number-of-floats (not bytes). */
+ * The constructor size is number-of-floats (not bytes).
+ * If previous 1s buffer was big enough, we re-use, else we get a new buffer.
+ * Only one such object should be active at any one time.
+ *
+ * Note: refresh ptr with get(), because memory can be reallocated by any new
+ * 'ScratchpadFloatOnes' constructors. */
 struct ScratchpadFloatOnes : public ScratchpadBase {
     ScratchpadFloatOnes(size_t floats) {
         floats = (floats+3U)/4U*4U;
         if (floats > size_) {
-            //vednn::mcheck();
-            if (scratchpad_ != nullptr) free(scratchpad_); size_ = floats;
-            /* Allocating memory buffers on a page boundary to reduce TLB/page misses */
-            const size_t page_size = 4096U;
-            void* sp = vednn::malloc(floats*sizeof(float), page_size);
-            VEDNN_SCRATCH_DBG(" vednn ScratchpadFloatOnes[ %lu bytes ] @ %p\n",
-                    (long unsigned)(floats*sizeof(float)), sp);
-            //vednn::mcheck();
-            if(size_) ScratchpadBase::checkNonNULL(sp,__FILE__,__LINE__);
-            scratchpad_ = sp;
-            // fill with 1.0 whenever resized
-            float *spf = (float*) sp;
-            for(size_t i=0U; i<floats; ++i){
-                spf[i] = 1.0f;
+#ifdef VEDNN_USE_OPENMP
+#pragma omp single /* one thread allocates, omp barrier at end, threads agree on max size. */
+#endif
+            {
+                //vednn::mcheck();
+                if (scratchpad_ != nullptr) free(scratchpad_); size_ = floats;
+                /* Allocating memory buffers on a page boundary to reduce TLB/page misses */
+                const size_t page_size = 4096U;
+                void* sp = vednn::malloc(floats*sizeof(float), page_size);
+                VEDNN_SCRATCH_DBG(" vednn ScratchpadFloatOnes[ %lu bytes ] @ %p\n",
+                        (long unsigned)(floats*sizeof(float)), sp);
+                //vednn::mcheck();
+                if(size_) ScratchpadBase::checkNonNULL(sp,__FILE__,__LINE__);
+                scratchpad_ = sp;
+                // fill with 1.0 whenever resized
+                float *spf = (float*) sp;
+                for(size_t i=0U; i<floats; ++i){
+                    spf[i] = 1.0f;
+                }
             }
         }
         ++reference_count_;
     }
     ~ScratchpadFloatOnes() {
-        --reference_count_;
-        if (reference_count_ == 0) {
-            VEDNN_SCRATCH_DBG(" ~ScratchpadFloatOnes[ %lu bytes ] @ %p\n",
-                    (long unsigned)size_, scratchpad_);
-            //vednn::mcheck();
-            if (scratchpad_ != nullptr){
-                free(scratchpad_);
+#ifdef VEDNN_USE_OPENMP
+#pragma omp single /* one thread allocates, omp barrier at end */
+#endif
+        {
+            --reference_count_;
+            if (reference_count_ == 0) {
+                VEDNN_SCRATCH_DBG(" ~ScratchpadFloatOnes[ %lu bytes ] @ %p\n",
+                        (long unsigned)size_, scratchpad_);
+                //vednn::mcheck();
+                if (scratchpad_ != nullptr){
+                    free(scratchpad_);
+                }
+                scratchpad_ = nullptr;
+                size_ = 0;
+                //vednn::mcheck();
             }
-            scratchpad_ = nullptr;
-            size_ = 0;
-            //vednn::mcheck();
         }
     }
     virtual void *get() const { return scratchpad_; }

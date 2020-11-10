@@ -1,0 +1,38 @@
+22
+# resolutions:
+#   720p	1280 x 720
+#  1080p        1920 x 1080
+#   UHD         3840 x 2160
+mb1ih1920ic3_oh960oc128kh7sh2ph3n"ResNext:conv1"
+# followed by 3x3 max pool stride 2 --> next ih=56
+# 32x4d C=32,d=4,grp128 n=128/4=32 D=n*(bW/64) (some mult of 32)
+# 101 -- conv2 layer(block,64,3) features=64, count=3 (stride 1);
+#        conv3 layer(block,128,4,2);
+#        conv4 layer(block,256,23,2);
+#        conv5 layer(block,512,3,2)
+# conv2a:bottleneck B n=64 (count=3,stride=1) C=32=opt.cardinality D=<int>*(n/64) oc=64*4=256
+mb1ih960__icoc4__kh1___n"RNxt101:conv2a-C32D4 x3C"
+mb1ih960__ic8__oc4__kh3ph1n"RNxt101:conv2b-C32D4 x3C"
+mb1ih960__ic128oc256kh1___n"RNext50:conv2c-C32D8 x3C"# conv2c is mb1ih56_ic[C*D]oc[n*4] C*D=32*4=128 n*4=64*4=256
+# 1st of next blocks begins with stride 2 for step b, first time through
+# features=n=128, count=4, stride=2 C=32(same) but D doubles to D=64
+mb1ih960__ic256oc8__kh1____________n"RNext50:conv3a-C32D8/2 x1C"# n=128
+mb1ih960__ic8__oc8__kh3ph1sh2_oh480n"RNext50:conv3b-C32D8/2 x1C"
+mb1ih480__ic256oc512kh1____________n"RNext50:conv3c-C32D8/2 x1C"# C*D=32*8=256 n*4=128*4=512
+mb1ih480_ic512oc8__kh1___n"RNext50:conv3a-C32D8 x3C"
+mb1ih480_ic8__oc8__kh3ph1n"RNext50:conv3b-C32D8 x3C"
+mb1ih480_ic256oc512kh1___n"RNext50:conv3c-C32D8 x3C"# C*D=32*8=256 n*4=128*4=512
+#
+mb1ih480_ic512_oc16__kh1____________n"RNext50:conv4a-C32D16/2 x1C"# n=256
+mb1ih480_ic16__oc16__kh3ph1sh2_oh240n"RNext50:conv4b-C32D16/2 x1C"
+mb1ih240_ic512_oc1024kh1____________n"RNext50:conv4c-C32D16/2 x1C"# C*D=512, n*4=1024
+mb1ih240_ic1024oc16__kh1___n"RNext50:conv4a-C32D16 x22C"
+mb1ih240_ic16__oc16__kh3ph1n"RNext50:conv4b-C32D16 x22C"
+mb1ih240_ic512_oc1024kh1___n"RNext50:conv4c-C32D16 x22C"# C*D=512, n*4=1024
+#
+mb1ih240_ic1024oc32__kh1____________n"RNext50:conv5a-C32D32/2 x1C"# n=512
+mb1ih240_ic32__oc32__kh3ph1sh2_oh120n"RNext50:conv5b-C32D32/2 x1C"
+mb1ih120__ic1024oc2048kh1____________n"RNext50:conv5c-C32D32/2 x1C"# C*D=1024 n*4=2048
+mb1ih120__ic2048oc32__kh1___n"RNext50:conv5a-C32D8 x2C"
+mb1ih120__ic32__oc32__kh3ph1n"RNext50:conv5b-C32D8 x2C"
+mb1ih120__ic1024oc2048kh1___n"RNext50:conv5c-C32D8 x2C"# C*D=1024 n*4=2048

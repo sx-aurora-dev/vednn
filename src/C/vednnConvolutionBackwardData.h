@@ -30,7 +30,7 @@ typedef vednnConvBackwardData_t vednnConvBackwardData_nowrap_t;
 	vednnConvolutionBackwardData_direct_##IMPL( VEDNN_CONVBKD_ARGS );
 
 VEDNN_CONVBKD_DECL(default);
-VEDNN_CONVBKD_DECL(gemm); ///< but do \b not call via omp wrapper
+VEDNN_CONVBKD_DECL(gemm); ///< Originally plain, now can also call via wrapper threads
 VEDNN_CONVBKD_DECL(vecC);
 VEDNN_CONVBKD_DECL(iwU128);
 VEDNN_CONVBKD_DECL(dil1_str1);

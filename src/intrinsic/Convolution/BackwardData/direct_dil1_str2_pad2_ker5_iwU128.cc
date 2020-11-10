@@ -31,8 +31,8 @@ static inline void func(
     const __vr    vrw
 )
 {
-  const int64_t remain  = NUMCHANNEL & 0x1 ;
-  const int64_t nPacked = NUMCHANNEL >> 1 ;
+  constexpr int64_t remain  = NUMCHANNEL & 0x1 ;
+  constexpr int64_t nPacked = NUMCHANNEL >> 1 ;
 
   int64_t gInIndex = gInGroupOffset + ((n * gInChannel + c) * gInHeight ) * gInWidth ;
 
@@ -58,79 +58,62 @@ static inline void func(
       vrsum_s4[cc] = _vel_pvbrd_vsl(0UL, vl) ;
     }
 
-    __vr vri_r0 = _vel_vaddsl_vsvl(2-0+h, vrh, vl) ;
-    __vr vri_r1 = _vel_vaddsl_vsvl(2-1+h, vrh, vl) ;
-    __vr vri_r2 = _vel_vaddsl_vsvl(2-2+h, vrh, vl) ;
-    __vr vri_r3 = _vel_vaddsl_vsvl(2-3+h, vrh, vl) ;
-    __vr vri_r4 = _vel_vaddsl_vsvl(2-4+h, vrh, vl) ;
+    // orig 1074 lines of VM spill/restore messages
+    __vr vry_r0, vry_r1, vry_r2, vry_r3, vry_r4;
+    __vm256 vmy_r0, vmy_r1, vmy_r2, vmy_r3, vmy_r4;
+    {
+        __vr vri_r0 = _vel_vaddsl_vsvl(2-0+h, vrh, vl) ;
+        vry_r0 = _vel_vdivsl_vvsl(vri_r0, 2, vl) ;
+        __vm256 vmy0_r0 =  _vel_vfmkleq_mvl(_vel_vcmpsl_vvvl(vri_r0, _vel_vmulsl_vsvl(2, vry_r0, vl), vl), vl) ;
+        __vm256 vmy1_r0 =  _vel_vfmklge_mvl(vry_r0, vl) ;
+        __vm256 vmy2_r0 =  _vel_vfmklgt_mvl(_vel_vcmpsl_vsvl(gOutHeight,vry_r0, vl), vl) ;
+        __vm256 vmy_r0 = _vel_andm_mmm(_vel_andm_mmm(vmy0_r0, vmy1_r0), vmy2_r0) ;
+    }
+    {
+        __vr vri_r1 = _vel_vaddsl_vsvl(2-1+h, vrh, vl) ;
+        vry_r1 = _vel_vdivsl_vvsl(vri_r1, 2, vl) ;
+        __vm256 vmy0_r1 =  _vel_vfmkleq_mvl(_vel_vcmpsl_vvvl(vri_r1, _vel_vmulsl_vsvl(2, vry_r1, vl), vl), vl) ;
+        __vm256 vmy1_r1 =  _vel_vfmklge_mvl(vry_r1, vl) ;
+        __vm256 vmy2_r1 =  _vel_vfmklgt_mvl(_vel_vcmpsl_vsvl(gOutHeight,vry_r1, vl), vl) ;
+        __vm256 vmy_r1 = _vel_andm_mmm(_vel_andm_mmm(vmy0_r1, vmy1_r1), vmy2_r1) ;
+    }
+    {
+        __vr vri_r2 = _vel_vaddsl_vsvl(2-2+h, vrh, vl) ;
+        vry_r2 = _vel_vdivsl_vvsl(vri_r2, 2, vl) ;
+        __vm256 vmy0_r2 =  _vel_vfmkleq_mvl(_vel_vcmpsl_vvvl(vri_r2, _vel_vmulsl_vsvl(2, vry_r2, vl), vl), vl) ;
+        __vm256 vmy1_r2 =  _vel_vfmklge_mvl(vry_r2, vl) ;
+        __vm256 vmy2_r2 =  _vel_vfmklgt_mvl(_vel_vcmpsl_vsvl(gOutHeight,vry_r2, vl), vl) ;
+        __vm256 vmy_r2 = _vel_andm_mmm(_vel_andm_mmm(vmy0_r2, vmy1_r2), vmy2_r2) ;
+    }
+    {
+        __vr vri_r3 = _vel_vaddsl_vsvl(2-3+h, vrh, vl) ;
+        vry_r3 = _vel_vdivsl_vvsl(vri_r3, 2, vl) ;
+        __vm256 vmy0_r3 =  _vel_vfmkleq_mvl(_vel_vcmpsl_vvvl(vri_r3, _vel_vmulsl_vsvl(2, vry_r3, vl), vl), vl) ;
+        __vm256 vmy1_r3 =  _vel_vfmklge_mvl(vry_r3, vl) ;
+        __vm256 vmy2_r3 =  _vel_vfmklgt_mvl(_vel_vcmpsl_vsvl(gOutHeight,vry_r3, vl), vl) ;
+        __vm256 vmy_r3 = _vel_andm_mmm(_vel_andm_mmm(vmy0_r3, vmy1_r3), vmy2_r3) ;
+    }
+    {
+        __vr vri_r4 = _vel_vaddsl_vsvl(2-4+h, vrh, vl) ;
+        vry_r4 = _vel_vdivsl_vvsl(vri_r4, 2, vl) ;
+        __vm256 vmy0_r4 =  _vel_vfmkleq_mvl(_vel_vcmpsl_vvvl(vri_r4, _vel_vmulsl_vsvl(2, vry_r4, vl), vl), vl) ;
+        __vm256 vmy1_r4 =  _vel_vfmklge_mvl(vry_r4, vl) ;
+        __vm256 vmy2_r4 =  _vel_vfmklgt_mvl(_vel_vcmpsl_vsvl(gOutHeight,vry_r4, vl), vl) ;
+        __vm256 vmy_r4 = _vel_andm_mmm(_vel_andm_mmm(vmy0_r4, vmy1_r4), vmy2_r4) ;
+    }
 
-    __vr vry_r0 = _vel_vdivsl_vvsl(vri_r0, 2, vl) ;
-    __vr vry_r1 = _vel_vdivsl_vvsl(vri_r1, 2, vl) ;
-    __vr vry_r2 = _vel_vdivsl_vvsl(vri_r2, 2, vl) ;
-    __vr vry_r3 = _vel_vdivsl_vvsl(vri_r3, 2, vl) ;
-    __vr vry_r4 = _vel_vdivsl_vvsl(vri_r4, 2, vl) ;
+    __vr vrx_s2;        // need this inside loop, other vrx, vmx can wait
+    //__vm256 vmx_s2;     // here --> still 70 VM spill/restore msgs
+    {
+        //__vr vrj_s2 = _vel_vaddsl_vsvl( 0, vrw, vl) ;
+        //__vr vrx_s2 = _vel_vdivsl_vvsl(vrj_s2, 2, vl) ;
+        __vr vrx_s2 = _vel_vdivsl_vvsl(vrw, 2, vl) ;
 
-    __vm256 vmy0_r0 =  _vel_vfmkleq_mvl(_vel_vcmpsl_vvvl(vri_r0, _vel_vmulsl_vsvl(2, vry_r0, vl), vl), vl) ;
-    __vm256 vmy1_r0 =  _vel_vfmklge_mvl(vry_r0, vl) ;
-    __vm256 vmy2_r0 =  _vel_vfmklgt_mvl(_vel_vcmpsl_vsvl(gOutHeight,vry_r0, vl), vl) ;
-    __vm256 vmy_r0 = _vel_andm_mmm(_vel_andm_mmm(vmy0_r0, vmy1_r0), vmy2_r0) ;
-
-    __vm256 vmy0_r1 =  _vel_vfmkleq_mvl(_vel_vcmpsl_vvvl(vri_r1, _vel_vmulsl_vsvl(2, vry_r1, vl), vl), vl) ;
-    __vm256 vmy1_r1 =  _vel_vfmklge_mvl(vry_r1, vl) ;
-    __vm256 vmy2_r1 =  _vel_vfmklgt_mvl(_vel_vcmpsl_vsvl(gOutHeight,vry_r1, vl), vl) ;
-    __vm256 vmy_r1 = _vel_andm_mmm(_vel_andm_mmm(vmy0_r1, vmy1_r1), vmy2_r1) ;
-
-    __vm256 vmy0_r2 =  _vel_vfmkleq_mvl(_vel_vcmpsl_vvvl(vri_r2, _vel_vmulsl_vsvl(2, vry_r2, vl), vl), vl) ;
-    __vm256 vmy1_r2 =  _vel_vfmklge_mvl(vry_r2, vl) ;
-    __vm256 vmy2_r2 =  _vel_vfmklgt_mvl(_vel_vcmpsl_vsvl(gOutHeight,vry_r2, vl), vl) ;
-    __vm256 vmy_r2 = _vel_andm_mmm(_vel_andm_mmm(vmy0_r2, vmy1_r2), vmy2_r2) ;
-
-    __vm256 vmy0_r3 =  _vel_vfmkleq_mvl(_vel_vcmpsl_vvvl(vri_r3, _vel_vmulsl_vsvl(2, vry_r3, vl), vl), vl) ;
-    __vm256 vmy1_r3 =  _vel_vfmklge_mvl(vry_r3, vl) ;
-    __vm256 vmy2_r3 =  _vel_vfmklgt_mvl(_vel_vcmpsl_vsvl(gOutHeight,vry_r3, vl), vl) ;
-    __vm256 vmy_r3 = _vel_andm_mmm(_vel_andm_mmm(vmy0_r3, vmy1_r3), vmy2_r3) ;
-
-    __vm256 vmy0_r4 =  _vel_vfmkleq_mvl(_vel_vcmpsl_vvvl(vri_r4, _vel_vmulsl_vsvl(2, vry_r4, vl), vl), vl) ;
-    __vm256 vmy1_r4 =  _vel_vfmklge_mvl(vry_r4, vl) ;
-    __vm256 vmy2_r4 =  _vel_vfmklgt_mvl(_vel_vcmpsl_vsvl(gOutHeight,vry_r4, vl), vl) ;
-    __vm256 vmy_r4 = _vel_andm_mmm(_vel_andm_mmm(vmy0_r4, vmy1_r4), vmy2_r4) ;
-
-    __vr vrj_s0 = _vel_vaddsl_vsvl( 2, vrw, vl) ;
-    __vr vrj_s1 = _vel_vaddsl_vsvl( 1, vrw, vl) ;
-    __vr vrj_s2 = _vel_vaddsl_vsvl( 0, vrw, vl) ;
-    __vr vrj_s3 = _vel_vaddsl_vsvl(-1, vrw, vl) ;
-    __vr vrj_s4 = _vel_vaddsl_vsvl(-2, vrw, vl) ;
-
-    __vr vrx_s0 = _vel_vdivsl_vvsl(vrj_s0, 2, vl) ;
-    __vr vrx_s1 = _vel_vdivsl_vvsl(vrj_s1, 2, vl) ;
-    __vr vrx_s2 = _vel_vdivsl_vvsl(vrj_s2, 2, vl) ;
-    __vr vrx_s3 = _vel_vdivsl_vvsl(vrj_s3, 2, vl) ;
-    __vr vrx_s4 = _vel_vdivsl_vvsl(vrj_s4, 2, vl) ;
-
-    __vm256 vmx0_s0 =  _vel_vfmkleq_mvl(_vel_vcmpsl_vvvl(vrj_s0, _vel_vmulsl_vsvl(2, vrx_s0, vl), vl), vl) ;
-    __vm256 vmx1_s0 =  _vel_vfmklge_mvl(vrx_s0, vl) ;
-    __vm256 vmx2_s0 =  _vel_vfmklgt_mvl(_vel_vcmpsl_vsvl(gOutWidth,vrx_s0, vl), vl) ;
-    __vm256 vmx_s0 = _vel_andm_mmm(_vel_andm_mmm(vmx0_s0, vmx1_s0), vmx2_s0) ;
-
-    __vm256 vmx0_s1 =  _vel_vfmkleq_mvl(_vel_vcmpsl_vvvl(vrj_s1, _vel_vmulsl_vsvl(2, vrx_s1, vl), vl), vl) ;
-    __vm256 vmx1_s1 =  _vel_vfmklge_mvl(vrx_s1, vl) ;
-    __vm256 vmx2_s1 =  _vel_vfmklgt_mvl(_vel_vcmpsl_vsvl(gOutWidth,vrx_s1, vl), vl) ;
-    __vm256 vmx_s1 = _vel_andm_mmm(_vel_andm_mmm(vmx0_s1, vmx1_s1), vmx2_s1) ;
-
-    __vm256 vmx0_s2 =  _vel_vfmkleq_mvl(_vel_vcmpsl_vvvl(vrj_s2, _vel_vmulsl_vsvl(2, vrx_s2, vl), vl), vl) ;
-    __vm256 vmx1_s2 =  _vel_vfmklge_mvl(vrx_s2, vl) ;
-    __vm256 vmx2_s2 =  _vel_vfmklgt_mvl(_vel_vcmpsl_vsvl(gOutWidth,vrx_s2, vl), vl) ;
-    __vm256 vmx_s2 = _vel_andm_mmm(_vel_andm_mmm(vmx0_s2, vmx1_s2), vmx2_s2) ;
-
-    __vm256 vmx0_s3 =  _vel_vfmkleq_mvl(_vel_vcmpsl_vvvl(vrj_s3, _vel_vmulsl_vsvl(2, vrx_s3, vl), vl), vl) ;
-    __vm256 vmx1_s3 =  _vel_vfmklge_mvl(vrx_s3, vl) ;
-    __vm256 vmx2_s3 =  _vel_vfmklgt_mvl(_vel_vcmpsl_vsvl(gOutWidth,vrx_s3, vl), vl) ;
-    __vm256 vmx_s3 = _vel_andm_mmm(_vel_andm_mmm(vmx0_s3, vmx1_s3), vmx2_s3) ;
-
-    __vm256 vmx0_s4 =  _vel_vfmkleq_mvl(_vel_vcmpsl_vvvl(vrj_s4, _vel_vmulsl_vsvl(2, vrx_s4, vl), vl), vl) ;
-    __vm256 vmx1_s4 =  _vel_vfmklge_mvl(vrx_s4, vl) ;
-    __vm256 vmx2_s4 =  _vel_vfmklgt_mvl(_vel_vcmpsl_vsvl(gOutWidth,vrx_s4, vl), vl) ;
-    __vm256 vmx_s4 = _vel_andm_mmm(_vel_andm_mmm(vmx0_s4, vmx1_s4), vmx2_s4) ;
+        //__vm256 vmx0_s2 =  _vel_vfmkleq_mvl(_vel_vcmpsl_vvvl(vrj_s2, _vel_vmulsl_vsvl(2, vrx_s2, vl), vl), vl) ;
+        //__vm256 vmx1_s2 =  _vel_vfmklge_mvl(vrx_s2, vl) ;
+        //__vm256 vmx2_s2 =  _vel_vfmklgt_mvl(_vel_vcmpsl_vsvl(gOutWidth,vrx_s2, vl), vl) ;
+        //vmx_s2 = _vel_andm_mmm(_vel_andm_mmm(vmx0_s2, vmx1_s2), vmx2_s2) ;
+    }
 
     for (int64_t k=0; k<gOutChannelGroup; k++) {
       int64_t gOutIndex    = gOutGroupOffset + ((n * gOutChannel + k) * gOutHeight) * gOutWidth ;
@@ -212,6 +195,59 @@ static inline void func(
 #undef FILTER_OFFSET
     }
 
+    __vr vrx_s0, vrx_s1, vrx_s3, vrx_s4;
+    //__vm256 vmx_s0, vmx_s1, vmx_s3, vmx_s4;
+#define vmx_s0 vmy_r0 // re-use the %vm
+#define vmx_s1 vmy_r1
+#define vmx_s2 vmy_r2
+#define vmx_s3 vmy_r3
+#define vmx_s4 vmy_r4
+    // :) even with vm reg reuse, still have 70 remaining spill/restore lines
+
+    //__vr vrx_s2;        // need this inside loop, other vrx, vmx can wait
+    //__vm256 vmx_s2;     // here --> still 70 VM spill/restore msgs
+    {
+        //__vr vrj_s2 = _vel_vaddsl_vsvl( 0, vrw, vl) ; // recalc XXX
+        //__vr vrx_s2 = _vel_vdivsl_vvsl(vrj_s2, 2, vl) ;
+        //__vm256 vmx0_s2 =  _vel_vfmkleq_mvl(_vel_vcmpsl_vvvl(vrj_s2, _vel_vmulsl_vsvl(2, vrx_s2, vl), vl), vl) ;
+        __vm256 vmx0_s2 =  _vel_vfmkleq_mvl(_vel_vcmpsl_vvvl(vrw, _vel_vmulsl_vsvl(2, vrx_s2, vl), vl), vl) ;
+        __vm256 vmx1_s2 =  _vel_vfmklge_mvl(vrx_s2, vl) ;
+        __vm256 vmx2_s2 =  _vel_vfmklgt_mvl(_vel_vcmpsl_vsvl(gOutWidth,vrx_s2, vl), vl) ;
+        vmx_s2 = _vel_andm_mmm(_vel_andm_mmm(vmx0_s2, vmx1_s2), vmx2_s2) ;
+    }
+    {
+        __vr vrj_s0 = _vel_vaddsl_vsvl( 2, vrw, vl) ;
+        __vr vrx_s0 = _vel_vdivsl_vvsl(vrj_s0, 2, vl) ;
+        __vm256 vmx0_s0 =  _vel_vfmkleq_mvl(_vel_vcmpsl_vvvl(vrj_s0, _vel_vmulsl_vsvl(2, vrx_s0, vl), vl), vl) ;
+        __vm256 vmx1_s0 =  _vel_vfmklge_mvl(vrx_s0, vl) ;
+        __vm256 vmx2_s0 =  _vel_vfmklgt_mvl(_vel_vcmpsl_vsvl(gOutWidth,vrx_s0, vl), vl) ;
+        vmx_s0 = _vel_andm_mmm(_vel_andm_mmm(vmx0_s0, vmx1_s0), vmx2_s0) ;
+    }
+    {
+        __vr vrj_s1 = _vel_vaddsl_vsvl( 1, vrw, vl) ;
+        __vr vrx_s1 = _vel_vdivsl_vvsl(vrj_s1, 2, vl) ;
+        __vm256 vmx0_s1 =  _vel_vfmkleq_mvl(_vel_vcmpsl_vvvl(vrj_s1, _vel_vmulsl_vsvl(2, vrx_s1, vl), vl), vl) ;
+        __vm256 vmx1_s1 =  _vel_vfmklge_mvl(vrx_s1, vl) ;
+        __vm256 vmx2_s1 =  _vel_vfmklgt_mvl(_vel_vcmpsl_vsvl(gOutWidth,vrx_s1, vl), vl) ;
+        vmx_s1 = _vel_andm_mmm(_vel_andm_mmm(vmx0_s1, vmx1_s1), vmx2_s1) ;
+    }
+    {
+        __vr vrj_s3 = _vel_vaddsl_vsvl(-1, vrw, vl) ;
+        __vr vrx_s3 = _vel_vdivsl_vvsl(vrj_s3, 2, vl) ;
+        __vm256 vmx0_s3 =  _vel_vfmkleq_mvl(_vel_vcmpsl_vvvl(vrj_s3, _vel_vmulsl_vsvl(2, vrx_s3, vl), vl), vl) ;
+        __vm256 vmx1_s3 =  _vel_vfmklge_mvl(vrx_s3, vl) ;
+        __vm256 vmx2_s3 =  _vel_vfmklgt_mvl(_vel_vcmpsl_vsvl(gOutWidth,vrx_s3, vl), vl) ;
+        vmx_s3 = _vel_andm_mmm(_vel_andm_mmm(vmx0_s3, vmx1_s3), vmx2_s3) ;
+    }
+    {
+        __vr vrj_s4 = _vel_vaddsl_vsvl(-2, vrw, vl) ;
+        __vr vrx_s4 = _vel_vdivsl_vvsl(vrj_s4, 2, vl) ;
+        __vm256 vmx0_s4 =  _vel_vfmkleq_mvl(_vel_vcmpsl_vvvl(vrj_s4, _vel_vmulsl_vsvl(2, vrx_s4, vl), vl), vl) ;
+        __vm256 vmx1_s4 =  _vel_vfmklge_mvl(vrx_s4, vl) ;
+        __vm256 vmx2_s4 =  _vel_vfmklgt_mvl(_vel_vcmpsl_vsvl(gOutWidth,vrx_s4, vl), vl) ;
+        vmx_s4 = _vel_andm_mmm(_vel_andm_mmm(vmx0_s4, vmx1_s4), vmx2_s4) ;
+    }
+
     if( remain ) {
       vrsum0_s0 = _vel_vmrg_vsvml(0.f, _vel_vmv_vsvl( 2, vrsum0_s0, vl), vmx_s0, vl) ;
       vrsum0_s1 = _vel_vmrg_vsvml(0.f, _vel_vmv_vsvl( 1, vrsum0_s1, vl), vmx_s1, vl) ;
@@ -234,6 +270,11 @@ static inline void func(
       _vel_vstu_vssl(vrsum, 4, pGIn+gInIndex + (2*cc+remain)   * gInHeight * gInWidth, vl) ;
       _vel_vstl_vssl(vrsum, 4, pGIn+gInIndex + (2*cc+remain+1) * gInHeight * gInWidth, vl) ;
     }
+#undef vmx_s0
+#undef vmx_s1
+#undef vmx_s2
+#undef vmx_s3
+#undef vmx_s4
 
     gInIndex += vl ;
   } // gOutPixels
@@ -316,79 +357,53 @@ static inline void func15(
     __vr vrsumBC_s4 = _vel_pvbrd_vsl(0UL, vl) ;
     __vr vrsumDE_s4 = _vel_pvbrd_vsl(0UL, vl) ;
 
-    __vr vri_r0 = _vel_vaddsl_vsvl(2-0+h, vrh, vl) ;
-    __vr vri_r1 = _vel_vaddsl_vsvl(2-1+h, vrh, vl) ;
-    __vr vri_r2 = _vel_vaddsl_vsvl(2-2+h, vrh, vl) ;
-    __vr vri_r3 = _vel_vaddsl_vsvl(2-3+h, vrh, vl) ;
-    __vr vri_r4 = _vel_vaddsl_vsvl(2-4+h, vrh, vl) ;
 
-    __vr vry_r0 = _vel_vdivsl_vvsl(vri_r0, 2, vl) ;
-    __vr vry_r1 = _vel_vdivsl_vvsl(vri_r1, 2, vl) ;
-    __vr vry_r2 = _vel_vdivsl_vvsl(vri_r2, 2, vl) ;
-    __vr vry_r3 = _vel_vdivsl_vvsl(vri_r3, 2, vl) ;
-    __vr vry_r4 = _vel_vdivsl_vvsl(vri_r4, 2, vl) ;
+    __vr vry_r0, vry_r1, vry_r2, vry_r3, vry_r4;
+    __vm256 vmy_r0, vmy_r1, vmy_r2, vmy_r3, vmy_r4;
+    {
+        __vr vri_r0 = _vel_vaddsl_vsvl(2-0+h, vrh, vl) ;
+        vry_r0 = _vel_vdivsl_vvsl(vri_r0, 2, vl) ;
+        __vm256 vmy0_r0 =  _vel_vfmkleq_mvl(_vel_vcmpsl_vvvl(vri_r0, _vel_vmulsl_vsvl(2, vry_r0, vl), vl), vl) ;
+        __vm256 vmy1_r0 =  _vel_vfmklge_mvl(vry_r0, vl) ;
+        __vm256 vmy2_r0 =  _vel_vfmklgt_mvl(_vel_vcmpsl_vsvl(gOutHeight,vry_r0, vl), vl) ;
+        vmy_r0 = _vel_andm_mmm(_vel_andm_mmm(vmy0_r0, vmy1_r0), vmy2_r0) ;
+    }
+    {
+        __vr vri_r1 = _vel_vaddsl_vsvl(2-1+h, vrh, vl) ;
+        vry_r1 = _vel_vdivsl_vvsl(vri_r1, 2, vl) ;
+        __vm256 vmy0_r1 =  _vel_vfmkleq_mvl(_vel_vcmpsl_vvvl(vri_r1, _vel_vmulsl_vsvl(2, vry_r1, vl), vl), vl) ;
+        __vm256 vmy1_r1 =  _vel_vfmklge_mvl(vry_r1, vl) ;
+        __vm256 vmy2_r1 =  _vel_vfmklgt_mvl(_vel_vcmpsl_vsvl(gOutHeight,vry_r1, vl), vl) ;
+        vmy_r1 = _vel_andm_mmm(_vel_andm_mmm(vmy0_r1, vmy1_r1), vmy2_r1) ;
+    }
+    {
+        __vr vri_r2 = _vel_vaddsl_vsvl(2-2+h, vrh, vl) ;
+        vry_r2 = _vel_vdivsl_vvsl(vri_r2, 2, vl) ;
+        __vm256 vmy0_r2 =  _vel_vfmkleq_mvl(_vel_vcmpsl_vvvl(vri_r2, _vel_vmulsl_vsvl(2, vry_r2, vl), vl), vl) ;
+        __vm256 vmy1_r2 =  _vel_vfmklge_mvl(vry_r2, vl) ;
+        __vm256 vmy2_r2 =  _vel_vfmklgt_mvl(_vel_vcmpsl_vsvl(gOutHeight,vry_r2, vl), vl) ;
+        vmy_r2 = _vel_andm_mmm(_vel_andm_mmm(vmy0_r2, vmy1_r2), vmy2_r2) ;
+    }
+    {
+        __vr vri_r3 = _vel_vaddsl_vsvl(2-3+h, vrh, vl) ;
+        vry_r3 = _vel_vdivsl_vvsl(vri_r3, 2, vl) ;
+        __vm256 vmy0_r3 =  _vel_vfmkleq_mvl(_vel_vcmpsl_vvvl(vri_r3, _vel_vmulsl_vsvl(2, vry_r3, vl), vl), vl) ;
+        __vm256 vmy1_r3 =  _vel_vfmklge_mvl(vry_r3, vl) ;
+        __vm256 vmy2_r3 =  _vel_vfmklgt_mvl(_vel_vcmpsl_vsvl(gOutHeight,vry_r3, vl), vl) ;
+        vmy_r3 = _vel_andm_mmm(_vel_andm_mmm(vmy0_r3, vmy1_r3), vmy2_r3) ;
+    }
+    {
+        __vr vri_r4 = _vel_vaddsl_vsvl(2-4+h, vrh, vl) ;
+        vry_r4 = _vel_vdivsl_vvsl(vri_r4, 2, vl) ;
+        __vm256 vmy0_r4 =  _vel_vfmkleq_mvl(_vel_vcmpsl_vvvl(vri_r4, _vel_vmulsl_vsvl(2, vry_r4, vl), vl), vl) ;
+        __vm256 vmy1_r4 =  _vel_vfmklge_mvl(vry_r4, vl) ;
+        __vm256 vmy2_r4 =  _vel_vfmklgt_mvl(_vel_vcmpsl_vsvl(gOutHeight,vry_r4, vl), vl) ;
+        vmy_r4 = _vel_andm_mmm(_vel_andm_mmm(vmy0_r4, vmy1_r4), vmy2_r4) ;
+    }
 
-    __vm256 vmy0_r0 =  _vel_vfmkleq_mvl(_vel_vcmpsl_vvvl(vri_r0, _vel_vmulsl_vsvl(2, vry_r0, vl), vl), vl) ;
-    __vm256 vmy1_r0 =  _vel_vfmklge_mvl(vry_r0, vl) ;
-    __vm256 vmy2_r0 =  _vel_vfmklgt_mvl(_vel_vcmpsl_vsvl(gOutHeight,vry_r0, vl), vl) ;
-    __vm256 vmy_r0 = _vel_andm_mmm(_vel_andm_mmm(vmy0_r0, vmy1_r0), vmy2_r0) ;
-
-    __vm256 vmy0_r1 =  _vel_vfmkleq_mvl(_vel_vcmpsl_vvvl(vri_r1, _vel_vmulsl_vsvl(2, vry_r1, vl), vl), vl) ;
-    __vm256 vmy1_r1 =  _vel_vfmklge_mvl(vry_r1, vl) ;
-    __vm256 vmy2_r1 =  _vel_vfmklgt_mvl(_vel_vcmpsl_vsvl(gOutHeight,vry_r1, vl), vl) ;
-    __vm256 vmy_r1 = _vel_andm_mmm(_vel_andm_mmm(vmy0_r1, vmy1_r1), vmy2_r1) ;
-
-    __vm256 vmy0_r2 =  _vel_vfmkleq_mvl(_vel_vcmpsl_vvvl(vri_r2, _vel_vmulsl_vsvl(2, vry_r2, vl), vl), vl) ;
-    __vm256 vmy1_r2 =  _vel_vfmklge_mvl(vry_r2, vl) ;
-    __vm256 vmy2_r2 =  _vel_vfmklgt_mvl(_vel_vcmpsl_vsvl(gOutHeight,vry_r2, vl), vl) ;
-    __vm256 vmy_r2 = _vel_andm_mmm(_vel_andm_mmm(vmy0_r2, vmy1_r2), vmy2_r2) ;
-
-    __vm256 vmy0_r3 =  _vel_vfmkleq_mvl(_vel_vcmpsl_vvvl(vri_r3, _vel_vmulsl_vsvl(2, vry_r3, vl), vl), vl) ;
-    __vm256 vmy1_r3 =  _vel_vfmklge_mvl(vry_r3, vl) ;
-    __vm256 vmy2_r3 =  _vel_vfmklgt_mvl(_vel_vcmpsl_vsvl(gOutHeight,vry_r3, vl), vl) ;
-    __vm256 vmy_r3 = _vel_andm_mmm(_vel_andm_mmm(vmy0_r3, vmy1_r3), vmy2_r3) ;
-
-    __vm256 vmy0_r4 =  _vel_vfmkleq_mvl(_vel_vcmpsl_vvvl(vri_r4, _vel_vmulsl_vsvl(2, vry_r4, vl), vl), vl) ;
-    __vm256 vmy1_r4 =  _vel_vfmklge_mvl(vry_r4, vl) ;
-    __vm256 vmy2_r4 =  _vel_vfmklgt_mvl(_vel_vcmpsl_vsvl(gOutHeight,vry_r4, vl), vl) ;
-    __vm256 vmy_r4 = _vel_andm_mmm(_vel_andm_mmm(vmy0_r4, vmy1_r4), vmy2_r4) ;
-
-    __vr vrj_s0 = _vel_vaddsl_vsvl( 2, vrw, vl) ;
-    __vr vrj_s1 = _vel_vaddsl_vsvl( 1, vrw, vl) ;
-    __vr vrj_s2 = _vel_vaddsl_vsvl( 0, vrw, vl) ;
-    __vr vrj_s3 = _vel_vaddsl_vsvl(-1, vrw, vl) ;
-    __vr vrj_s4 = _vel_vaddsl_vsvl(-2, vrw, vl) ;
-
-    __vr vrx_s0 = _vel_vdivsl_vvsl(vrj_s0, 2, vl) ;
-    __vr vrx_s1 = _vel_vdivsl_vvsl(vrj_s1, 2, vl) ;
-    __vr vrx_s2 = _vel_vdivsl_vvsl(vrj_s2, 2, vl) ;
-    __vr vrx_s3 = _vel_vdivsl_vvsl(vrj_s3, 2, vl) ;
-    __vr vrx_s4 = _vel_vdivsl_vvsl(vrj_s4, 2, vl) ;
-
-    __vm256 vmx0_s0 =  _vel_vfmkleq_mvl(_vel_vcmpsl_vvvl(vrj_s0, _vel_vmulsl_vsvl(2, vrx_s0, vl), vl), vl) ;
-    __vm256 vmx1_s0 =  _vel_vfmklge_mvl(vrx_s0, vl) ;
-    __vm256 vmx2_s0 =  _vel_vfmklgt_mvl(_vel_vcmpsl_vsvl(gOutWidth,vrx_s0, vl), vl) ;
-    __vm256 vmx_s0 = _vel_andm_mmm(_vel_andm_mmm(vmx0_s0, vmx1_s0), vmx2_s0) ;
-
-    __vm256 vmx0_s1 =  _vel_vfmkleq_mvl(_vel_vcmpsl_vvvl(vrj_s1, _vel_vmulsl_vsvl(2, vrx_s1, vl), vl), vl) ;
-    __vm256 vmx1_s1 =  _vel_vfmklge_mvl(vrx_s1, vl) ;
-    __vm256 vmx2_s1 =  _vel_vfmklgt_mvl(_vel_vcmpsl_vsvl(gOutWidth,vrx_s1, vl), vl) ;
-    __vm256 vmx_s1 = _vel_andm_mmm(_vel_andm_mmm(vmx0_s1, vmx1_s1), vmx2_s1) ;
-
-    __vm256 vmx0_s2 =  _vel_vfmkleq_mvl(_vel_vcmpsl_vvvl(vrj_s2, _vel_vmulsl_vsvl(2, vrx_s2, vl), vl), vl) ;
-    __vm256 vmx1_s2 =  _vel_vfmklge_mvl(vrx_s2, vl) ;
-    __vm256 vmx2_s2 =  _vel_vfmklgt_mvl(_vel_vcmpsl_vsvl(gOutWidth,vrx_s2, vl), vl) ;
-    __vm256 vmx_s2 = _vel_andm_mmm(_vel_andm_mmm(vmx0_s2, vmx1_s2), vmx2_s2) ;
-
-    __vm256 vmx0_s3 =  _vel_vfmkleq_mvl(_vel_vcmpsl_vvvl(vrj_s3, _vel_vmulsl_vsvl(2, vrx_s3, vl), vl), vl) ;
-    __vm256 vmx1_s3 =  _vel_vfmklge_mvl(vrx_s3, vl) ;
-    __vm256 vmx2_s3 =  _vel_vfmklgt_mvl(_vel_vcmpsl_vsvl(gOutWidth,vrx_s3, vl), vl) ;
-    __vm256 vmx_s3 = _vel_andm_mmm(_vel_andm_mmm(vmx0_s3, vmx1_s3), vmx2_s3) ;
-
-    __vm256 vmx0_s4 =  _vel_vfmkleq_mvl(_vel_vcmpsl_vvvl(vrj_s4, _vel_vmulsl_vsvl(2, vrx_s4, vl), vl), vl) ;
-    __vm256 vmx1_s4 =  _vel_vfmklge_mvl(vrx_s4, vl) ;
-    __vm256 vmx2_s4 =  _vel_vfmklgt_mvl(_vel_vcmpsl_vsvl(gOutWidth,vrx_s4, vl), vl) ;
-    __vm256 vmx_s4 = _vel_andm_mmm(_vel_andm_mmm(vmx0_s4, vmx1_s4), vmx2_s4) ;
+    //__vr vrj_s2 = _vel_vaddsl_vsvl( 0, vrw, vl) ;
+    //__vr vrx_s2 = _vel_vdivsl_vvsl(vrj_s2, 2, vl) ;
+    __vr const vrx_s2 = _vel_vdivsl_vvsl(vrw, 2, vl) ;
 
     for (int64_t k=0; k<gOutChannelGroup; k++) {
       int64_t gOutIndex    = gOutGroupOffset + ((n * gOutChannel + k) * gOutHeight) * gOutWidth ;
@@ -483,6 +498,56 @@ static inline void func15(
 #undef FILTER_OFFSET
     }
 
+    // vmx* here reduces rest of VM spill message, 4 __vr msgs remain
+    // (could also re-use vmy* regs if wanted)
+    //__vm256 vmx_s0, vmx_s1, vmx_s2, vmx_s3, vmx_s4;
+#define vmx_s0 vmy_r0
+#define vmx_s1 vmy_r1
+#define vmx_s2 vmy_r2
+#define vmx_s3 vmy_r3
+#define vmx_s4 vmy_r4
+    {
+        __vr vrj_s0 = _vel_vaddsl_vsvl( 2, vrw, vl) ;
+        __vr vrx_s0 = _vel_vdivsl_vvsl(vrj_s0, 2, vl) ;
+        __vm256 vmx0_s0 =  _vel_vfmkleq_mvl(_vel_vcmpsl_vvvl(vrj_s0, _vel_vmulsl_vsvl(2, vrx_s0, vl), vl), vl) ;
+        __vm256 vmx1_s0 =  _vel_vfmklge_mvl(vrx_s0, vl) ;
+        __vm256 vmx2_s0 =  _vel_vfmklgt_mvl(_vel_vcmpsl_vsvl(gOutWidth,vrx_s0, vl), vl) ;
+        vmx_s0 = _vel_andm_mmm(_vel_andm_mmm(vmx0_s0, vmx1_s0), vmx2_s0) ;
+    }
+    {
+        __vr vrj_s1 = _vel_vaddsl_vsvl( 1, vrw, vl) ;
+        __vr vrx_s1 = _vel_vdivsl_vvsl(vrj_s1, 2, vl) ;
+        __vm256 vmx0_s1 =  _vel_vfmkleq_mvl(_vel_vcmpsl_vvvl(vrj_s1, _vel_vmulsl_vsvl(2, vrx_s1, vl), vl), vl) ;
+        __vm256 vmx1_s1 =  _vel_vfmklge_mvl(vrx_s1, vl) ;
+        __vm256 vmx2_s1 =  _vel_vfmklgt_mvl(_vel_vcmpsl_vsvl(gOutWidth,vrx_s1, vl), vl) ;
+        vmx_s1 = _vel_andm_mmm(_vel_andm_mmm(vmx0_s1, vmx1_s1), vmx2_s1) ;
+    }
+    {
+        //__vr vrj_s2 = _vel_vaddsl_vsvl( 0, vrw, vl) ;
+        //__vr vrx_s2 = _vel_vdivsl_vvsl(vrj_s2, 2, vl) ;
+        //__vm256 vmx0_s2 =  _vel_vfmkleq_mvl(_vel_vcmpsl_vvvl(vrj_s2, _vel_vmulsl_vsvl(2, vrx_s2, vl), vl), vl) ;
+        __vm256 vmx0_s2 =  _vel_vfmkleq_mvl(_vel_vcmpsl_vvvl(vrw, _vel_vmulsl_vsvl(2, vrx_s2, vl), vl), vl) ;
+        __vm256 vmx1_s2 =  _vel_vfmklge_mvl(vrx_s2, vl) ;
+        __vm256 vmx2_s2 =  _vel_vfmklgt_mvl(_vel_vcmpsl_vsvl(gOutWidth,vrx_s2, vl), vl) ;
+        vmx_s2 = _vel_andm_mmm(_vel_andm_mmm(vmx0_s2, vmx1_s2), vmx2_s2) ;
+    }
+    {
+        __vr vrj_s3 = _vel_vaddsl_vsvl(-1, vrw, vl) ;
+        __vr vrx_s3 = _vel_vdivsl_vvsl(vrj_s3, 2, vl) ;
+        __vm256 vmx0_s3 =  _vel_vfmkleq_mvl(_vel_vcmpsl_vvvl(vrj_s3, _vel_vmulsl_vsvl(2, vrx_s3, vl), vl), vl) ;
+        __vm256 vmx1_s3 =  _vel_vfmklge_mvl(vrx_s3, vl) ;
+        __vm256 vmx2_s3 =  _vel_vfmklgt_mvl(_vel_vcmpsl_vsvl(gOutWidth,vrx_s3, vl), vl) ;
+        vmx_s3 = _vel_andm_mmm(_vel_andm_mmm(vmx0_s3, vmx1_s3), vmx2_s3) ;
+    }
+    {
+        __vr vrj_s4 = _vel_vaddsl_vsvl(-2, vrw, vl) ;
+        __vr vrx_s4 = _vel_vdivsl_vvsl(vrj_s4, 2, vl) ;
+        __vm256 vmx0_s4 =  _vel_vfmkleq_mvl(_vel_vcmpsl_vvvl(vrj_s4, _vel_vmulsl_vsvl(2, vrx_s4, vl), vl), vl) ;
+        __vm256 vmx1_s4 =  _vel_vfmklge_mvl(vrx_s4, vl) ;
+        __vm256 vmx2_s4 =  _vel_vfmklgt_mvl(_vel_vcmpsl_vsvl(gOutWidth,vrx_s4, vl), vl) ;
+        vmx_s4 = _vel_andm_mmm(_vel_andm_mmm(vmx0_s4, vmx1_s4), vmx2_s4) ;
+    }
+
     {
       vrsum0_s0 = _vel_vmrg_vsvml(0.f, _vel_vmv_vsvl( 2, vrsum0_s0, vl), vmx_s0, vl) ;
       vrsum0_s1 = _vel_vmrg_vsvml(0.f, _vel_vmv_vsvl( 1, vrsum0_s1, vl), vmx_s1, vl) ;
@@ -570,6 +635,11 @@ static inline void func15(
       _vel_vstu_vssl(vrsumDE, 4, pGIn+gInIndex +13 * gInHeight * gInWidth, vl) ;
       _vel_vstl_vssl(vrsumDE, 4, pGIn+gInIndex +14 * gInHeight * gInWidth, vl) ;
     }
+#undef vmx_s0
+#undef vmx_s1
+#undef vmx_s2
+#undef vmx_s3
+#undef vmx_s4
 
     gInIndex += vl ;
   } // gOutPixels

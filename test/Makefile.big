@@ -36,11 +36,13 @@ endif
 LIBJIT:=jit1${LIBJIT_SUFFIX}
 LIBJITX86=${LIBJIT}-x86
 
-
 VE_BIN_DIR := /opt/nec/ve/bin
 AR := $(VE_BIN_DIR)/nar
 .PHONY: Makefile Makefile.big Makefile.tiny all Hello Goodbye vejit-unpack vednn-unpack unpack force
-TARGETS:=vejit-unpack cjitConv00-x86 cjitConv01-x86
+TARGETS:=vejit-unpack
+
+# x86 targets now optional : g++ headers not always installed (ds08)
+#TARGETS+=cjitConv00-x86 cjitConv01-x86
 
 ifeq ($(COMPILE_TYPE),ncc)
 TARGETS+=vednn_conv_test vednn_linear_test vednn_pool_test
@@ -625,7 +627,7 @@ jitconv-dev: jitconv.o d1s1pSB.o $(CONVGEMM).o libcjitConv-ve.so conv_test_param
 		${LDLIBS} -ldl
 resnext-t%.log: jitconv
 	@# NOTE -k for cachekiller, -r REPS
-	{ cmd='./jitconv -t $* -S resnext -M params/conv/resnext2.txt -r 8'; \
+	{ cmd='./jitconv -t $* -S resnext -M params/conv/resnext2.txt -r 2'; \
 		rm -f ftrace.out; echo "$$cmd >& $@"; \
 		{ LIBC_FATAL_STDERR_=1 time $$cmd; status=$$?; ftrace || true; } >& '$@'; \
 		if [ "$${status}" != "0" ]; then echo "$@ FAILED"; fi; \
@@ -633,8 +635,8 @@ resnext-t%.log: jitconv
 		}
 	@echo "$@ OK"
 resnext-t%-mb8.log: jitconv
-	@# NOTE -k for cachekiller, -r REPS
-	{ cmd='./jitconv -t $* -S resnext-mb8 -M params/conv/resnext2.txt -r 8 mb8'; \
+	@# NOTE -k for cachekiller, -r REPS NB changed to r2 for speed
+	{ cmd='./jitconv -t $* -S resnext-mb8 -M params/conv/resnext2.txt -r 2 mb8'; \
 		rm -f ftrace.out; echo "$$cmd >& $@"; \
 		{ LIBC_FATAL_STDERR_=1 time $$cmd; status=$$?; ftrace || true; } >& '$@'; \
 		if [ "$${status}" != "0" ]; then echo "$@ FAILED"; fi; \

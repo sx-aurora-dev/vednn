@@ -31,12 +31,12 @@
 #elif defined(__ve)
 #   if defined(__cplusplus)
 #      ifndef __restrict
-#         warning "nc++ restrict-->__restrict"
+//#         warning "nc++ restrict-->__restrict"
 #          define restrict __restrict 
 #      endif
 #   else
 #      if !defined(restrict)
-#         warning "ncc restrict-->__restrict"
+//#         warning "ncc restrict-->__restrict"
 #         define restrict __restrict // ncc uses __restrict in C headers
 #      endif
 #   endif

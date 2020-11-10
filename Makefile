@@ -59,14 +59,14 @@ test: build
 		./vednn_linear_test -H 0.8e9 -p params/linear/alexnet.txt -T LinearForward; ftrace; \
 		./vednn_pool_test   -H 0.8e9 -p params/pool/alexnet.txt   -T MaxPoolForward; ftrace; \
 		} && { \
-		make VERBOSE=1 -f Makefile.big jitconv && ./jitconv -t 8 mb8 >& t8mb8.log \
+		time make VERBOSE=1 -f Makefile.big jitconv && ./jitconv -t 8 mb8 >& t8mb8.log \
 		&& echo "GOOD: test/t8mb8.log!" \
 		|| { echo "OHOH: test/t8mb8.log!" && false; } \
 		} && echo "resnext via Makefile.big..." \
-		&& { make VERBOSE=1 -f Makefile.big jitconv resnext-t8.log \
+		&& { time make VERBOSE=1 -f Makefile.big jitconv resnext-t8.log \
 		&& echo "GOOD: test/resnext-t8.log!" \
 		|| { echo "OHOH: test/resnext-t8.log!" && false; } \
-	       	} && { make VERBOSE=1 -f Makefile.big jitconv resnext-t8-mb8.log \
+	       	} && { time make VERBOSE=1 -f Makefile.big jitconv resnext-t8-mb8.log \
 		&& echo "GOOD: test/resnext-t8-mb8.log!" \
 		|| { echo "OHOH: test/resnext-t8-mb8.log!"; false; } \
 		} && echo "vednn make test passed"; \

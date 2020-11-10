@@ -1,0 +1,11 @@
+[a1ss4_005 test]$ ve_exec ve_cmpconv -p params/conv/alexnet256.txt -H 0.8e9 -r 2                                                                        -t 1
+CONVOLUTION TEST TYPE    = Forward
+PROCESSOR CORE FREQUENCY = 8.000e+08 HZ
+PARAMETER FILE           = params/conv/alexnet256.txt
+ set_omp_threads(1)...
+conv1                          : batch 256 group 1      bottom    3 227  227   t                                                                       op   96  55   55        kernel 11 11 stride 4 4 pad 0 0 Fwd             TIME =                                                                         296.380 msec [ 296.374, 296.387] DIFF = 0.003093
+conv2                          : batch 256 group 2      bottom   96  27   27   t                                                                       op  256  27   27        kernel  5  5 stride 1 1 pad 2 2 Fwd             TIME =                                                                         455.249 msec [ 454.199, 456.299] DIFF = 0.004334
+conv3                          : batch 256 group 1      bottom  256  13   13   t                                                                       op  384  13   13        kernel  3  3 stride 1 1 pad 1 1 Fwd             TIME =                                                                         208.657 msec [ 208.638, 208.677] DIFF = 0.003470
+conv4                          : batch 256 group 2      bottom  384  13   13   t                                                                       op  384  13   13        kernel  3  3 stride 1 1 pad 1 1 Fwd             TIME =                                                                         156.287 msec [ 156.286, 156.289] DIFF = 0.002742
+conv5                          : batch 256 group 2      bottom  384  13   13   t                                                                       op  256  13   13        kernel  3  3 stride 1 1 pad 1 1 Fwd             TIME =                                                                         104.516 msec [ 104.507, 104.524] DIFF = 0.002239
+

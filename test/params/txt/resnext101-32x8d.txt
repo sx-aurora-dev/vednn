@@ -1,0 +1,58 @@
+29
+# resolutions:
+#   720p	1280 x 720
+#  1080p        1920 x 1080
+#   UHD         3840 x 2160
+#
+#  720p: to run all tests, perhaps better in single run mode
+#    BUG p0k1 wrong output for conv2  (see bug.txt)
+mb1ih720iw1280ic3_oh360ow640oc64_kh7sh2ph3n"ResNext:conv1"
+# followed by 3x3 max pool stride 2 --> next iw=56
+# 32x4d C=32,d=4,grp128 n=128/4=32 D=n*(bW/64) (some mult of 32)
+# 101 -- conv2 layer(block,64,3) features=64, count=3 (stride 1);
+#        conv3 layer(block,128,4,2);
+#        conv4 layer(block,256,23,2);
+#        conv5 layer(block,512,3,2)
+# MaxPool2d(kernel_size=3, stride=2, padding=1, dilation=1, ceil_mode=False) MaxPool2d-4
+#   --> ih180iw320
+# conv2:once B n=64 (count=3,stride=1) C=32=opt.cardinality D=<int>*(n/64) oc=64*4=256
+#     Conv2d(64, 256, kernel_size=(1, 1), stride=(1, 1), bias=False)
+# conv2:1xBottle+downsample(stride1)
+mb1ih180iw320__ic64_oc256kh1______n"RNxt101:conv2a-c32x8d-720p x1"#Conv2d-5,17,28
+mb1ih180iw320__ic256oc256kh3ph1g32n"RNxt101:conv2b-c32x8d-720p x1"
+mb1ih180iw320__ic256oc256kh1______n"RNxt101:conv2c-c32x8d-720p x1"# conv2c is mb1ih56_ic[C*D]oc[n*4] C*D=32*4=128 n*4=64*4=256
+mb1ih180iw320__ic64_oc256kh1______n"RNxt101:conv2d-c32x8d-720p x1"# (downsample str1)
+# conv2:2xBottleneck
+mb1ih180iw320__ic256oc256kh1______n"RNxt101:conv2Ba-c32x8d-720p x2"
+mb1ih180iw320__ic256oc256kh3ph1g32n"RNxt101:conv2Bb-c32x8d-720p x2"
+mb1ih180iw320__ic256oc256kh1______n"RNxt101:conv2Bc-c32x8d-720p x2"# conv2c is mb1ih56_ic[C*D]oc[n*4] C*D=32*4=128 n*4=64*4=256
+# 1st Bottleneck of next blocks ends with stride 2 (downsample)
+# features=n=128, count=4, stride=2 C=32(same) but D doubles to D=64
+mb1ih180iw320__ic256oc512kh1______n"RNxt101:conv3a-c32x8d-720p x1"# Conv2d-37
+mb1ih180iw320__ic512oc512kh3ph1g32_sh2sw2n"RNxt101:conv3b-c32x8d-720p x1"
+mb1ih90iw160__ic512oc512kh1_______n"RNxt101:conv3c-c32x8d-720p x1"# C*D=32*8=256 n*4=128*4=512
+mb1ih90iw160__ic256oc512kh1sh2sw2_n"RNxt101:conv3d-c32x8d-720p x1"# (downsample)
+# conv3:3xBottleneck
+mb1ih90iw160__ic512oc512kh1______n"RNxt101:conv3Ba-c32x8d-720p x3"
+mb1ih90iw160__ic512oc512kh3ph1g32n"RNxt101:conv3Bb-c32x8d-720p x3"
+mb1ih90iw160__ic512oc512kh1______n"RNxt101:conv3Bc-c32x8d-720p x3"# C*D=32*8=256 n*4=128*4=512
+# conv4
+mb1ih90iw160__ic512_oc1024kh1______n"RNxt101:conv4a-c32x8d-720p x1"# n=256
+mb1ih90iw160__ic1024oc1024kh3ph1g32_sh2sw2n"RNxt101:conv4b-c32x8d-720p x1"
+mb1ih45iw80___ic1024oc1024kh1______n"RNxt101:conv4c-c32x8d-720p x1"# C*D=512, n*4=1024
+mb1ih90iw160__ic512_oc1024kh1sh2sw2n"RNxt101:conv4c-c32x8d-720p x1"# (downsample)
+# conv4:22xBottleneck
+mb1ih45iw80___ic1024oc1024kh1______n"RNxt101:conv4Ba-c32x8d-720p x22"
+mb1ih45iw80___ic1024oc1024kh3ph1g32n"RNxt101:conv4Bb-c32x8d-720p x22"
+mb1ih45iw80___ic1024oc1024kh1______n"RNxt101:conv4Bc-c32x8d-720p x22"# C*D=512, n*4=1024
+# conv5:1xBottleneck+downsample
+mb1ih45iw80___ic1024oc2048kh1______n"RNxt101:conv5a-c32x8d-720p x1"# n=512
+mb1ih45iw80___ic2048oc2048kh3ph1g32_sh2sw2n"RNxt101:conv5b-c32x8d-720p x1"
+mb1ih23iw40___ic2048oc2048kh1______n"RNxt101:conv5c-c32x8d-720p x1"# C*D=1024 n*4=2048
+mb1ih45iw80___ic1024oc2048kh1sh2sw2n"RNxt101:conv5c-c32x8d-720p x1"# (downsample)
+# conv5:3xBottleneck
+mb1ih23iw40__ic2048oc2048kh1______n"RNxt101:conv5Ba-c32x8d-720p x2"
+mb1ih23iw40__ic2048oc2048kh3ph1g32n"RNxt101:conv5Bb-c32x8d-720p x2"
+mb1ih23iw40__ic1024oc2048kh1______n"RNxt101:conv5Bc-c32x8d-720p x2"# C*D=1024 n*4=2048
+# (avgpool) AdaptiveAvgPool2d(output_size=(1, 1))
+# (fc): Linear(in_features=2048, out_features=1000, bias=True)

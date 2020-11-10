@@ -1,0 +1,24 @@
+17
+# following test wrong result for p0k1/p0k1A (fixed, I think)
+#mb1ih640iw360__ic128oc4__kh1___n"RNxt101:conv2a-C32D4 x3C"
+# following test wrong for cjitConvFwd6/1q
+# but requires a lot of mem? c512oc512ih2oh1kh5_sh9ph0
+#following are still incorrect for Fwd6vel, which correct some wrong Fwd6/Fwd1q cases
+mb1_ic2ih1oc2oh1kh3_sh2ph1
+mb1_ic3ih1oc3oh1kh3_sh2ph1
+mb1_ic4ih1oc4oh1kh3_sh2ph1
+mb1_ic31ih1oc31oh1kh3_sh2ph1
+mb1_ic2ih1oc2oh1kh5_sh2ph2
+mb1_ic2ih2oc2oh1kh5_sh2ph2
+mb1_ic3ih1oc3oh1kh5_sh2ph2
+mb1_ic3ih2oc3oh1kh5_sh2ph2
+mb1_ic4ih1oc4oh1kh5_sh2ph2
+mb1_ic4ih2oc4oh1kh5_sh2ph2
+mb1_ic8ih1oc8oh1kh5_sh2ph2
+mb1_ic8ih2oc8oh1kh5_sh2ph2
+mb1_ic31ih1oc31oh1kh5_sh2ph2
+mb1_ic31ih2oc31oh1kh5_sh2ph2
+# following wrong for 6vel, but ok for Fwd6
+mb1_ic1ih4oc1oh1kh3_sh2
+mb1_ic1ih3oc1oh1kh3_sh2
+mb1_ic1ih2oc1oh1kh3_sh2#wrong for d1p0A and d1p0 and d1p0_owU128A

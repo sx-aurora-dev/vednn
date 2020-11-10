@@ -5,6 +5,8 @@
 namespace vednn {
 namespace scratchpad {
 
+#define VEDNN_SCRATCH_VERBOSE 0
+
 /// \group scratchpad member variables
 //@{
 void *ScratchpadShared::scratchpad_ = nullptr;
@@ -48,12 +50,15 @@ void ScratchpadTLS::freeme(){
 }
 void ScratchpadTLS::free_malloc(size_t const bytes){
 #if 1
+#pragma omp critical /* should NOT be required */
+    {
         if (scratchpad_ != nullptr) vednn::free(scratchpad_);
         size_ = bytes;
         VEDNN_SCRATCH_DBG(" malloc... ");
         scratchpad_ = vednn::malloc(bytes, page_size());
         if(size_) ScratchpadBase::checkNonNULL(scratchpad_,__FILE__,__LINE__);
-#else
+    }
+#else // debug attempt...
 #pragma omp critical
     {
         VEDNN_SCRATCH_DBG("\n\n vednn-ompthr %d ScratchpadTLS resize [ %lu bytes--> %lu ]\n",
@@ -75,7 +80,9 @@ void vednn_init_scratchpad_shared(size_t const bytes){
             new ScratchpadShared(bytes));
     // clients use it by calling vednn_scratchpad(nBytes) and getting a pointer
     //printf(" vednn scratchpad_shared     @ %p REF %u\n",vednn_scratchpad_shared(bytes), scratchpadShared->ref());
-    printf(" vednn INIT scratchpad_shared     @ %p REF %u\n",scratchpadShared->get(), scratchpadShared->ref());
+    if (VEDNN_SCRATCH_VERBOSE)
+        printf(" vednn INIT scratchpad_shared     @ %p REF %u\n",
+                scratchpadShared->get(), scratchpadShared->ref());
 }
 // This must be done per thread, but the threads may not exist yet (except for 'master')
 // This is internal to libvednnn.
@@ -83,13 +90,17 @@ void vednn_init_scratchpadTLS(size_t const bytes){
     scratchpadTLS = /*static_cast<ScratchpadBase*>*/ (
             new ScratchpadTLS(bytes));
     // C code calls vednn_scratchpad(nBytes) and getting a pointer
-    printf(" vednn INIT scratchpadTLS         @ %p REF %u\n",scratchpadTLS->get(), scratchpadTLS->ref());
+    if (VEDNN_SCRATCH_VERBOSE)
+        printf(" vednn INIT scratchpadTLS         @ %p REF %u\n",
+                scratchpadTLS->get(), scratchpadTLS->ref());
 }
 void vednn_init_scratchpad_float_ones(size_t const floats){
     scratchpadFloatOnes = /*static_cast<ScratchpadBase*>*/(
             new ScratchpadFloatOnes(floats));
     // clients use it by calling vednn_scratchpad_float_ones(nFloats) and getting a pointer
-    printf(" vednn INIT scratchpad float ones @ %p REF %u\n",scratchpadFloatOnes->get(), scratchpadFloatOnes->ref());
+    if (VEDNN_SCRATCH_VERBOSE)
+        printf(" vednn INIT scratchpad float ones @ %p REF %u\n",
+                scratchpadFloatOnes->get(), scratchpadFloatOnes->ref());
 }
 //@}
 

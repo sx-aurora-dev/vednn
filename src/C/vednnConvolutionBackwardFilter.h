@@ -50,12 +50,13 @@ vednnError_t (*vednnConvBackwardFilter_t) ( VEDNN_CONVBKF_OMPARGS );
 typedef
 vednnError_t (*vednnConvBackwardFilter_nowrap_t) ( VEDNN_CONVBKF_ARGS );
 
-#define VEDNN_CONVBKF_DECL(IMPL) vednnError_t \
-    vednnConvolutionBackwardFilter_direct_##IMPL( VEDNN_CONVBKF_OMPARGS );
-
 /** Note that gemm convolutions <B>never</B> use the default \e wrapper function
  * signature, so do not get extra thread-related channel arguments. */
 vednnError_t vednnConvolutionBackwardFilter_direct_gemm( VEDNN_CONVBKF_ARGS );
+
+/** other CnvBkF impls add in OMP threading args */
+#define VEDNN_CONVBKF_DECL(IMPL) vednnError_t \
+    vednnConvolutionBackwardFilter_direct_##IMPL( VEDNN_CONVBKF_OMPARGS );
 
 VEDNN_CONVBKF_DECL(default);
 VEDNN_CONVBKF_DECL(vecC);

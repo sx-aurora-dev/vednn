@@ -85,7 +85,8 @@ static vednnConvForwardImpls vednnConvForwardList_[] = {
     IMPL_FNS(vednnConvolutionForward_direct_default,"cnvFwd-def"),
     // customizations (stable, working, but win in isolated circumstances)
     //IMPL_WRAPNONE_EASY_FNS(vednnConvolutionForward_direct_gemm,"cnvFwd-gemm"),
-    IMPL_WRAPNONE_FNS(Forward, gemm,"cnvFwd-gemm"),
+    IMPL_WRAPNONE_FNS(Forward, gemm,"cnvFwd-gemm_T"), // sgemm internal threading
+    IMPL_FNS(vednnConvolutionForward_direct_gemm,"cnvFwd-gemm"), // minibatch threading
     // WIP 
     //IMPL_WRAPNONE_EASY_FNS(vednnConvolutionForward_direct_gendnn,"cnvFwd-gendnn"), // scratchpad issues?
     // older impls
@@ -151,8 +152,8 @@ static vednnConvBackwardDataImpls vednnConvBackwardDataList_[] = {
     IMPL_FNS(vednnConvolutionBackwardData_direct_dil1_str1,"cnvBkD-d1s1"),
     IMPL_FNS(vednnConvolutionBackwardData_direct_iwU128,"cnvBkD-iwU128"),
     IMPL_FNS(vednnConvolutionBackwardData_direct_default,"cnvBkD-def"),
-    //IMPL_WRAPNONE_EASY_FNS(vednnConvolutionBackwardData_direct_gemm,"cnvBkD-gemm"),
-    IMPL_WRAPNONE_FNS(BackwardData, gemm,"cnvBkD-gemm"),
+    IMPL_WRAPNONE_FNS(BackwardData, gemm,"cnvBkD-gemm_T"), // sgemm internal threading
+    IMPL_FNS(vednnConvolutionBackwardData_direct_gemm,"cnvBkD-gemm"), // minibatch threading
     // extras...
     //IMPL_FNS(vednnConvolutionBackwardData_direct_default2,"cnvBkD-def2"),
     //IMPL_FNS(vednnConvolutionBackwardData_direct_gendnn,"cnvBkD-gendnn"), // check if implemented XXX
@@ -181,12 +182,9 @@ static vednnConvBackwardFilterImpls vednnConvBackwardFilterList_[] = {
     IMPL_FNS(vednnConvolutionBackwardFilter_direct_dil1_pad0,"cnvBkF-d1p0"),
     IMPL_FNS(vednnConvolutionBackwardFilter_direct_owU128,"cnvBkF-owU128"),
     IMPL_FNS(vednnConvolutionBackwardFilter_direct_default,"cnvBkF-def"),
-    // Neither of the following work, because low-level impl may have "extra" args!
-    //IMPL_WRAPNONE_EASY_FNS((vednnConvBackwardFilter_t)(void*)vednnConvolutionBackwardFilter_direct_gemm,"cnvBkF-gemm"),
-    //IMPL_WRAPNONE_EASY_FNS(vednnConvolutionBackwardFilter_direct_gemm,"cnvBkF-gemm"),
-    IMPL_WRAPNONE_FNS( BackwardFilter, gemm, "cnvBkF-gemm" ),
-    // extras...
-    //IMPL_FNS(vednnConvolutionBackwardData_direct_gendnn,"cnvBkD-gendnn"), // check if implemented XXX
+    IMPL_WRAPNONE_FNS(BackwardFilter, gemm, "cnvBkF-gemm_T"), // sgemm internal threading
+    // XXX CnvBkF with wrapper has 2 or 4 more arguments!
+    //IMPL_FNS(vednnConvolutionBackwardFilter_direct_gemm,"cnvBkF-gemm"), // minibatch threading
     {NULL}
 };
 

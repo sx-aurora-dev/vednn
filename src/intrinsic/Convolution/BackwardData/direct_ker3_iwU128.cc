@@ -36,8 +36,8 @@ static inline void func(
     const int64_t nH
 )
 {
-  const int64_t remain  = NUMCHANNEL & 0x1 ;
-  const int64_t nPacked = NUMCHANNEL >> 1 ;
+  constexpr int64_t remain  = NUMCHANNEL & 0x1 ;
+  constexpr int64_t nPacked = NUMCHANNEL >> 1 ;
 
   int64_t gInIndex = gInGroupOffset + ((n * gInChannel + c) * gInHeight ) * gInWidth  ;
 
@@ -45,6 +45,7 @@ static inline void func(
   __vr vrh  = _vel_vdivsl_vvsl(vrseq, gInWidth, nH*gInWidth) ;
   __vr vrw  = _vel_vsubsl_vvvl(vrseq, _vel_vmulul_vsvl(gInWidth,vrh, nH*gInWidth), nH*gInWidth) ;
 
+// no effect #pragma clang loop unroll(disable)
   for (int64_t h=0; h<gInHeight; h+=nH) {
     const int64_t vl = gInWidth * (gInHeight - h < nH ? gInHeight - h : nH) ;
     const int64_t gip = h * gInWidth ;
@@ -56,64 +57,94 @@ static inline void func(
 	vrsum[cc] = _vel_pvbrd_vsl(0UL, vl) ;
     }
 
-    __vr vri_r0 = _vel_vaddsl_vsvl(padHeight-0*dilationHeight+h, vrh, vl) ;
-    __vr vri_r1 = _vel_vaddsl_vsvl(padHeight-1*dilationHeight+h, vrh, vl) ;
-    __vr vri_r2 = _vel_vaddsl_vsvl(padHeight-2*dilationHeight+h, vrh, vl) ;
+    __vr vry_r0, vry_r1, vry_r2;
+    __vr vrx_s0, vrx_s1, vrx_s2;
 
-    __vr vry_r0 = _vel_vdivsl_vvsl(vri_r0, strideHeight, vl) ;
-    __vr vry_r1 = _vel_vdivsl_vvsl(vri_r1, strideHeight, vl) ;
-    __vr vry_r2 = _vel_vdivsl_vvsl(vri_r2, strideHeight, vl) ;
+    __vm256 vmall_r0s0, vmall_r0s1, vmall_r0s2;
+    __vm256 vmall_r1s0, vmall_r1s1, vmall_r1s2;
+    __vm256 vmall_r2s0, vmall_r2s1, vmall_r2s2;
+    // Bad VM spill. Some removed by "{..}" blocks, 328 lines of compiler spill msg still remain.
+    // difficult to make further improvements !!!  (can be done with no spill in assembler)
+    // clang seems to be forcing non-final mask calcs into v1, then saving to stack
+    //    (expect assigning "any" %vm directly)
+    {
+        __vr vri_r0 = _vel_vaddsl_vsvl(padHeight-0*dilationHeight+h, vrh, vl) ;
+        __vr vri_r1 = _vel_vaddsl_vsvl(padHeight-1*dilationHeight+h, vrh, vl) ;
+        __vr vri_r2 = _vel_vaddsl_vsvl(padHeight-2*dilationHeight+h, vrh, vl) ;
 
-    __vr vrj_s0 = _vel_vaddsl_vsvl(padWidth-0*dilationWidth, vrw, vl) ;
-    __vr vrj_s1 = _vel_vaddsl_vsvl(padWidth-1*dilationWidth, vrw, vl) ;
-    __vr vrj_s2 = _vel_vaddsl_vsvl(padWidth-2*dilationWidth, vrw, vl) ;
+        vry_r0 = _vel_vdivsl_vvsl(vri_r0, strideHeight, vl) ;
+        vry_r1 = _vel_vdivsl_vvsl(vri_r1, strideHeight, vl) ;
+        vry_r2 = _vel_vdivsl_vvsl(vri_r2, strideHeight, vl) ;
 
-    __vr vrx_s0 = _vel_vdivsl_vvsl(vrj_s0, strideWidth, vl) ;
-    __vr vrx_s1 = _vel_vdivsl_vvsl(vrj_s1, strideWidth, vl) ;
-    __vr vrx_s2 = _vel_vdivsl_vvsl(vrj_s2, strideWidth, vl) ;
+        __vr vrj_s0 = _vel_vaddsl_vsvl(padWidth-0*dilationWidth, vrw, vl) ;
+        __vr vrj_s1 = _vel_vaddsl_vsvl(padWidth-1*dilationWidth, vrw, vl) ;
+        __vr vrj_s2 = _vel_vaddsl_vsvl(padWidth-2*dilationWidth, vrw, vl) ;
+
+        vrx_s0 = _vel_vdivsl_vvsl(vrj_s0, strideWidth, vl) ;
+        vrx_s1 = _vel_vdivsl_vvsl(vrj_s1, strideWidth, vl) ;
+        vrx_s2 = _vel_vdivsl_vvsl(vrj_s2, strideWidth, vl) ;
 
 
-    __vm256 vmy0_r0 =  _vel_vfmkleq_mvl(_vel_vcmpsl_vvvl(vri_r0, _vel_vmulsl_vsvl(strideHeight, vry_r0, vl), vl), vl) ;
-    __vm256 vmy1_r0 =  _vel_vfmklge_mvl(vry_r0, vl) ;
-    __vm256 vmy2_r0 =  _vel_vfmklgt_mvl(_vel_vcmpsl_vsvl(gOutHeight,vry_r0, vl), vl) ;
-    __vm256 vmy_r0 = _vel_andm_mmm(_vel_andm_mmm(vmy0_r0, vmy1_r0), vmy2_r0) ;
+        __vm256 vmx_s0, vmx_s1, vmx_s2;
+        {
+            __vm256 const vmx0_s0 =  _vel_vfmkleq_mvl(_vel_vcmpsl_vvvl(vrj_s0, _vel_vmulsl_vsvl(strideWidth, vrx_s0, vl), vl), vl) ;
+            __vm256 const vmx1_s0 =  _vel_vfmklge_mvl(vrx_s0, vl) ;
+            __vm256 const vmx2_s0 =  _vel_vfmklgt_mvl(_vel_vcmpsl_vsvl(gOutWidth,vrx_s0, vl), vl) ;
+            vmx_s0 = _vel_andm_mmm(_vel_andm_mmm(vmx0_s0, vmx1_s0), vmx2_s0) ;
+        }
+        {
+            __vm256 const vmx0_s1 =  _vel_vfmkleq_mvl(_vel_vcmpsl_vvvl(vrj_s1, _vel_vmulsl_vsvl(strideWidth, vrx_s1, vl), vl), vl) ;
+            __vm256 const vmx1_s1 =  _vel_vfmklge_mvl(vrx_s1, vl) ;
+            __vm256 const vmx2_s1 =  _vel_vfmklgt_mvl(_vel_vcmpsl_vsvl(gOutWidth,vrx_s1, vl), vl) ;
+            vmx_s1 = _vel_andm_mmm(_vel_andm_mmm(vmx0_s1, vmx1_s1), vmx2_s1) ;
+        }
+        {
+            __vm256 const vmx0_s2 =  _vel_vfmkleq_mvl(_vel_vcmpsl_vvvl(vrj_s2, _vel_vmulsl_vsvl(strideWidth, vrx_s2, vl), vl), vl) ;
+            __vm256 const vmx1_s2 =  _vel_vfmklge_mvl(vrx_s2, vl) ;
+            __vm256 const vmx2_s2 =  _vel_vfmklgt_mvl(_vel_vcmpsl_vsvl(gOutWidth,vrx_s2, vl), vl) ;
+            vmx_s2 = _vel_andm_mmm(_vel_andm_mmm(vmx0_s2, vmx1_s2), vmx2_s2) ;
+        }
 
-    __vm256 vmy0_r1 =  _vel_vfmkleq_mvl(_vel_vcmpsl_vvvl(vri_r1, _vel_vmulsl_vsvl(strideHeight, vry_r1, vl), vl), vl) ;
-    __vm256 vmy1_r1 =  _vel_vfmklge_mvl(vry_r1, vl) ;
-    __vm256 vmy2_r1 =  _vel_vfmklgt_mvl(_vel_vcmpsl_vsvl(gOutHeight,vry_r1, vl), vl) ;
-    __vm256 vmy_r1 = _vel_andm_mmm(_vel_andm_mmm(vmy0_r1, vmy1_r1), vmy2_r1) ;
+        {
+            __vm256 vmy_r0;
+            {
+                __vm256 const vmy0_r0 =  _vel_vfmkleq_mvl(_vel_vcmpsl_vvvl(vri_r0, _vel_vmulsl_vsvl(strideHeight, vry_r0, vl), vl), vl) ;
+                __vm256 const vmy1_r0 =  _vel_vfmklge_mvl(vry_r0, vl) ;
+                __vm256 const vmy2_r0 =  _vel_vfmklgt_mvl(_vel_vcmpsl_vsvl(gOutHeight,vry_r0, vl), vl) ;
+                vmy_r0 = _vel_andm_mmm(_vel_andm_mmm(vmy0_r0, vmy1_r0), vmy2_r0) ;
+            }
+            vmall_r0s0 = _vel_andm_mmm(vmy_r0,vmx_s0) ;
+            vmall_r0s1 = _vel_andm_mmm(vmy_r0,vmx_s1) ;
+            vmall_r0s2 = _vel_andm_mmm(vmy_r0,vmx_s2) ;
+        }
 
-    __vm256 vmy0_r2 =  _vel_vfmkleq_mvl(_vel_vcmpsl_vvvl(vri_r2, _vel_vmulsl_vsvl(strideHeight, vry_r2, vl), vl), vl) ;
-    __vm256 vmy1_r2 =  _vel_vfmklge_mvl(vry_r2, vl) ;
-    __vm256 vmy2_r2 =  _vel_vfmklgt_mvl(_vel_vcmpsl_vsvl(gOutHeight,vry_r2, vl), vl) ;
-    __vm256 vmy_r2 = _vel_andm_mmm(_vel_andm_mmm(vmy0_r2, vmy1_r2), vmy2_r2) ;
+        {
+            __vm256 vmy_r1;
+            {
+                __vm256 const vmy0_r1 =  _vel_vfmkleq_mvl(_vel_vcmpsl_vvvl(vri_r1, _vel_vmulsl_vsvl(strideHeight, vry_r1, vl), vl), vl) ;
+                __vm256 const vmy1_r1 =  _vel_vfmklge_mvl(vry_r1, vl) ;
+                __vm256 const vmy2_r1 =  _vel_vfmklgt_mvl(_vel_vcmpsl_vsvl(gOutHeight,vry_r1, vl), vl) ;
+                vmy_r1 = _vel_andm_mmm(_vel_andm_mmm(vmy0_r1, vmy1_r1), vmy2_r1) ;
+            }
+            vmall_r1s0 = _vel_andm_mmm(vmy_r1,vmx_s0) ;
+            vmall_r1s1 = _vel_andm_mmm(vmy_r1,vmx_s1) ;
+            vmall_r1s2 = _vel_andm_mmm(vmy_r1,vmx_s2) ;
+        }
 
-    __vm256 vmx0_s0 =  _vel_vfmkleq_mvl(_vel_vcmpsl_vvvl(vrj_s0, _vel_vmulsl_vsvl(strideWidth, vrx_s0, vl), vl), vl) ;
-    __vm256 vmx1_s0 =  _vel_vfmklge_mvl(vrx_s0, vl) ;
-    __vm256 vmx2_s0 =  _vel_vfmklgt_mvl(_vel_vcmpsl_vsvl(gOutWidth,vrx_s0, vl), vl) ;
-    __vm256 vmx_s0 = _vel_andm_mmm(_vel_andm_mmm(vmx0_s0, vmx1_s0), vmx2_s0) ;
-
-    __vm256 vmx0_s1 =  _vel_vfmkleq_mvl(_vel_vcmpsl_vvvl(vrj_s1, _vel_vmulsl_vsvl(strideWidth, vrx_s1, vl), vl), vl) ;
-    __vm256 vmx1_s1 =  _vel_vfmklge_mvl(vrx_s1, vl) ;
-    __vm256 vmx2_s1 =  _vel_vfmklgt_mvl(_vel_vcmpsl_vsvl(gOutWidth,vrx_s1, vl), vl) ;
-    __vm256 vmx_s1 = _vel_andm_mmm(_vel_andm_mmm(vmx0_s1, vmx1_s1), vmx2_s1) ;
-
-    __vm256 vmx0_s2 =  _vel_vfmkleq_mvl(_vel_vcmpsl_vvvl(vrj_s2, _vel_vmulsl_vsvl(strideWidth, vrx_s2, vl), vl), vl) ;
-    __vm256 vmx1_s2 =  _vel_vfmklge_mvl(vrx_s2, vl) ;
-    __vm256 vmx2_s2 =  _vel_vfmklgt_mvl(_vel_vcmpsl_vsvl(gOutWidth,vrx_s2, vl), vl) ;
-    __vm256 vmx_s2 = _vel_andm_mmm(_vel_andm_mmm(vmx0_s2, vmx1_s2), vmx2_s2) ;
-
-    __vm256 vmall_r0s0 = _vel_andm_mmm(vmy_r0,vmx_s0) ;
-    __vm256 vmall_r0s1 = _vel_andm_mmm(vmy_r0,vmx_s1) ;
-    __vm256 vmall_r0s2 = _vel_andm_mmm(vmy_r0,vmx_s2) ;
-
-    __vm256 vmall_r1s0 = _vel_andm_mmm(vmy_r1,vmx_s0) ;
-    __vm256 vmall_r1s1 = _vel_andm_mmm(vmy_r1,vmx_s1) ;
-    __vm256 vmall_r1s2 = _vel_andm_mmm(vmy_r1,vmx_s2) ;
-
-    __vm256 vmall_r2s0 = _vel_andm_mmm(vmy_r2,vmx_s0) ;
-    __vm256 vmall_r2s1 = _vel_andm_mmm(vmy_r2,vmx_s1) ;
-    __vm256 vmall_r2s2 = _vel_andm_mmm(vmy_r2,vmx_s2) ;
+        {
+            __vm256 vmy_r2;
+            {
+                __vm256 const vmy0_r2 =  _vel_vfmkleq_mvl(_vel_vcmpsl_vvvl(vri_r2, _vel_vmulsl_vsvl(strideHeight, vry_r2, vl), vl), vl) ;
+                __vm256 const vmy1_r2 =  _vel_vfmklge_mvl(vry_r2, vl) ;
+                __vm256 const vmy2_r2 =  _vel_vfmklgt_mvl(_vel_vcmpsl_vsvl(gOutHeight,vry_r2, vl), vl) ;
+                vmy_r2 = _vel_andm_mmm(_vel_andm_mmm(vmy0_r2, vmy1_r2), vmy2_r2) ;
+            }
+            vmall_r2s0 = _vel_andm_mmm(vmy_r2,vmx_s0) ;
+            vmall_r2s1 = _vel_andm_mmm(vmy_r2,vmx_s1) ;
+            vmall_r2s2 = _vel_andm_mmm(vmy_r2,vmx_s2) ;
+        }
+    } // end scope for vmx_s0, vmx_s1, vmx_s2
+    // now 9 'vmall' mask registers set up for inner loop
 
     int64_t k=0;
     if( (gOutChannelGroup & 0x01 ) == 1 ) {

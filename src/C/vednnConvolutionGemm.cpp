@@ -43,7 +43,7 @@
 #endif
 
 /** local scratchpad alloc via \c SCRATCHPAD method */
-#if SCRATCHPAD==0
+#if SCRATCHPAD==0 // gemm prefers TLS, but ncc may have issues with thread_local?
 static inline float* restrict getScratch( size_t nBytes ){
   float * restrict ret = (float*) malloc(nBytes);
   return ret;
@@ -51,7 +51,7 @@ static inline float* restrict getScratch( size_t nBytes ){
 static inline void freeScratch(void* scratch){
   free(scratch);
 }
-#elif SCRATCHPAD==1
+#elif SCRATCHPAD==1 // shared: memory ptr accessible by all threads
 static inline float* restrict getScratch( size_t nBytes ){
   //printf(" dirGemmA: scratchpad_shared(%lu)!",(long unsigned)nBytes)); fflush(stdout);
   using vednn::scratchpad::vednn_scratchpad_shared;
@@ -453,9 +453,19 @@ vednnConvFwd_gemm(
     const float * restrict pOne,  float * restrict pColBuf,
     const vednnConvolutionParam_t * restrict pParamConv )
 {
-  DBG(" vednnConvFwd_gemm pDataIn@%p pDataKernel@%p pDataBias@%p pDataOut@%p pOne@%p pColBuf@%p\n",
-      (void*)pDataIn, (void*)pDataKernel, (void*)pDataBias, (void*)pDataOut, (void*)pOne, (void*)pColBuf);
-  LFTRACE_BEGIN("vednnConvFwd_gemm");
+  static char const* ftrace_impl = (omp_in_parallel()? "vednnConvFwd_gemm": "vednnConvFwd_gemm_T");
+#if VEDNN_USE_OPENMP
+  // if not in nested omp, sgemm internally threaded --> "_T" suffix,
+  //                       else assume wrapper has usual minibatch threading
+  // assume omp_set_dynamic(1) [default] so nested omp ||ism does not happen
+  ftrace_impl = (omp_in_parallel()? "vednnConvFwd_gemm": "vednnConvFwd_gemm_T");
+#else
+  ftrace_impl = "vednnConvFwd_gemm"; // sgemm with no threads (I think)
+#endif
+  DBG(" %s pDataIn@%p pDataKernel@%p pDataBias@%p pDataOut@%p pOne@%p pColBuf@%p\n",
+      ftrace_impl, (void*)pDataIn, (void*)pDataKernel, (void*)pDataBias,
+      (void*)pDataOut, (void*)pOne, (void*)pColBuf);
+  LFTRACE_BEGIN(ftrace_impl);
   int n, g;
 
   int batch       = pParamIn->batch;
@@ -604,7 +614,7 @@ vednnConvFwd_gemm(
       } // group
     } // batch
   }
-  LFTRACE_END("vednnConvFwd_gemm");
+  LFTRACE_END(ftrace_impl);
   return VEDNN_SUCCESS;
 }
 
@@ -616,7 +626,13 @@ vednnConvBkD_Gemm(
     float * restrict pColBuf,
     const vednnConvolutionParam_t * restrict pParamConv )
 {
-  LFTRACE_BEGIN("vednnConvBkD_Gemm");
+  static char const* ftrace_impl;
+#if VEDNN_USE_OPENMP
+  ftrace_impl = (omp_in_parallel()? "vednnConvBkD_gemm": "vednnConvBkD_gemm_T");
+#else
+  ftrace_impl = "vednnConvFwd_gemm"; // sgemm with no threads (I think)
+#endif
+  LFTRACE_BEGIN(ftrace_impl);
   int n, g;
 
   int batch       = pParamGradOut->batch;
@@ -683,7 +699,7 @@ vednnConvBkD_Gemm(
     } // group
   } // batch
 
-  LFTRACE_END("vednnConvBkD_Gemm");
+  LFTRACE_END(ftrace_impl);
   return VEDNN_SUCCESS;
 }
 
@@ -695,7 +711,13 @@ vednnConvBkF_gemm(
     float * restrict pColBuf,
     const vednnConvolutionParam_t * restrict pParamConv )
 {
-  LFTRACE_BEGIN("vednnConvBkF_gemm");
+  static char const* ftrace_impl;
+#if VEDNN_USE_OPENMP
+  ftrace_impl = (omp_in_parallel()? "vednnConvBkF_gemm": "vednnConvBkF_gemm_T");
+#else
+  ftrace_impl = "vednnConvBkF_gemm"; // sgemm with no threads (I think)
+#endif
+  LFTRACE_BEGIN(ftrace_impl);
   int n, g;
 
   int batch       = pParamIn->batch;
@@ -766,7 +788,7 @@ vednnConvBkF_gemm(
     } // group
   } // batch
 
-  LFTRACE_END("vednnConvBkF_gemm");
+  LFTRACE_END(ftrace_impl);
   return VEDNN_SUCCESS;
 }
 
@@ -833,19 +855,30 @@ vednnConvolutionForward_direct_gemm
   size_t pColrows = pParamKernel->inChannel * pParamKernel->width * pParamKernel->height;
   size_t pColcols = pParamOut->width * pParamOut->height;
 
+  // XXX scratch size set as if NO caller minibatch-threading (thread inside sgemm)
   // This buffer is only used for bias term
+  // This is a const buffer, so a global pointer is OK.
+  // BUT if called via wrapper, only 'master' thread should set its size
+  //      ( ?? size lower per thread ? )
+  float * pOnes_;
+//#ifdef VEDNN_USE_OPENMP
+//  #pragma omp single // move to ScratchpadFloatOnes constructor?
+//#endif
+  {
 #if SCRATCHPAD==0
-  float * restrict pOnes = (float *) malloc(pColcols * sizeof(float)/*bytes*/);
-  for(int i = 0; i < pColcols; ++i)
-    pOnes[i] = 1.0f;
+    pOnes_ = (float *) malloc(pColcols * sizeof(float)/*bytes*/);
+    for(int i = 0; i < pColcols; ++i)
+      pOnes_[i] = 1.0f;
 #else
-  using vednn::scratchpad::vednn_scratchpad_float_ones;
-  float const* restrict pOnes = (float const*)
-    vednn_scratchpad_float_ones(pColcols/*floats*/); // ow * oh float 1.0f
+    using vednn::scratchpad::vednn_scratchpad_float_ones;
+    pOnes_ = vednn_scratchpad_float_ones(pColcols/*floats*/); // ow * oh of 1.0f
 #endif
+  }
+  float const* restrict const pOnes = (float const*)pOnes_;
 
   // This buffer is used for a monolithic im2col
   // (could use a smaller buffer if im2col were done "as-needed")
+  // (also, internal-thread version might use smaller buffer?)
   size_t const nBytes = pColrows * pColcols * getTensorDataSize(pParamIn);
   float * restrict pColBuf = getScratch(nBytes);
   if(!pColBuf) return VEDNN_ERROR_MEMORY_EXHAUST;
@@ -874,7 +907,9 @@ vednnConvolutionBackwardFilter_direct_gemm(
     //#ifdef VEDNN_USE_OPENMP
     //    ,
     //    const int64_t                               beginOChannel,
-    //    const int64_t                               nOChannel
+    //    const int64_t                               nOChannel,
+    //    const int64_t                               beginGroup,
+    //    const int64_t                               nGroup
     //#endif
     ){
   size_t const pColrows = pParamGradKernel->inChannel * pParamGradKernel->width * pParamGradKernel->height;

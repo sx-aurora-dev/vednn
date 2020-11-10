@@ -172,6 +172,7 @@ void testForward(struct param *pNetwork, int nEntry, double HZ, int flagBias, in
 
     TestDataRepo tdRepo(HZ);
     CacheKiller cacheKiller;
+    printf(" cacheKiller %s\n", (cacheKiller? "ENABLED": "DISABLED"));
 
     // NEW approach (save memory if large number of convs
     // TODO cache-killer routine between timing measurements
@@ -363,57 +364,61 @@ void testForward(struct param *pNetwork, int nEntry, double HZ, int flagBias, in
                         vednnConvForwardImpls *actual = vednnConvForward_realNext(
                                 iter, FWD_PARMS, FWD_DATA );
                         FTRACE_END("realNext");
-
-                        int idx = 0;
-                        if ( actual != NULL ) {
-                            int const long_ftrace_names = 0;
-                            if(long_ftrace_names){
-                                if( actual == iter ){ // almost always...
-                                    snprintf(name,80,"%s:%d:%s",pConv->region,iter_cnt,iter->shortname);
-                                }else{
-                                    snprintf(name,80,"%s:%d:%s-->%s",pConv->region,iter_cnt,iter->shortname,actual->shortname);
-                                }
-                            }else{
-                                snprintf(name,80,"vednn:%s",actual->shortname);
-                            }
-
-                            // debug : skip some impls by name ? (choose one 'if')
-                            if(0) // SKIP NOTHING
-                            //if( strstr(name,"cnvFwd-gemm") == nullptr) // SKIP if not gemm
-                            //if( strstr(name,"cnvFwd-gemm") != nullptr) // SKIP if gemm
-                            {
-                                cout<<" skipping "<<name<<" based on impl name"<<endl;
-                                continue;
-                            }
-
-                            // pre-timing
-                            if(cacheKiller) cacheKiller();
-                            testconvForward_dumpParms( pConv, flagBias );
-                            printf(" C%s",name); fflush(stdout);
-                            if(!cacheKiller){
-                                vednnConvForward_Run( actual, FWD_PARMS, FWD_DATA );
-                                vednnConvForward_Run( actual, FWD_PARMS, FWD_DATA );
-                            }
-                            // ignore out.status  (hopefully VEDNN_SUCCESS)
-                            //testconvForward_oclobber(pConv); // set a few outputs "wrong"
-
-                            // now we also want omp support, so we call via _Run, not via (*actual->impl)
-                            c[0] = __cycle();
-                            FTRACE_BEGIN(name);
-                            vednnConvForward_out_t const out = vednnConvForward_Run( actual, FWD_PARMS, FWD_DATA );
-                            c[1] = __cycle();
-                            FTRACE_END(name);
-
-                            idx = (actual - vednnConvForwardList);
-                            printf(" idx=%d out.status=%d time %f ms",(int)idx,(int)out.status,
-                                    (1.0e3/HZ)*(c[1]-c[0])); fflush(stdout);
-                            if( idx >= 0 && idx < maxImpls ) { sum_times[idx] += c[1] - c[0]; ++rep_times[idx]; }
-                            assert( out.actual == actual );
-                            rv = out.status;
-                        }else{
+                        assert( actual != NULL );
+                        if ( actual == NULL ) {
                             printf(" not run\n");
                             continue;
                         }
+
+                        int const long_ftrace_names = 0;
+                        if(long_ftrace_names){
+                            if( actual == iter ){ // almost always...
+                                snprintf(name,80,"%s:%d:%s",pConv->region,iter_cnt,iter->shortname);
+                            }else{
+                                snprintf(name,80,"%s:%d:%s-->%s",pConv->region,iter_cnt,iter->shortname,actual->shortname);
+                            }
+                        }else{
+                            snprintf(name,80,"vednn:%s",actual->shortname);
+                        }
+
+                        // debug : skip some impls by name ? (choose one 'if')
+                        if(0) // SKIP NOTHING
+                            //if( strstr(name,"cnvFwd-gemm") == nullptr) // SKIP if not gemm
+                            //if( strstr(name,"cnvFwd-gemm") != nullptr) // SKIP if gemm
+                        {
+                            cout<<" skipping "<<name<<" based on impl name"<<endl;
+                            continue;
+                        }
+
+                        // pre-timing
+                        if(cacheKiller) cacheKiller();
+                        testconvForward_dumpParms( pConv, flagBias );
+                        printf(" C%s",name); fflush(stdout);
+                        if(!cacheKiller){
+                            vednnConvForward_Run( actual, FWD_PARMS, FWD_DATA );
+                            printf(" c"); fflush(stdout);
+                            vednnConvForward_Run( actual, FWD_PARMS, FWD_DATA );
+                            printf("c"); fflush(stdout);
+                        }
+                        // ignore out.status  (hopefully VEDNN_SUCCESS)
+                        printf("t"); fflush(stdout);
+                        //testconvForward_oclobber(pConv); // set a few outputs "wrong"
+
+                        // now we also want omp support, so we call via _Run, not via (*actual->impl)
+                        c[0] = __cycle();
+                        FTRACE_BEGIN(name);
+                        vednnConvForward_out_t const out = vednnConvForward_Run( actual, FWD_PARMS, FWD_DATA );
+                        c[1] = __cycle();
+                        FTRACE_END(name);
+
+                        int idx = (actual - vednnConvForwardList);
+                        printf(" idx=%d out.status=%d time %f ms",(int)idx,(int)out.status,
+                                (1.0e3/HZ)*(c[1]-c[0])); fflush(stdout);
+                        if( idx >= 0 && idx < maxImpls ) {
+                            sum_times[idx] += c[1] - c[0]; ++rep_times[idx];
+                        }
+                        assert( out.actual == actual );
+                        rv = out.status;
                         assert(actual != NULL);
 
                         if(r == 0){
@@ -426,6 +431,7 @@ void testForward(struct param *pNetwork, int nEntry, double HZ, int flagBias, in
                             //pConv->cycle += c[1] - c[0]; // this is reserved for the libvednn time
                             //printf(" %s %llu cycles", name, c[1]-c[0]);
                             double diff = !doRef? -13.0
+                                : (rv != VEDNN_SUCCESS)? -1.0
                                 : diffData(pConv->pParamOut, pConv->pDataOut, pConv->pBufRef);
                             max_diff = diff > max_diff? diff: max_diff;
                             printf("%s %8.3f ms DIFF = %f %s\n",(rv==VEDNN_SUCCESS?"  OK":" BAD")
@@ -434,9 +440,16 @@ void testForward(struct param *pNetwork, int nEntry, double HZ, int flagBias, in
 
                             // NEW detailed stats...
                             int idx = (actual - vednnConvForwardList);
+#if 0
                             vtd.emplace_back(t, pConv->region, (size_t)idx,
                                     vednnConvForwardList[idx].shortname,
                                     1/*doItr*/, pNw_param_cstr/*test-wide descr*/ );
+#else
+                            TestData tmp = TestData(t, pConv->region, (size_t)idx,
+                                    vednnConvForwardList[idx].shortname,
+                                    1/*doItr*/, pNw_param_cstr/*test-wide descr*/ );
+                            vtd.push_back(tmp);
+#endif 
                             assert(vtd.size() == iter_cnt+1U);
                             TestData& td = vtd.at(iter_cnt);
                             td.diff = diff;
@@ -456,7 +469,7 @@ void testForward(struct param *pNetwork, int nEntry, double HZ, int flagBias, in
                 FTRACE_END("all convolution");
             }
             tdRepo.append(vtd,1/*verbose*/);
-            printf("Good, finished doItr, %d reps\n", (int)reps);
+            printf("Good, finished doItr, %d reps\n", (int)reps); fflush(stdout);
             printf(" max DIFF = %f\n",max_diff);
         }
         if(doJit && allsyms)
@@ -582,6 +595,7 @@ void testForward(struct param *pNetwork, int nEntry, double HZ, int flagBias, in
                                 (int)(pConv->pParamOut->channel));
                         //pConv->cycle += c[1] - c[0]; // this is reserved for the libvednn time
                         double diff = !doRef? -13.0
+                            : (rv != VEDNN_SUCCESS)? -1.0
                             : diffData(pConv->pParamOut, pConv->pDataOut, pConv->pBufRef);
                         if(diff > max_diff) max_diff = diff;
                         printf("%s DIFF = %f ~%f ms %s",(rv==VEDNN_SUCCESS?"  OK":" BAD")
@@ -589,7 +603,16 @@ void testForward(struct param *pNetwork, int nEntry, double HZ, int flagBias, in
                         printf("\n");
                         fflush(stdout);
                         // NEW detailed stats...
+#if 0
                         vtd.emplace_back(t, pConv->region, (size_t)cj/*idx*/, cjs[cj].sym, 2/*JIT*/);
+#else
+                        //TestData tmp(t, pConv->region, (size_t)cj/*idx*/, cjs[cj].sym, 2/*JIT*/ /*, default=NULL*/ );
+                        TestData tmp = TestData(t, pConv->region, (size_t)cj/*idx*/,
+                                cjs[cj].sym, //vednnConvForwardList[idx].shortname,
+                                2/*JIT*/,
+                                pNw_param_cstr/*test-wide descr*/ );
+                        vtd.push_back(tmp);
+#endif
                         assert(vtd.size() == njit+1U);
                         TestData& td = vtd.at(njit);
                         td.diff = diff;
@@ -714,6 +737,7 @@ void testBackwardData(struct param *pNetwork, int nEntry, double HZ, int flagCSV
                 else         dumpParam   (pNw,"Fwd","D");
 
                 double diff = !doRef? -13.0
+                    //: (rv != VEDNN_SUCCESS)? -1.0 // *_vednncalcs dos ERROR_EXIT if trouble.
                     : diffData(pConv->pParamGradIn, pConv->pDataGradIn, pConv->pBufRef);
                 max_diff = diff > max_diff? diff: max_diff;
                 double f = 1.0e3 / HZ;
@@ -811,6 +835,7 @@ void testBackwardData(struct param *pNetwork, int nEntry, double HZ, int flagCSV
                         //pConv->cycle += c[1] - c[0]; // this is reserved for the libvednn time
                         //printf(" %s %llu cycles", name, c[1]-c[0]);
                         double diff = !doRef? -13.0
+                            : (rv != VEDNN_SUCCESS)? -1.0
                             : diffData(pConv->pParamGradIn, pConv->pDataGradIn, pConv->pBufRef);
                         max_diff = diff > max_diff? diff: max_diff;
                         printf("%s %8.3f ms DIFF = %f %s\n",(rv==VEDNN_SUCCESS?" OK":"BAD")
@@ -819,9 +844,16 @@ void testBackwardData(struct param *pNetwork, int nEntry, double HZ, int flagCSV
 
                         // NEW detailed stats...
                         idx = (actual - vednnConvBackwardDataList);
+#if 0
                         vtd.emplace_back(t, pConv->region, (size_t)idx,
                                 vednnConvBackwardDataList[idx].shortname,
                                 1/*doItr*/, pNw_param_cstr/*test-wide descr*/ );
+#else
+                        TestData tmp(t, pConv->region, (size_t)idx,
+                                vednnConvBackwardDataList[idx].shortname,
+                                1/*doItr*/, pNw_param_cstr/*test-wide descr*/ );
+                        vtd.push_back(tmp);
+#endif
                         assert(vtd.size() == iter_cnt+1U);
                         TestData& td = vtd.at(iter_cnt);
                         td.diff = diff;
@@ -1011,7 +1043,7 @@ static void help(){
             "\n   -t N      omp_set_num_threads(N), then run"
             "\n             N < 0 means repeat for N=0..8 (don't use ftrace output)"
 #if defined(_OPENMP)
-            "\n             ** not compiling with OpenMP support **"
+            "\n             ** not compiled with OpenMP support **"
 #endif
             "\n   -l LIB    **before** jit build, load LIB dll.  tests with all syms in LIB"
             "\n             won't be remade. No error if LIB is not loadable. libmegajit.so ?"
@@ -1023,6 +1055,10 @@ static void help(){
             "\n   -k        enable cacheKiller before every timed call"
             "\n   -f STRING filter layout: [filter_nchw] filter_hwcn"
             "\n               Note: current JIT impls assume filter_nchw (iohw) kernel data"
+            //"\n   -j        disallow jit impls"
+            //"\n   -J        allow jit impls [default]"
+            //"\n   -I        name1[,name2,...] list of allowed impl names"
+            //"\n   -V        print version, standard/jit impl names ??
             "\n OVERRIDES: non-option as TAG[=]NUMBER...  Examples: mb=64 kh3kw3 ih32iw=32"
             "\n   'jitconv -M parms.txt mb32 will change every test in parms.txt to use minibatch 32"
             "\n PATH file format:"
@@ -1187,6 +1223,10 @@ int main(int argc, char **argv)
             flagCSV = 1; break;
         case 'H':
             HZ = atof(optarg); break;
+        //case 'j': doJit = 0; break;
+        //case 'J': doJit = 1; break;
+        //case 'I': parse csv impl names allowed for doStd or doJit
+        //case 'V': print version, standard/jit impl names
         case 'T':
             {
                 int found = 0;
