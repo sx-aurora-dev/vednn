@@ -2,6 +2,7 @@
 #define TESTDATA_HPP
 
 #include "conv_test_param.h"
+#include "vednn-def.h"
 #include <cstdint>
 #include <vector>
 

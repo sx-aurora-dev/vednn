@@ -412,8 +412,8 @@ void testForward(struct param *pNetwork, int nEntry, double HZ, int flagBias, in
                         FTRACE_END(name);
 
                         int idx = (actual - vednnConvForwardList);
-                        printf(" idx=%d out.status=%d time %f ms",(int)idx,(int)out.status,
-                                (1.0e3/HZ)*(c[1]-c[0])); fflush(stdout);
+                        printf(" idx=%d out.status=%d time %f ms%c",(int)idx,(int)out.status,
+                                (1.0e3/HZ)*(c[1]-c[0]), (r==0?' ':'\n')); fflush(stdout);
                         if( idx >= 0 && idx < maxImpls ) {
                             sum_times[idx] += c[1] - c[0]; ++rep_times[idx];
                         }
@@ -446,7 +446,7 @@ void testForward(struct param *pNetwork, int nEntry, double HZ, int flagBias, in
                                     1/*doItr*/, pNw_param_cstr/*test-wide descr*/ );
 #else
                             TestData tmp = TestData(t, pConv->region, (size_t)idx,
-                                    vednnConvForwardList[idx].shortname,
+                                    vednnConvForwardList[idx].shortname, // aka actual->shortname
                                     1/*doItr*/, pNw_param_cstr/*test-wide descr*/ );
                             vtd.push_back(tmp);
 #endif 

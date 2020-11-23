@@ -121,7 +121,8 @@ ITERATOR_FUNC_API( Act,Backward,        ACT,BACKWARD)
  */
 //@{    
 
-typedef enum { VEDNN_WRAP_DEFAULT = 0,
+typedef enum {
+    VEDNN_WRAP_DEFAULT = 0, // _mb_threads wrapper
     VEDNN_WRAP_NONE = 1
 } vednnOmpWrap_t;
 

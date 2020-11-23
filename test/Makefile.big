@@ -96,9 +96,6 @@ endif
 
 #CLANG_FLAGS	= -O3 -target linux-ve ${USE_FPIC} -mllvm -show-spill-message-vec -fno-vectorize -fno-unroll-loops -fno-slp-vectorize -fno-crash-diagnostics -I../ -ggdb
 CLANG_FLAGS = -DVEDNN_USE_OPENMP -target ve -O3 -mllvm -show-spill-message-vec -fno-vectorize -fno-unroll-loops -fno-slp-vectorize -fno-crash-diagnostics
-ifeq (${OPENMP},YES)
-CLANG_FLAGS += -fopenmp
-endif
 
 #
 #-I/usr/uhome/aurora/4gi/nlabhpg/kruus/vednn-ek/src/intrinsic/..
@@ -123,8 +120,8 @@ LDLIBS  += -L$(BLAS_LIB_DIR) -lcblas -lblas_openmp
 LDLIBS  += -fopenmp
 CFLAGS		+= -fopenmp -pthread -DUSE_OPENMP
 CLANG_FLAGS     += -fopenmp -pthread -DUSE_OPENMP
-CFLAGS          += -DVEDNN_USE_OPENMP
-CLANG_FLAGS     += -DVEDNN_USE_OPENMP
+CFLAGS          += -DVEDNN_USE_OPENMP -DVEDNN_ALT_PARALLEL
+CLANG_FLAGS     += -DVEDNN_USE_OPENMP -DVEDNN_ALT_PARALLEL
 else
 LDLIBS	+= -L${VEDNNX_DIR}/lib -lvednnx_sequential
 LDLIBS	+= -L${VEDNN_DIR}/lib -lvednn_sequential
@@ -591,6 +588,13 @@ libmegajit.so: # if lbmegajit does not exist, create a zero-length file instead,
 jitconv.o: jitconv.cpp conv_test_param.h
 	$(CXX) ${CXXFLAGS} -E $< -o jitconv.i
 	$(CXX) ${CXXFLAGS} -Wall -Werror -c $< -o $@
+
+# local override of libvednn decision tree[s]?
+LOCALIMPLS+=choose_cnvfwd.o
+
+choose_cnvfwd.o: choose_cnvfwd.c
+	$(CC) ${CFLAGS} -E $< -o choose_cnvfwd.i
+	$(CC) ${CFLAGS} -Wall -Werror -c $< -o $@
 jitconv: vejit-unpack jitconv.o $(LOCALIMPLS) $(CONVGEMM).o libcjitConv-ve.so conv_test_param.o vednn_helper.o testdata.o
 	@echo 'OPENMP $(OPENMP)'
 	@echo 'FTRACE $(FTRACE)'
@@ -627,7 +631,7 @@ jitconv-dev: jitconv.o d1s1pSB.o $(CONVGEMM).o libcjitConv-ve.so conv_test_param
 		${LDLIBS} -ldl
 resnext-t%.log: jitconv
 	@# NOTE -k for cachekiller, -r REPS
-	{ cmd='./jitconv -t $* -S resnext -M params/conv/resnext2.txt -r 2'; \
+	{ cmd='./jitconv -t $* -S resnext -M params/conv/resnext2.txt -r 9'; \
 		rm -f ftrace.out; echo "$$cmd >& $@"; \
 		{ LIBC_FATAL_STDERR_=1 time $$cmd; status=$$?; ftrace || true; } >& '$@'; \
 		if [ "$${status}" != "0" ]; then echo "$@ FAILED"; fi; \
@@ -636,7 +640,7 @@ resnext-t%.log: jitconv
 	@echo "$@ OK"
 resnext-t%-mb8.log: jitconv
 	@# NOTE -k for cachekiller, -r REPS NB changed to r2 for speed
-	{ cmd='./jitconv -t $* -S resnext-mb8 -M params/conv/resnext2.txt -r 2 mb8'; \
+	{ cmd='./jitconv -t $* -S resnext-mb8 -M params/conv/resnext2.txt -r 9 mb8'; \
 		rm -f ftrace.out; echo "$$cmd >& $@"; \
 		{ LIBC_FATAL_STDERR_=1 time $$cmd; status=$$?; ftrace || true; } >& '$@'; \
 		if [ "$${status}" != "0" ]; then echo "$@ FAILED"; fi; \

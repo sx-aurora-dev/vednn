@@ -82,12 +82,22 @@ void vednn_free_global_scratchpads(); // called during __vednn_init
 #define FTRACE_END(...)
 #endif
 
+/** macro for compile-flag ftrace of original invocation originally like
+ * `rc =  vednnConvolutionForward_mb_threads(vednnConvolutionForward_direct_, VEDNN_CONVFWD_ARGS_LIST);`
+ */
 #define WRAP_RET(FUNC, OMP_WRAPPER, ...) do{ \
 	FTRACE_BEGIN(#FUNC); \
 	vednnError_t ret = OMP_WRAPPER(FUNC, __VA_ARGS__); \
 	FTRACE_END(#FUNC); \
 	return ret; \
 } while(0)
+
+//#define WRAP_RET_NAMED(FUNCNAME, FUNCPTR, OMP_WRAPPER, ...) do{ \
+//	FTRACE_BEGIN(FUNCNAME); \
+//	vednnError_t ret = OMP_WRAPPER(FUNCPTR, __VA_ARGS__); \
+//	FTRACE_END(FUNCNAME); \
+//	return ret; \
+//} while(0)
 
 #define VEDNN_INVALID_PRINTF_ret(F,L,...) do{ \
     fprintf(stderr,"\n%s:%lu INVALID PARAM ",__FILE__,(long unsigned)__LINE__); \
@@ -113,12 +123,12 @@ void vednn_free_global_scratchpads(); // called during __vednn_init
  * \note Following intrinsics swapped in very old VE clang.
  * But often used as VE_DECL_VM512(vmFoo,vmBar,vmBar).
  * Add compiler version check if important. */
-#define VE_DECL_VM512( M512, A256, B256 ) \
+#define VE_SET_VM512( M512, A256, B256 ) \
   __vm512 M512; \
 M512 = _ve_insert_vm512l(M512, A256); /* l ~ VM[i] */ \
 M512 = _ve_insert_vm512u(M512, B256)  /* u ~ VM[i+1] */
 
-#define VEL_DECL_VM512( VM512, VM256_I, VM256_INEXT ) \
+#define VEL_SET_VM512( VM512, VM256_I, VM256_INEXT, S_VL/*unused*/ ) \
     __vm512 VM512; \
 VM512 = _vel_insert_vm512l(VM512, VM256_I    ); /* l ~ VM[i]   */ \
 VM512 = _vel_insert_vm512u(VM512, VM256_INEXT); /* u ~ VM[i+1] */

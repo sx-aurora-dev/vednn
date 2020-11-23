@@ -28,7 +28,7 @@
 //static inline pid_t gettid() { return syscall(__NR_gettid); }
 
 #ifndef VEDNN_SCRATCH_VERBOSE
-#define VEDNN_SCRATCH_VERBOSE 0
+#define VEDNN_SCRATCH_VERBOSE 1
 #endif
 #ifndef VEDNN_SCRATCH_DBG
 #if VEDNN_SCRATCH_VERBOSE
@@ -138,8 +138,10 @@ struct ScratchpadBase {
     // debug? optional?
     static void checkNonNULL(void* ptr, char const* file, size_t const line){
         if(ptr == nullptr) {
-            fprintf(stderr,"failed alloc! %s:%lu",file,(long unsigned)line);
-            throw "failed alloc!";
+            fprintf(stderr,"error: failed alloc! %s:%lu",
+                    file, (long unsigned)line);
+            //throw "failed alloc!"; // CANNOT throw if in omp section
+            //  (with work, can catch and save, then check and rethrow outside omp block)
         }
     }
 };
@@ -301,15 +303,63 @@ private:
  * Only one such object should be active at any one time.
  *
  * Note: refresh ptr with get(), because memory can be reallocated by any new
- * 'ScratchpadFloatOnes' constructors. */
+ * 'ScratchpadFloatOnes' constructors.
+ *
+ * \pre all concurrent threads agree on the value of `floats`. This restriction
+ * can be removed once a trustworthy max reduction for VE is written.
+ */
 struct ScratchpadFloatOnes : public ScratchpadBase {
+    /** Threadsafe.
+     * All threads of omp team call constructor, possibly with thread-specific
+     * 'size_t floats' values (we'll determine max of these).
+     *
+     * note: omp settings tricky -- perhaps there is an easier way. But remember
+     * historical issues with shared pointer object constructors in VE libraries!
+     */
     ScratchpadFloatOnes(size_t floats) {
         floats = (floats+3U)/4U*4U;
-        if (floats > size_) {
 #ifdef VEDNN_USE_OPENMP
+#if VEDNN_SCRATCH_VERBOSE
+#pragma omp critical
+        {
+            VEDNN_SCRATCH_DBG(" %s%sthr %d/%d floats=%lu",
+                    (omp_in_parallel()? "||":""), (omp_get_nested()? "nested-":""),
+                    omp_get_thread_num(), omp_get_num_threads(),
+                    (long unsigned)floats);
+        }
+#endif
+
+#if 1 //this style of "max reduction" was buggy.  Not sure if ncc supports max reduction
+        // ERROR -- ok only with mb=8 or 1; otherwise can hang
+        // BUG was in vednnConvolutionForward.c default "mb" wrapper:
+        //   You CANNOT "if(myBatch==0) {rc|=VEDNN_SUCCESS}", because then some
+        //   threads may never get here.  Hence program would hang.
+        // FIX: if mb size < omp_get_max_threads(), use few threads,
+        //      so myBatch is never 0, and all threads get here.
+        //
+        // paranoia : adjust floats to determine max size amongst all threads
+        //  (not needed if all threads have same 'floats' value)
+        //  does VE support max reduction?
+        size_t maxfloats = 0U;
+#pragma omp critical
+        {
+            if (floats > maxfloats) maxfloats = floats;
+            VEDNN_SCRATCH_DBG(" %s%sthr %d/%d ",
+                    (omp_in_parallel()? "||":""), (omp_get_nested()? "nested-":""),
+                    omp_get_thread_num(), omp_get_num_threads());
+            VEDNN_SCRATCH_DBG(" maxfloats=%lu\n", (long unsigned)maxfloats);
+        }
+#pragma omp barrier
+        floats = maxfloats;
+
+#else // simpler: assume all threads agree on 'floats' size, 1st thread here can allocate
+        // now any one thread can do the allocation ...
 #pragma omp single /* one thread allocates, omp barrier at end, threads agree on max size. */
 #endif
-            {
+#endif
+        {
+            VEDNN_SCRATCH_DBG(" floats=%lu\n", (long unsigned)floats);
+            if (floats > size_) {
                 //vednn::mcheck();
                 if (scratchpad_ != nullptr) free(scratchpad_); size_ = floats;
                 /* Allocating memory buffers on a page boundary to reduce TLB/page misses */
@@ -326,14 +376,22 @@ struct ScratchpadFloatOnes : public ScratchpadBase {
                     spf[i] = 1.0f;
                 }
             }
-        }
-        ++reference_count_;
+            ++reference_count_; // thread group contributes 1 to ref count
+        } // single => implicit barrier
     }
+    /** also threadsafe, with thread-barrier at both \e entry and \e exit.
+     * \post pointer value from previous \c get() should no longer be used. */
     ~ScratchpadFloatOnes() {
 #ifdef VEDNN_USE_OPENMP
-#pragma omp single /* one thread allocates, omp barrier at end */
+        // for dealloc, need barrier at beginning, not end, of omp block
+#pragma omp barrier
+#pragma omp single
 #endif
         {
+            if (reference_count_ == 0) { // (cannot throw if in omp)
+                fprintf(stderr,"\n FloatOnes dealloc error! %s:%lu",
+                        __FILE__, (long unsigned)__LINE__);
+            }
             --reference_count_;
             if (reference_count_ == 0) {
                 VEDNN_SCRATCH_DBG(" ~ScratchpadFloatOnes[ %lu bytes ] @ %p\n",
@@ -346,9 +404,17 @@ struct ScratchpadFloatOnes : public ScratchpadBase {
                 size_ = 0;
                 //vednn::mcheck();
             }
-        }
+        } // implicit omp barrier so next constructor can safely run
     }
-    virtual void *get() const { return scratchpad_; }
+    virtual void *get() const {
+        // paranoia:
+        if(scratchpad_ == nullptr && reference_count_ != 0) {
+            // (cannot throw if in omp)
+            fprintf(stderr,"\nwarning: FloatOnes get() null?! %s:%lu",
+                    __FILE__, (long unsigned)__LINE__);
+        }
+        return scratchpad_;
+    }
     virtual size_t size() const { return size_; }
     virtual unsigned ref() const { return reference_count_; }
 private:

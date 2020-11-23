@@ -242,7 +242,7 @@ compute_pad( int o, int i, int k, int s, int d ){
 /** round i>0 upward to a multiple of a>0 */
 inline int
 upMul( int const i, int const a ) {
-    return (i+a-1)/a*a;
+    return ((i+a-1)/a)*a;
 }
 /** fwd ops brute-force count, as in bench-dnn */
 inline unsigned long long count_ops(struct param const* p){
@@ -294,18 +294,23 @@ mkConsistent( struct param* p ){
         } \
     }while(0)
 
+    // We can change g,ic,oc at will to satisfy ic%g==0 and oc%g==0
     int g = p->group;
     // g cannot be larger then p->inChannel
-    if (p->group > p->inChannel) g = p->inChannel;
+    if (g > p->inChannel) g = p->inChannel;
     // g must divide evenly into p->inChannel
     while( p->inChannel % g != 0 ) --g;
     FIXIT( group, g );
 
     int ic = upMul( p->inChannel, g );
-    // one pass over input channels uses ic/g kernels to make g output channels.
-    int oc = upMul( p->outChannel, g );
+    //printf(" p:ic,oc=%d,%d ", p->inChannel, p->outChannel);
     FIXIT( inChannel, ic );
+    // One pass over input channels uses ic/g kernels to make g output channels.
+    // So round oc up to a multiple of g
+    int oc = upMul( p->outChannel, g );
     FIXIT( outChannel, oc ); // any number is fine
+    //printf(" -->ic,oc=%d,%d ", ic,oc);
+    //printf(" p:ic,oc=%d,%d\n", p->inChannel, p->outChannel);
 
     // "no dilation" is 1 (mkl-dnn value + 1)
     int dh = p->dilationHeight;
@@ -415,27 +420,31 @@ mkConsistentOverrides( struct param* p, struct param* const ovr ){
     if( p->dilationHeight < 1 ) FIXIT(dilationHeight, 1);
     if( p->dilationWidth  < 1 ) FIXIT(dilationWidth,  1);
 
-    // ic oc must be divisible by g
-    if(MODIFIABLE(group) || !MODIFIABLE(inChannel)){
-        // g cannot be larger then p->inChannel
-        if(p->group > p->inChannel) g = p->inChannel;
-        // g must divide evenly into p->inChannel
-        while( p->inChannel % g != 0 ) --g;
-    }else if(MODIFIABLE(inChannel)){
-        if(p->group > p->inChannel) ic = p->group;
+    // ic AND oc must be divisible by g
+    //printf(" p:g,ic,oc=%d,%d,%d ", (int)(p->group), (int)(p->inChannel), (int)(p->outChannel));
+    if(MODIFIABLE(group) && (ic%g || oc%g)){
+        // set g to gcd of ic,oc   See also vejit/include/intutil.hpp, but this is 'C' code...
+        int gcd=0;
+        {
+            int a=ic, b=oc;
+            for(;;) {
+                if(a==0){ gcd=b; break; }
+                b %= a;
+                if(b==0){ gcd=a; break; }
+            }
+        }
+        //printf(" gcd%d", gcd);
+        g = gcd;
+    }else{ // keep g, and potentially modify ic AND oc (simplest way)
+        //printf(" b");
+        ic = upMul(ic,g);
+        oc = upMul(oc,g);
     }
-    ic = upMul( p->inChannel, g );
-    FIXIT( inChannel, ic );
-    // one pass over input channels uses ic/g kernels to make g output channels.
-    if(MODIFIABLE(outChannel)){
-        oc = upMul( p->outChannel, g );
-    }else if(MODIFIABLE(group) && oc%g ){
-        while( oc % g != 0 ) --g;
-        ic = upMul( p->inChannel, g );
-    }
+    //printf(" -->g,ic,oc=%d,%d,%d ", g,ic,oc);
     FIXIT( group, g );
     FIXIT( inChannel, ic );
     FIXIT( outChannel, oc );
+    //printf(" p:g,ic,oc=%d,%d,%d ", (int)(p->group), (int)(p->inChannel), (int)(p->outChannel));
 
     // "no dilation" is 1 (mkl-dnn value + 1)
     int dh = p->dilationHeight;

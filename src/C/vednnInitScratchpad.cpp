@@ -5,7 +5,8 @@
 namespace vednn {
 namespace scratchpad {
 
-#define VEDNN_SCRATCH_VERBOSE 0
+// now defined in vednn-def.hpp
+//#define VEDNN_SCRATCH_VERBOSE 0
 
 /// \group scratchpad member variables
 //@{
@@ -94,6 +95,7 @@ void vednn_init_scratchpadTLS(size_t const bytes){
         printf(" vednn INIT scratchpadTLS         @ %p REF %u\n",
                 scratchpadTLS->get(), scratchpadTLS->ref());
 }
+/** This is called only by program thread (master) */
 void vednn_init_scratchpad_float_ones(size_t const floats){
     scratchpadFloatOnes = /*static_cast<ScratchpadBase*>*/(
             new ScratchpadFloatOnes(floats));
@@ -111,21 +113,25 @@ void vednn_init_scratchpad_float_ones(size_t const floats){
 // simple C API, for use during static lib __vednn_init/free
 //
 extern "C"{ //}
+/** Initialize SCRATCHPAD memories. Generic idea: call create_scratchpad at
+ * will, and it grows/reallocates the scratchpad area as needed.
+ * Scratchpad ptrs should only be used within a single layer [local use only]
+ * \b Global scratchpads should be created in the "wrapper" thread
+ * and then shared with omp threads for read-only usage.
+ * \b TLS scratchpad pointers should be allocated and used within single omp code block.
+ *
+ * These re-usable scratchpads can avoid reallocs, operating in "grow-only" mode.
+ * ... until \c vednn_free_global_scratchpads
+ * (note: tls scratchpads behave a bit differently)
+ *
+ * At library init, we bumps the (thread-local) ref count,
+ * so we re-use shared scratchpad allocations until
+ * end-of-process. */
 void vednn_init_global_scratchpads(){
-    printf("vednn_init_scratchpad()!\n");
+    printf("vednn_init_global_scratchpads()!\n");
     using namespace vednn::scratchpad;
-    /**create a GLOBAL SCRATCHPAD. To use, call create_scratchpad at
-     * will, and it will resize the scratchpad area as needed.
-     * Scratchpad ptrs should only be used within a single layer.
-     * They should be created in the "wrapper" thread,
-     * and then shared with omp threads.  (I think).
-     * DO NOT call create_scratchpad from omp threads.
-     *
-     * At library init, we bumps the (thread-local) ref count,
-     * so we re-use shared scratchpad allocations until
-     * end-of-process. */
     vednn_init_scratchpad_shared((0)/*bytes*/); // 1U<<18 ?
-    vednn_init_scratchpadTLS(0/*bytes*/);
+    vednn_init_scratchpadTLS(0/*bytes*/); // can this work after omp threadpool is set up?
     /** re-usable \e const buffer of 1.0f values. */
     vednn_init_scratchpad_float_ones(0/*floats*/); // 4096U ?
 }

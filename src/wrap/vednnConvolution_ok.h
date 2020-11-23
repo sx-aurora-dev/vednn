@@ -79,6 +79,7 @@ FWD_FN_OK(vednnConvolutionForward_direct_owU128_T);
 FWD_FN_OK(vednnConvolutionForward_direct_vecC);
 FWD_FN_OK(vednnConvolutionForward_direct_default);
 FWD_FN_OK(vednnConvolutionForward_direct_gemm);
+FWD_FN_OK(vednnConvolutionForward_direct_gemm_mb);
 // extras...
 //FWD_FN_OK(vednnConvolutionForward_direct_gendnn);
 //FWD_FN_OK(vednnConvolutionForward_direct_default2);

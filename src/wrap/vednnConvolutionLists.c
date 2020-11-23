@@ -68,7 +68,7 @@ static vednnConvForwardImpls vednnConvForwardList_[] = {
     IMPL_WRAPNONE_FNS(Forward,dil1_str1_pad0_ker1_T,"cnvFwd-s1p0k1_T"),
     IMPL_FNS(vednnConvolutionForward_direct_dil1_str1_pad0_owU128,"cnvFwd-d1s1p0_owU128"),
     IMPL_FNS(vednnConvolutionForward_direct_dil1_str1_pad0,"cnvFwd-d1s1p0"),
-    // d1s2
+    // d1s2 (note: resnext has a kh3sh2ph1 layer with wider ow
     IMPL_FNS(vednnConvolutionForward_direct_dil1_str2_pad1_ker3_owU128,"cnvFwd-d1s2p1k3owU128"),
     IMPL_FNS(vednnConvolutionForward_direct_dil1_str2_pad1_ker4_owU128,"cnvFwd-d1s2p1k4owU128"),
     // d1p0
@@ -85,8 +85,8 @@ static vednnConvForwardImpls vednnConvForwardList_[] = {
     IMPL_FNS(vednnConvolutionForward_direct_default,"cnvFwd-def"),
     // customizations (stable, working, but win in isolated circumstances)
     //IMPL_WRAPNONE_EASY_FNS(vednnConvolutionForward_direct_gemm,"cnvFwd-gemm"),
-    IMPL_WRAPNONE_FNS(Forward, gemm,"cnvFwd-gemm_T"), // sgemm internal threading
-    IMPL_FNS(vednnConvolutionForward_direct_gemm,"cnvFwd-gemm"), // minibatch threading
+    IMPL_FNS(vednnConvolutionForward_direct_gemm_mb,"cnvFwd-gemm_mb"), // minibatch threading
+    IMPL_WRAPNONE_FNS(Forward, gemm,"cnvFwd-gemm"), // sgemm internal threading
     // WIP 
     //IMPL_WRAPNONE_EASY_FNS(vednnConvolutionForward_direct_gendnn,"cnvFwd-gendnn"), // scratchpad issues?
     // older impls
@@ -282,9 +282,12 @@ REALNEXT(BackwardData,   BACKWARD_DATA);
 REALNEXT(BackwardFilter, BACKWARD_FILTER);
 #undef REALNEXT
 
-/** based on \ref C/vednnConvolutionForward.c version */
+#if 0
+/** based on \ref C/vednnConvolutionForward.c version.
+ * Essentially same, except demonstrating generic arg reordering macros
+ * of src/wrap/ "extension" code. */
     static inline vednnError_t
-vednnConvolutionForward_wrapper(
+vednnConvolutionForward_mb_threads(
         vednnConvForward_t pFunc,
         CONVX_FWD_ORDER( VEDNN_PARAMS_CONV_FORWARD, VEDNN_DATARG_CONV_FORWARD )
         )
@@ -325,56 +328,11 @@ vednnConvolutionForward_wrapper(
     return rc ;
 #endif
 }
-#if 0
-static inline vednnError_t
-vednnConvolutionForwardAddBias_wrapper(
-    vednnConvForwardAddBias_t		pFunc,
-    CONVX_FWDB_ORDER( VEDNN_PARAMS_CONV_FORWARDADDBIAS, VEDNN_DATARG_CONV_FORWARDADDBIAS )
-    )
-{
-    int64_t const allBatch = pParamIn->batch ;
-    GET_NTHREADS(nthreads);
-    if(nthreads==1 || allBatch==1){
-        return pFunc( CONVX_FWDB_ORDER(
-                    VEDNN_PARAMS_CONV_FORWARDADDBIAS_LIST,
-                    VEDNN_DATARG_CONV_FORWARDADDBIAS_LIST ));
-    }
-#ifdef VEDNN_USE_OPENMP
-  vednnError_t rc = VEDNN_SUCCESS ;
-#pragma omp parallel reduction(|:rc)
-  {
-    int64_t nthreads = omp_get_num_threads() ;
-    int64_t threadid = omp_get_thread_num() ;
-
-    int64_t allBatch = pParamIn->batch ;
-
-    int64_t nBatch = allBatch / nthreads ;
-    int64_t remain = allBatch % nthreads ;
-
-    int64_t batchBegin = nBatch * threadid + ( threadid < remain ? threadid : remain ) ;
-    int64_t myBatch = nBatch + ( threadid < remain ? 1 : 0 ) ;
-
-    if( myBatch == 0 ) {
-      rc |= VEDNN_SUCCESS ;
-    }
-    else  {
-      vednnTensorParam_t _pParamIn  = *pParamIn  ; _pParamIn.batch = myBatch ;
-      vednnTensorParam_t _pParamOut = *pParamOut ; _pParamOut.batch = myBatch ;
-      float* _pDataIn  = ((float *)pDataIn) + batchBegin * pParamIn->channel * pParamIn->height * pParamIn->width ;
-      float* _pDataOut = ((float *)pDataOut) + batchBegin * pParamOut->channel * pParamOut->height * pParamOut->width ;
-
-      rc |= pFunc(&_pParamIn, (void*)_pDataIn, pParamKernel, pDataKernel,
-		  pParamBias, pDataBias, pParamConv, &_pParamOut, (void*) _pDataOut) ;
-    }
-  }
-  return rc ;
-#endif
-}
 #endif
 
 /** \ref C/vednnConvolutionBackwardData.c (static inline openmp handling) */
 static inline vednnError_t
-vednnConvolutionBackwardData_wrapper(
+vednnConvolutionBackwardData_mb_threads(
     vednnConvBackwardData_t		pFunc,
     CONVX_BKWD_ORDER( VEDNN_PARAMS_CONV_BACKWARD_DATA, VEDNN_DATARG_CONV_BACKWARD_DATA )
 )
@@ -419,7 +377,7 @@ vednnConvolutionBackwardData_wrapper(
 }
 /** \ref C/vednnConvolutionBackwardData.c (static inline openmp handling) */
 static inline vednnError_t
-vednnConvolutionBackwardFilter_wrapper(
+vednnConvolutionBackwardFilter_mb_threads(
     vednnConvBackwardFilter_t		pFunc,
     CONVX_BKWF_ORDER( VEDNN_PARAMS_CONV_BACKWARD_FILTER, VEDNN_DATARG_CONV_BACKWARD_FILTER )
 )
@@ -471,10 +429,10 @@ vednnConvolutionBackwardFilter_wrapper(
 #endif
 }
 
-#define INVOKE_CONV_OPENMP_WRAPPER(ret,current,Forward,FWD,FORWARD) \
+#define INVOKE_CONV_OPENMP_MB_THREADS(ret,current,Forward,FWD,FORWARD) \
 { \
-    /* invoke via _wrapper to do parallelization */ \
-    ret.status = vednnConvolution##Forward##_wrapper( \
+    /* invoke via _mb_threads to do parallelization */ \
+    ret.status = vednnConvolution##Forward##_mb_threads( \
             current->impl, \
             CONVX_##FWD##_ORDER( \
                 VEDNN_PARAMS_CONV_##FORWARD##_LIST, \
@@ -502,7 +460,7 @@ vednnConv##Forward##_out_t vednnConv##Forward##_Run( \
     if(current != NULL){ \
         if(current->wrap == VEDNN_WRAP_DEFAULT){ \
             /* current PARAMS ok **and** DATA rtok, so can run it, if still non-NULL */ \
-            INVOKE_CONV_OPENMP_WRAPPER(ret,current,Forward,FWD,FORWARD) \
+            INVOKE_CONV_OPENMP_MB_THREADS(ret,current,Forward,FWD,FORWARD) \
         }else{ \
             assert( current->wrap == VEDNN_WRAP_NONE ); \
             INVOKE_CONV_NOWRAP(ret,current,Forward,FWD,FORWARD) \
@@ -523,7 +481,7 @@ vednnConvForward_out_t vednnConvForward_Run(
             printf("\nvednnConvForward_Run VEDNN_WRAP_DEFAULT current@%p",(void*)current); fflush(stdout);
             /* current PARAMS ok **and** DATA rtok, so can run it, if still non-NULL */
             /* invoke via _wrapper to do parallelization */
-            ret.status = vednnConvolutionForward_wrapper(
+            ret.status = vednnConvolutionForward_mb_threads(
                     current->impl,
                     CONVX_FWD_ORDER(
                         VEDNN_PARAMS_CONV_FORWARD_LIST,

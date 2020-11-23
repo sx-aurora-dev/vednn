@@ -2,25 +2,29 @@
 #define SRC_VEDNNCONVOLUTIONFORWARD_H_
 
 #include "vednn.h"
+#include "vednn-def.h" // __vednn_omp_num_threads
 
 #ifdef __cplusplus
 extern "C" { //}
 #endif
 
-/** public API args, as in `vednn.h`. */
+/** \b public API args, as in `vednn.h` (\b with bias) */
 #define VEDNN_CONVFWD_API_ARGS \
     const vednnTensorParam_t *      pParamIn, \
     const void *                    pDataIn, \
     const vednnFilterParam_t *      pParamKernel, \
     const void *                    pDataKernel, \
-    /*const vednnBiasParam_t *        pParamBias,*/ \
-    /*const void *                    pDataBias,*/ \
+    const vednnBiasParam_t *        pParamBias, \
+    const void *                    pDataBias, \
     const vednnTensorParam_t *      pParamOut, \
     void *                          pDataOut, \
     const vednnConvolutionParam_t * pParamConv, \
     vednnConvolutionAlgorithm_t     algo
+// vednn.h public API std args list
+#define VEDNN_CONVFWD_API_ARGS_LIST pParamIn, pDataIn, pParamKernel, pDataKernel, \
+    pParamBias, pDataBias, pParamOut, pDataOut, pParamConv, algo
 
-/** low-level impl std args signature, \e always with optional bias parameters.
+/** \b low-level impl std args signature, \e always with optional bias parameters.
  * Use NULL for \c pDataBias [and \p pParamBias] if layer does not need bias. */
 #define VEDNN_CONVFWD_ARGS \
     const vednnTensorParam_t *restrict      pParamIn, \
@@ -38,20 +42,22 @@ extern "C" { //}
 
 typedef vednnError_t (*vednnConvForward_t)( VEDNN_CONVFWD_ARGS );
 
-/** this is the signature of \c pFunc arg to the wrapper, which we use
- * directly for low-level impls marked as VEDNN_WRAP_NONE in libvednnx */
+/** This is the signature of \c pFunc arg to the wrapper, which we use
+ * directly for low-level impls marked as VEDNN_WRAP_NONE in libvednnx.
+ * Forward convolutions have no difference in function signature. */
 typedef vednnConvForward_t vednnConvForward_nowrap_t;
 
-#define VEDNN_FUNC_CONVFWD( SUFFIX ) vednnConvolutionForward_direct_##SUFFIX
-/** low-level implementations. */
+//#define VEDNN_FUNC_CONVFWD( SUFFIX ) vednnConvolutionForward_direct_##SUFFIX
+/** low-level implementation declaration */
 #define VEDNN_DECL_CONVFWD( SUFFIX ) vednnError_t \
     vednnConvolutionForward_direct_##SUFFIX ( VEDNN_CONVFWD_ARGS );
-/** public API */
-#define VEDNN_DECL_CONVFWD_API( SUFFIX ) vednnError_t \
-    vednnConvolutionForward_direct_##SUFFIX ( VEDNN_CONVFWD_API_ARGS );
+// /** public API */
+// #define VEDNN_DECL_CONVFWD_API( SUFFIX ) vednnError_t \
+//     vednnConvolutionForward_direct_##SUFFIX ( VEDNN_CONVFWD_API_ARGS );
 
 VEDNN_DECL_CONVFWD(default);
-VEDNN_DECL_CONVFWD(gemm); ///< same parms, but do \b not call via omp wrapper
+VEDNN_DECL_CONVFWD(gemm_mb); ///< thread over minibatch items (sgemm/blas nested, single threaded)
+VEDNN_DECL_CONVFWD(gemm); ///< internal sgemm/blas threading -- do \b not call via omp wrapper
 //  VEDNN_DECL_CONVFWD(gemmA); // ??
 VEDNN_DECL_CONVFWD(vecC);
 VEDNN_DECL_CONVFWD(vecC_dil1_str1_pad1_ker3);
@@ -91,7 +97,6 @@ VEDNN_DECL_CONVFWD(dil1_str1_padsame_ker5);
 VEDNN_DECL_CONVFWD(dil1_str1_padsame_ker5_owU128);
 VEDNN_DECL_CONVFWD(dil1_str2_pad1_ker3_owU128);
 VEDNN_DECL_CONVFWD(dil1_str2_pad1_ker4_owU128);
-//VEDNN_DECL_CONVFWD(dil1_str1_padsame_ker3_c1024x);
 //VEDNN_DECL_CONVFWD(gendnn);
 //VEDNN_DECL_CONVFWD(alt);
 //VEDNN_DECL_CONVFWD(defaultA);
@@ -100,23 +105,28 @@ VEDNN_DECL_CONVFWD(dil1_str2_pad1_ker4_owU128);
 //VEDNN_DECL_CONVFWD(default3);
 //VEDNN_DECL_CONVFWD(default3b);
 //VEDNN_DECL_CONVFWD(owU128A);
-//VEDNN_DECL_CONVFWD(dil1_pad0A);
-//VEDNN_DECL_CONVFWD(dil1_pad0_owU128A);
-//VEDNN_DECL_CONVFWD(dil1_pad0_ker1A);
-//VEDNN_DECL_CONVFWD(dil1_pad0_owU128_ker1A);
-//VEDNN_DECL_CONVFWD(dil1_str1_pad0_ker1A);
-//VEDNN_DECL_CONVFWD(dil1_str1_pad0A);
-//VEDNN_DECL_CONVFWD(dil1_str1_pad0_owU128A);
 //VEDNN_DECL_CONVFWD(dil1_str1_padsameA); // try fastdiv
 //VEDNN_DECL_CONVFWD(dil1_str1_padsameB); // try masked FMA
 //VEDNN_DECL_CONVFWD(dil1_str1_padsameAB); // both above mods
-//VEDNN_DECL_CONVFWD(dil1_str1_padsame_ker3A);
-//VEDNN_DECL_CONVFWD(dil1_str1_padsame_ker3_c1A);
-//VEDNN_DECL_CONVFWD(dil1_str1_padsame_ker3_c1_owU128A);
-//VEDNN_DECL_CONVFWD(dil1_str1_padsame_ker3_c1024xA);
-//VEDNN_DECL_CONVFWD(dil1_str1_padsame_ker5A);
-//VEDNN_DECL_CONVFWD(dil1_str1_padsame_ker5_owU128A);
-//VEDNN_DECL_CONVFWD(dil1_str1_padsame_ker2A);
+
+/** minibatch-threading is default parallelization method for conv fwd.
+ * Note low-level pFunc and mb-threading wrapper both use low-level args list. */
+vednnError_t vednnConvolutionForward_mb_threads( vednnConvForward_t pFunc,
+        VEDNN_CONVFWD_ARGS );
+
+/** Decision tree output indicating a [hopefully fastest] low-level impl.
+ * This choice will be used when the public \c vednn.h routine runs. */
+typedef struct {
+  vednnError_t rc;
+  char const* impl;
+  vednnConvForward_t pFunc;
+  int mb_threads;
+} vednnCnvFwdChoice_t;
+
+/** Allow user to override the default decision tree, for quick testing.
+ * Uses public API full args list. */
+vednnCnvFwdChoice_t vednnConvolutionForwardChoice( VEDNN_CONVFWD_API_ARGS )
+    __attribute__((weak));
 
 #ifdef __cplusplus
 }//extern "C"

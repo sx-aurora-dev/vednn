@@ -1,9 +1,10 @@
 /* -*- Mode: C; c-basic-offset:2 ; indent-tabs-mode:nil ; -*- */
 
+#include "vednnConvolutionForward.h" // VEDNN_CONVFWD_ARGS_LIST
 #include "vednn.h"
-#include "vednn-def.hpp" // vednn.h + C++ scratchpad API (C++ can inline one call)
-#include "gen-dnn/mkldnn_os.h"      // OMP pragmas (part of mkldnn_thread now?)
-#include "gen-dnn/mkldnn_thread.hpp"  // omp_get_xxx stubs (if nec), parallel_nd
+#include "vednn-def.hpp"             // vednn.h + C++ scratchpad API (C++ can inline one call)
+#include "gen-dnn/mkldnn_os.h"       // OMP pragmas (part of mkldnn_thread now?)
+#include "gen-dnn/mkldnn_thread.hpp" // omp_get_xxx stubs (if nec), parallel_nd
 #include "gen-dnn/utils.hpp"
 
 #include <stdio.h>
@@ -453,12 +454,12 @@ vednnConvFwd_gemm(
     const float * restrict pOne,  float * restrict pColBuf,
     const vednnConvolutionParam_t * restrict pParamConv )
 {
-  static char const* ftrace_impl = (omp_in_parallel()? "vednnConvFwd_gemm": "vednnConvFwd_gemm_T");
+  char const* ftrace_impl;
 #if VEDNN_USE_OPENMP
   // if not in nested omp, sgemm internally threaded --> "_T" suffix,
   //                       else assume wrapper has usual minibatch threading
   // assume omp_set_dynamic(1) [default] so nested omp ||ism does not happen
-  ftrace_impl = (omp_in_parallel()? "vednnConvFwd_gemm": "vednnConvFwd_gemm_T");
+  ftrace_impl = (omp_in_parallel()? "vednnConvFwd_gemm": "vednnConvFwd_gemm_mb");
 #else
   ftrace_impl = "vednnConvFwd_gemm"; // sgemm with no threads (I think)
 #endif
@@ -626,11 +627,11 @@ vednnConvBkD_Gemm(
     float * restrict pColBuf,
     const vednnConvolutionParam_t * restrict pParamConv )
 {
-  static char const* ftrace_impl;
+  char const* ftrace_impl;
 #if VEDNN_USE_OPENMP
-  ftrace_impl = (omp_in_parallel()? "vednnConvBkD_gemm": "vednnConvBkD_gemm_T");
+  ftrace_impl = (omp_in_parallel()? "vednnConvBkD_gemm_mb": "vednnConvBkD_gemm");
 #else
-  ftrace_impl = "vednnConvFwd_gemm"; // sgemm with no threads (I think)
+  ftrace_impl = "vednnConvBkD_gemm"; // sgemm with no threads (I think)
 #endif
   LFTRACE_BEGIN(ftrace_impl);
   int n, g;
@@ -711,9 +712,9 @@ vednnConvBkF_gemm(
     float * restrict pColBuf,
     const vednnConvolutionParam_t * restrict pParamConv )
 {
-  static char const* ftrace_impl;
+  char const* ftrace_impl;
 #if VEDNN_USE_OPENMP
-  ftrace_impl = (omp_in_parallel()? "vednnConvBkF_gemm": "vednnConvBkF_gemm_T");
+  ftrace_impl = (omp_in_parallel()? "vednnConvBkF_gemm_mb": "vednnConvBkF_gemm");
 #else
   ftrace_impl = "vednnConvBkF_gemm"; // sgemm with no threads (I think)
 #endif
@@ -792,68 +793,26 @@ vednnConvBkF_gemm(
   return VEDNN_SUCCESS;
 }
 
-#if 0 // old API, without bias
-vednnError_t
-vednnConvolutionForward_direct_gemm(
-    const vednnTensorParam_t * restrict         pParamIn,
-    const void * restrict                       pDataIn,
-    const vednnFilterParam_t * restrict         pParamKernel,
-    const void * restrict                       pDataKernel,
-    const vednnConvolutionParam_t * restrict    pParamConv,
-    const vednnTensorParam_t * restrict         pParamOut,
-    void * restrict                             pDataOut
-    ){
-  DBG(" vednnConvolutionForward_direct_gemm ");
-  DBG(" pDataIn@%p pDataKernel@%p pParamConv@%p pParamOut@%p pDataOut@%p\n",
-      (void*)pDataIn, (void*)pDataKernel, (void*)pParamConv, (void*)pParamOut, (void*)pDataOut);
-  size_t pColrows = pParamKernel->inChannel * pParamKernel->width * pParamKernel->height;
-  size_t pColcols = pParamOut->width * pParamOut->height;
-#if 1
-  // This buffer is only used for bias term ONLY
-  float * restrict pOnes = nullptr;
-#else
-  float const* restrict pOnes = (float const*)
-      (void*)vednn_scratchpad_float_ones(pColcols); // ow * oh float 1.0f
-#endif
-
-  // This buffer is used for a monolithic im2col
-  // (could use a smaller buffer if im2col were done "as-needed")
-  size_t const nBytes = pColrows * pColcols * getTensorDataSize(pParamIn);
-  float * restrict pColBuf = getScratch(nBytes);
-  if(!pColBuf) return VEDNN_ERROR_MEMORY_EXHAUST;
-  chkThreads();
-
-  vednnError_t ret = vednnConvFwd_gemm(
-      pParamIn, pDataIn,
-      pParamKernel, pDataKernel,
-      nullptr, nullptr/*avoids bias gemm call*/ ,
-      pParamOut, pDataOut/*output*/,
-      pOnes, pColBuf, pParamConv );
-  freeScratch(pColBuf);
-  return ret;
-} 
-#endif
-// Now ALL forward covnolutions include bias, which can be nullptr
-  vednnError_t
-//vednnConvolutionForwardAddBias_direct_gemm
-vednnConvolutionForward_direct_gemm
-(
-    const vednnTensorParam_t * restrict         pParamIn,
-    const void * restrict                       pDataIn,
-    const vednnFilterParam_t * restrict         pParamKernel,
-    const void * restrict                       pDataKernel,
-    const vednnBiasParam_t * restrict           pParamBias,
-    const void * restrict                       pDataBias,
-    const vednnConvolutionParam_t * restrict    pParamConv,
-    const vednnTensorParam_t * restrict         pParamOut,
-    void * restrict                             pDataOut
-    )
+// Now ALL forward convolutions include bias, which can be nullptr
+// 2 versions:
+//              direct_gemm with internal blas/sgemm threading
+//              direct_gemm_mb with minibatch-threading
+vednnError_t vednnConvolutionForward_direct_gemm(VEDNN_CONVFWD_ARGS)
+    //const vednnTensorParam_t * restrict         pParamIn,
+    //const void * restrict                       pDataIn,
+    //const vednnFilterParam_t * restrict         pParamKernel,
+    //const void * restrict                       pDataKernel,
+    //const vednnBiasParam_t * restrict           pParamBias,
+    //const void * restrict                       pDataBias,
+    //const vednnConvolutionParam_t * restrict    pParamConv,
+    //const vednnTensorParam_t * restrict         pParamOut,
+    //void * restrict                             pDataOut
 {
   DBG(" vednnConvolutionForward_direct_gemm ");
   DBG(" pDataIn@%p pDataKernel@%p pParamConv@%p pParamOut@%p pDataOut@%p\n",
       (void*)pDataIn, (void*)pDataKernel, (void*)pParamConv, (void*)pParamOut, (void*)pDataOut);
   size_t pColrows = pParamKernel->inChannel * pParamKernel->width * pParamKernel->height;
-  size_t pColcols = pParamOut->width * pParamOut->height;
+  size_t pColcols = pParamOut->width * pParamOut->height; // same for all omp threads
 
   // XXX scratch size set as if NO caller minibatch-threading (thread inside sgemm)
   // This buffer is only used for bias term
@@ -861,9 +820,6 @@ vednnConvolutionForward_direct_gemm
   // BUT if called via wrapper, only 'master' thread should set its size
   //      ( ?? size lower per thread ? )
   float * pOnes_;
-//#ifdef VEDNN_USE_OPENMP
-//  #pragma omp single // move to ScratchpadFloatOnes constructor?
-//#endif
   {
 #if SCRATCHPAD==0
     pOnes_ = (float *) malloc(pColcols * sizeof(float)/*bytes*/);
@@ -894,6 +850,34 @@ vednnConvolutionForward_direct_gemm
   freeScratch(pColBuf);
   return ret;
 }
+
+/** Supply gemm pFunc to standard minibatch wrapper.
+ * \ref vednnConvolutionForward.h minibatch threads twiddle pData/pParam
+ * per minibatch thread, invoking the direct_gemm version.
+ *
+ * - \b with minibatch threads, sgemm/blas calls are single-threaded.
+ * - \b without, directly calling direct_gemm will do a single large gemm,
+ *   allowing sgemm/blas to use internal threads.
+ *
+ * \note a third option has "_T" kernels that thread via both \c mb and \c g.
+ */
+vednnError_t vednnConvolutionForward_direct_gemm_mb(VEDNN_CONVFWD_ARGS)
+    //const vednnTensorParam_t * restrict         pParamIn,
+    //const void * restrict                       pDataIn,
+    //const vednnFilterParam_t * restrict         pParamKernel,
+    //const void * restrict                       pDataKernel,
+    //const vednnBiasParam_t * restrict           pParamBias,
+    //const void * restrict                       pDataBias,
+    //const vednnConvolutionParam_t * restrict    pParamConv,
+    //const vednnTensorParam_t * restrict         pParamOut,
+    //void * restrict                             pDataOut
+{
+    // standard libvednn minibatch threading, 
+    WRAP_RET(vednnConvolutionForward_direct_gemm,
+            vednnConvolutionForward_mb_threads,
+            VEDNN_CONVFWD_ARGS_LIST);
+}
+
 vednnError_t
 vednnConvolutionBackwardFilter_direct_gemm(
     const vednnTensorParam_t * restrict         pParamIn,

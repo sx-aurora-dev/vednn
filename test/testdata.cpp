@@ -49,7 +49,6 @@ static void init_TestData( struct TestData* test_data,
     name = impl_name;
     {
         int namelen = strlen(name);
-        if(namelen > MAX_TEST_NAME) namelen=MAX_TEST_NAME;
 #if 0
         // no longer useful to duplicate impl_name into descr ?
         if(impl_type == 2/*JIT*/){
@@ -62,8 +61,12 @@ static void init_TestData( struct TestData* test_data,
 #else
         test_data->descr[0] = '\0';
 #endif
-        char *cutname = strstr((char*)name,"_mb");
-        if(cutname) namelen = cutname-name;
+
+        if (impl_type == 2/*jit impl*/) { // remove _mb8_........ long suffix
+            // but keep gemm_mb name for "doItr" impl ...
+            char *cutname = strstr((char*)name,"_mb");
+            if(cutname) namelen = cutname-name;
+        }
         if(namelen > MAX_TEST_NAME) namelen=MAX_TEST_NAME;
         strncpy(test_data->impl_name, name, namelen);
         if(namelen){
@@ -393,10 +396,10 @@ void print_test_data_single( struct TestData const* test_data, int const t,
         double const time = td->sum_times * f / td->reps; // average ms
         // Gop/s = Mop/ms
         double const gops = (td->ops>0? td->ops*1.0e-6 / time: 0.0);
-        printf( "%c %25s %s %4ux %9.3f ms ~%.4f %6.2fG %s",
+        printf( "%c %25s %s %4ux %9.3f t%d ~%.4f %6.2fG %s",
                 testData_impl_char(td->impl_type),
                 td->impl_name,
-                fastest, td->reps, time, (double)td->diff,
+                fastest, td->reps, time, (int)__vednn_omp_num_threads, (double)td->diff,
                 gops, td->test_name);
         if(header    && header[0]   !='\0') printf(" %s", header);
         // NEW: descr no holds a test-wide comment,

@@ -90,6 +90,7 @@ FWD_FN_OK(vednnConvolutionForward_direct_default)
 //}
 FWD_FN_OK_LIKE(gendnn, default, 1); // Note: this one comes in libvednnx [wip]
 FWD_FN_OK_LIKE(gemm, default, pParamKernel->layout==VEDNN_FILTER_LAYOUT_NCHW );
+FWD_FN_OK_LIKE(gemm_mb, gemm, 1);
 //FWD_FN_OK_LIKE(default2, default, 1);
 //FWD_FN_OK_LIKE(default2p, default, 1);
 //FWD_FN_OK_LIKE(default3, default, 1);

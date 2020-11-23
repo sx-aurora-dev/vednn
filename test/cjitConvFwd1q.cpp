@@ -11,6 +11,8 @@
 using namespace std;
 using namespace cprog;
 
+static int const v = 0; // verbose?
+
 // icg 64 * ocg 8 = 512 *3*3 ~ 5k *flt4 = 20k
 // Setting icg,ocg:
 //   - icg=256, ocg=8 --> if < LIM, accept
@@ -64,7 +66,7 @@ typedef long long unsigned llu;
  * This is a compile-time array, shared by all threads. */
 static string str_kh_be_static_array( struct param const* const p )
 {
-    cout<<" "<<__PRETTY_FUNCTION__<<endl; cout.flush();
+    if(v) {cout<<" "<<__PRETTY_FUNCTION__<<endl; cout.flush();}
     const int64_t outHeight      = p->outHeight;
     const int64_t strideHeight   = p->strideHeight;
     const int64_t padHeight      = p->padHeight;
@@ -97,7 +99,7 @@ static void kernLims( const int64_t outSz, const int64_t strideSz, const int64_t
         const int64_t dilationSz, const int64_t inSz, const int64_t kernSz,
         std::vector<int64_t>& kbeg, std::vector<int64_t>& kend)
 {
-    int const verbose=1;
+    int const verbose=v;
     kbeg.clear();
     kend.clear();
     kbeg.reserve(outSz);
@@ -145,7 +147,7 @@ static void nomask_Height( KernLims const& kl, int64_t kernHeight, int64_t &yBeg
     for(size_t y=0; y<odim; ++y){
         if( kl.kh_b[y]      ==          0 ){
             yBeg = y; // first normal value
-            cout<<" yBeg="<<yBeg;
+            if(v) cout<<" yBeg="<<yBeg;
             break;
         }
     }
@@ -155,7 +157,7 @@ static void nomask_Height( KernLims const& kl, int64_t kernHeight, int64_t &yBeg
         for(size_t y=yBeg; y<odim; ++y){
             if( kl.kh_e[y] != kernHeight ){
                 yEnd = y; // at yEnd, khEnd value begins dropping
-                cout<<" yEnd="<<yEnd;
+                if(v) cout<<" yEnd="<<yEnd;
                 break;
             }
         }
@@ -170,7 +172,7 @@ static void nomask_Width( KernLims const& kl, int64_t kernWidth, int64_t &xBeg, 
     for(size_t x=0; x<odim; ++x){
         if( kl.kw_b[x]      ==          0 ){
             xBeg = x; // first normal value
-            cout<<" xBeg="<<xBeg;
+            if(v) cout<<" xBeg="<<xBeg;
             break;
         }
     }
@@ -180,7 +182,7 @@ static void nomask_Width( KernLims const& kl, int64_t kernWidth, int64_t &xBeg, 
         for(size_t x=xBeg; x<odim; ++x){
             if( kl.kw_e[x] != kernWidth ){
                 xEnd = x; // at xEnd, kwEnd value begins dropping
-                cout<<" xEnd="<<xEnd;
+                if(v) cout<<" xEnd="<<xEnd;
                 break;
             }
         }
@@ -201,7 +203,7 @@ struct PreConvFwd1q {
 };
 
 std::ostream& operator<<(std::ostream& os, PreConvFwd1q const& pre){
-    cout<<pre.krn_gkrsc.size()<<" PairedFloat kernel values."
+    os<<pre.krn_gkrsc.size()<<" PairedFloat kernel values."
         <<"  kstarts={"<<pre.kstarts[0]<<","<<pre.kstarts[1]<<","<<pre.kstarts[2]<<"} for kBy=2,4,8.\n"
         <<"  kBy=1 has krn_gkrsc_k1 size "<<pre.krn_gkrsc_k1.size()<<" floats.\n"
         <<"  kh_beg_end size "<<pre.kh_beg_end.size()
@@ -211,7 +213,7 @@ std::ostream& operator<<(std::ostream& os, PreConvFwd1q const& pre){
 
 struct PreConvFwd1q mkPreConvFwd1q( struct param const* const p,
         float const* const pKernel = nullptr ){
-    cout<<" "<<__PRETTY_FUNCTION__<<endl; cout.flush();
+    if(v) {cout<<" "<<__PRETTY_FUNCTION__<<endl; cout.flush();}
     assert( p != nullptr );
     int const kByMax = 8;
 
@@ -371,14 +373,14 @@ struct PreConvFwd1q mkPreConvFwd1q( struct param const* const p,
 #ifndef NDEBUG
             auto const k0 = k;
 #endif
-            cout<<" g"<<g<<" k"<<k<<" k2@"<<k2_0<<endl;
+            if(v) cout<<" g"<<g<<" k"<<k<<" k2@"<<k2_0<<endl;
             assert( k2_0 == g * ((kMax-k)/kBy) * (kernHW*inChannelGroup) );
             for( ; k<kMax; k+=kBy){ // loop_k
                 pKern_gk = pKernel + kernGroupOffset + (k * inChannelGroup + 0/*c*/) * kernHW;
                 krn_rsc_kBy_gt_1(); // kernHW * inChannelGroup pairs pushed back
                 assert( pre.krn_gkrsc.size() - k2_0 == kernHW*inChannelGroup );
             }
-            cout<<" kBy=2 : pre.krn_gkrsc.size()="<<pre.krn_gkrsc.size()<<endl;
+            if(v) cout<<" kBy=2 : pre.krn_gkrsc.size()="<<pre.krn_gkrsc.size()<<endl;
             assert( pre.krn_gkrsc.size() == k2_0 + ((kMax-k0)/kBy) * kernHW*inChannelGroup );
         }
         if( k<outChannelGroup ){
@@ -394,7 +396,7 @@ struct PreConvFwd1q mkPreConvFwd1q( struct param const* const p,
                 pKern_gk = pKernel + kernGroupOffset + (k * inChannelGroup + 0/*c*/) * kernHW;
                 krn_rsc_kBy_gt_1();
             }
-            cout<<" kBy=4 : pre.krn_gkrsc.size()="<<pre.krn_gkrsc.size()<<endl;
+            if(v) cout<<" kBy=4 : pre.krn_gkrsc.size()="<<pre.krn_gkrsc.size()<<endl;
             assert( pre.krn_gkrsc.size() == k4_0 + ((kMax-k0)/kBy) * kernHW*inChannelGroup );
         }
         if( k<outChannelGroup ){
@@ -410,7 +412,7 @@ struct PreConvFwd1q mkPreConvFwd1q( struct param const* const p,
                 pKern_gk = pKernel + kernGroupOffset + (k * inChannelGroup + 0/*c*/) * kernHW;
                 krn_rsc_kBy_gt_1();
             }
-            cout<<" kBy=8 : pre.krn_gkrsc.size()="<<pre.krn_gkrsc.size()<<endl;
+            if(v) cout<<" kBy=8 : pre.krn_gkrsc.size()="<<pre.krn_gkrsc.size()<<endl;
             assert( pre.krn_gkrsc.size() == k8_0 + ((kMax-k0)/kBy) * kernHW*inChannelGroup );
         }
     }
@@ -441,7 +443,7 @@ struct CPreConvFwd1q {
 
 struct CPreConvFwd1q mkCPreConvFwd1q( struct param const* const p,
         float const* const pKernel = nullptr ){
-    cout<<" "<<__PRETTY_FUNCTION__<<endl; cout.flush();
+    if(v) {cout<<" "<<__PRETTY_FUNCTION__<<endl; cout.flush();}
     assert( p != nullptr );
     int const kByMax = 8;
 
@@ -596,7 +598,7 @@ struct CPreConvFwd1q mkCPreConvFwd1q( struct param const* const p,
     return cpre;
 }
 std::pair<string,string> strCPreConvFwd1q( struct param const* const p, int const kByMax, int64_t& vlen ){
-    cout<<" "<<__PRETTY_FUNCTION__<<endl; cout.flush();
+    if(v) {cout<<" "<<__PRETTY_FUNCTION__<<endl; cout.flush();}
     //const int64_t batch          = p->batchNum;
     const int64_t group          = p->group;
     const int64_t inChannel      = p->inChannel;
@@ -694,7 +696,7 @@ std::pair<string,string> strCPreConvFwd1q( struct param const* const p, int cons
         && !((PRE_KRN_MAX>=8) && nk8>0)
         && (PRE_KH_BEG_END==0 || (PRE_KH_BEG_END && KH_BE))
       ){ // then we have no work to do
-        cout<<" (CpreConvFwd1q not needed)";
+        if(v) cout<<" (CpreConvFwd1q not needed)";
     }else{
         ostringstream oss;
         Cunit tmp("tmp");
@@ -758,8 +760,10 @@ std::pair<string,string> strCPreConvFwd1q( struct param const* const p, int cons
         //      so that inner loops re-use a limited-size kernel re-ordering buffer
 
         if(bufsz_bytes > JIT_MALLOC_THRESHOLD_K*1024L ){
-            cout<<"malloc buf64[(bufsz_bytes + 7) / 8] = buf64["<<(bufsz_bytes + 7) / 8<<"]"<<endl;
-            cout<<"should BLOCK outer loops better!"<<endl;
+            if(v) {
+                cout<<"malloc buf64[(bufsz_bytes + 7) / 8] = buf64["<<(bufsz_bytes + 7) / 8<<"]"<<endl;
+                cout<<"should BLOCK outer loops better!"<<endl;
+            }
             tmp_beg>>"uint64_t* buf64 = (uint64_t*)malloc("<<asDec((bufsz_bytes+7)/8*8)<<");"
                 >>"assert(buf64!=NULL);";
             tmp_last>>"free(buf64);";
@@ -869,7 +873,7 @@ std::pair<string,string> strCPreConvFwd1q( struct param const* const p, int cons
                     >>"}"
                     ;
 #else
-                cout<<"krn Weight copy using vel_vcopy32 (not always optimal?)"<<endl;
+                if(v) cout<<"krn Weight copy using vel_vcopy32 (not always optimal?)"<<endl;
                 for_rs
                     >>"float const* pKerValue = pKern_gk + rs;"
                     // TODO: MOVE a Cblock (subtree) from some tmp Cunit after a given CBlock (in another Cunit)
@@ -1237,7 +1241,7 @@ DllFile cjitConvolutionForward1q( struct param const* const p )
     KernLims kl = kernLims(p);
     int64_t yok_beg, yok_end;
     nomask_Height( kl, kernHeight, yok_beg, yok_end );
-    cout<<" nomask_Height(kl,"<<kernHeight<<",...):"<<yok_beg<<","<<yok_end;
+    if(v) cout<<" nomask_Height(kl,"<<kernHeight<<",...):"<<yok_beg<<","<<yok_end;
     int64_t xok_beg, xok_end;
     nomask_Width( kl, kernWidth, xok_beg, xok_end );
     cout<<" nomask_Width(kl,"<<kernWidth<<",...):"<<xok_beg<<","<<xok_end;
@@ -1245,12 +1249,14 @@ DllFile cjitConvolutionForward1q( struct param const* const p )
     bool maskH = true, maskW = true;
     if( yok_beg==0 && yok_end==outHeight ) maskH = false; // circuitous but
     if( xok_beg==0 && xok_end==outWidth  ) maskW = false; // safe way.
-    cout<<" yok_beg,end="<<yok_beg<<","<<yok_end;
-    cout<<" xok_beg,end="<<xok_beg<<","<<xok_end;
-    cout<<" kh,kw="<<kernHeight<<","<<kernWidth;
-    cout<<" ph,pw="<<padHeight<<"<"<<padWidth;
-    cout<<" maskH,W="<<maskH<<","<<maskW;
-    cout<<endl;
+    if(v) {
+        cout<<" yok_beg,end="<<yok_beg<<","<<yok_end;
+        cout<<" xok_beg,end="<<xok_beg<<","<<xok_end;
+        cout<<" kh,kw="<<kernHeight<<","<<kernWidth;
+        cout<<" ph,pw="<<padHeight<<"<"<<padWidth;
+        cout<<" maskH,W="<<maskH<<","<<maskW;
+        cout<<endl;
+    }
     // actual condition, as a formula, is much more complex
     // (it must also consider inputHeight wrt stride and dilation)
     //cout<<" k"<<kernHeight<<" p,s,d "<<padHeight<<", "<<strideHeight<<", "<<dilationHeight<<endl;
