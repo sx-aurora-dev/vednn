@@ -80,7 +80,7 @@ convolution_gemm-ncc.s: convolution_gemm.c
 convolution_gemm.o: convolution_gemm-ncc.s
 	$(CC) $(CFLAGS) -o $@ -c $<
 .PHONY: force
-jitconv resnext-t8.log resnext-t8-mb8.log: force
+jitconv resnext-t8.log resnext-t8-mb8.log ve_cmpconv jitconv: force
 	$(MAKE) -fMakefile.big $@
 clean:
 	rm -f $(OBJS) $(TARGETS) *.L *.O *.s ftrace.out *~

@@ -262,7 +262,30 @@ void testForward(struct param *pNetwork, int nEntry, double HZ, int flagBias, in
         if(doStd){
             cout<<"doStd pConv->region is "<<pConv->region<<"   layer "<<pNw_param_cstr
                 <<"   thr="<<vednn_get_num_threads()<<"="<<omp_get_num_threads()<<"/"<<omp_get_max_threads()<<endl;
-            TestData td( t, pConv->region, (size_t)0/*impl_idx*/, "libvednn-std",
+#if 1
+            char extended_impl_name[200];
+            {
+                // used to always be "libvednn-std", now "libvednn-std:low-level-impl-name"
+                // retrieve which impl libvednn-std executes:
+                vednnCnvFwdChoice_t const choice = vednnConvolutionForwardChoice(
+                        pConv->pParamIn, pConv->pDataIn,
+                        pConv->pParamKernel, pConv->pDataKernel,
+                        pConv->pParamBias, pConv->pDataBias,
+                        pConv->pParamOut, pConv->pDataOut,
+                        pConv->pParamConv, VEDNN_CONV_ALGORITHM_DIRECT );
+                // typedef struct {
+                //   vednnError_t rc;
+                //   char const* impl;
+                //   vednnConvForward_t pFunc;
+                //   int mb_threads;
+                // } vednnCnvFwdChoice_t;
+                sprintf(extended_impl_name,"libvednn-std:%s\0",choice.impl);
+            }
+#else
+            char const* extended_impl_name = "libvednn-std"
+#endif
+            TestData td( t, pConv->region, (size_t)0/*impl_idx*/,
+                    extended_impl_name, // <-- used to be less informative "libvednn-std"
                     0/*doStd*/, pNw_param_cstr/*test-wide descr*/ );
 
             double sum_time = 0.0;

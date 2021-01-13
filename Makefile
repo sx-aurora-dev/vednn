@@ -3,6 +3,7 @@ PRJ:=vednn
 CMAKE_SHARED:='-DBUILD_SHARED_LIB=ON'
 CMAKE_ARGS:="-DCMAKE_BUILD_TYPE=Release ${CMAKE_SHARED}"
 all: force-build lib${PRJ}.tar.gz lib${PRJ}-ftrace1.tar.gz test
+#all: force-build test
 # To skip the tarball generation (4 different builds)
 # 	make force-build test
 #
@@ -51,28 +52,63 @@ quicktest: # remove tarball build, use build/ and install/ only
 	@for f in "lib${PRJ}.tar.gz" "lib${PRJ}-ftrace1.tar.gz"; do \
 		if [ -f "$$f" ]; then mv -v "$${f}" "$${f}.old"; fi; done
 	${MAKE} -C test clean_vednn
-	${MAKE} test && { echo make $@ OK; true; } || { echo make $@ FAILED; false; }
+	${MAKE} test0 test1 test2 && \
+		{ echo make $@ OK; true; } || { echo make $@ FAILED; false; }
+.PHONY: test0 test1 test2 test3 test4 test-resnext
+test0:
+	cd test && make VERBOSE=1 -f Makefile all ve_cmpconv jitconv && { \
+		./vednn_conv_test -H 8e8 -p params/conv/alexnet.txt -T ConvForward; ftrace; \
+		./vednn_linear_test -H 0.8e9 -p params/linear/alexnet.txt -T LinearForward; ftrace; \
+		./vednn_pool_test   -H 0.8e9 -p params/pool/alexnet.txt   -T MaxPoolForward; ftrace; \
+		} \
+		&& { echo make $@ OK; true; } || { echo make $@ FAILED; false; }
+test1:
+	cd test && time make VERBOSE=1 -f Makefile.big jitconv \
+		&& echo "test/t8mb8.log ..." \
+		&& ./jitconv -t 8 mb8 >& t8mb8.log \
+		&& echo "GOOD: test/t8mb8.log!" \
+		|| { echo "OHOH: test/t8mb8.log!" && false; }
+test2:
+	cd test && time make VERBOSE=1 -f Makefile.big jitconv \
+		&& echo "test/t8mb9.log ..." \
+		&& ./jitconv -t 8 mb9 -p mb1ic31ih1oc31_kh1ph0 2>&1 | tee t8mb9.log \
+		&& echo "GOOD: test/t8mb9.log!" \
+		|| { echo "OHOH: test/t8mb9.log!" && false; }
+test3:
+	cd test && time make VERBOSE=1 -f Makefile.big jitconv \
+		&& echo "test/alexmb9.log ..." \
+		&& ./jitconv -t 8 mb9 -p params/conv/alexnet.txt 2>&1 | tee t8mb9.log \
+		&& echo "GOOD: test/t8mb9.log!" \
+		|| { echo "OHOH: test/t8mb9.log!" && false; }
+test-resnext: # this takes quite some time
+	cd test && \
+		{ echo "resnext via Makefile.big..." \
+		&& { time make VERBOSE=1 -f Makefile.big jitconv resnext-t8.log \
+		&& echo "GOOD: test/resnext-t8.log!" \
+		|| { echo "OHOH: test/resnext-t8.log!" && false; } \
+	       	} && \
+		{ echo "resnext-t8-mb8.log..." \
+		&& { time make VERBOSE=1 -f Makefile.big jitconv resnext-t8-mb8.log \
+		&& echo "GOOD: test/resnext-t8-mb8.log!" \
+		|| { echo "OHOH: test/resnext-t8-mb8.log!"; false; } \
+		}
 test: build
+	@for f in "lib${PRJ}.tar.gz" "lib${PRJ}-ftrace1.tar.gz"; do \
+		if [ -f "$$f" ]; then mv -v "$${f}" "$${f}.old"; fi; done
 	@# default build dir might be an assumed install location for tests/Makefile
 	-ls -l build/src
 	-cd test && make -f Makefile.tiny realclean
 	@#{ cd test && make VERBOSE=1 all ve_cmpconv && BIN_MK_VERBOSE=0 ./ve_cmpconv -r 10; } 2>&1 | tee mk-test.log
-	{ cd test && make VERBOSE=1 -f Makefile all && { \
-		./vednn_conv_test -H 8e8 -p params/conv/alexnet.txt -T ConvForward; ftrace; \
-		./vednn_linear_test -H 0.8e9 -p params/linear/alexnet.txt -T LinearForward; ftrace; \
-		./vednn_pool_test   -H 0.8e9 -p params/pool/alexnet.txt   -T MaxPoolForward; ftrace; \
-		} && { \
-		time make VERBOSE=1 -f Makefile.big jitconv && ./jitconv -t 8 mb8 >& t8mb8.log \
-		&& echo "GOOD: test/t8mb8.log!" \
-		|| { echo "OHOH: test/t8mb8.log!" && false; } \
-		} && echo "resnext via Makefile.big..." \
-		&& { time make VERBOSE=1 -f Makefile.big jitconv resnext-t8.log \
-		&& echo "GOOD: test/resnext-t8.log!" \
-		|| { echo "OHOH: test/resnext-t8.log!" && false; } \
-	       	} && { time make VERBOSE=1 -f Makefile.big jitconv resnext-t8-mb8.log \
-		&& echo "GOOD: test/resnext-t8-mb8.log!" \
-		|| { echo "OHOH: test/resnext-t8-mb8.log!"; false; } \
-		} && echo "vednn make test passed"; \
+	@#} && echo "fails2 tests via dtree.sh..."
+	@#&& { time VERBOSE=1 ./dtree.sh fails2- ./fails2.txt -k -r 9 -t 8 -M 2>&1 | tee fails2.log; ! grep FAILED fails2.log; }
+	@#&& echo "DONE: test/fails2.log!"
+	@#|| { echo "OHOH: test/fails2.log!" && false; }
+	{ ${MAKE} test0 \
+		&& ${MAKE} test1 \
+		&& ${MAKE} test2 \
+		&& ${MAKE} test3 \
+		&& echo SKIPPING LONG TEST ${MAKE} test-resnext \
+		&& echo "vednn make $@ passed"; \
 	} 2>&1 | tee mk-test.log; ps=($${PIPESTATUS[@]}); \
 	echo "make test ---> mk-test.log, test/{t8mb8,resnext-t8,resnext-t8-mb8}.log : PIPESTATUS $${ps[@]}"; \
 	[ "$${ps[0]}" == "0" ];

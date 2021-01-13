@@ -16,7 +16,8 @@
  * - '0' is dumb and safe
  * - '1' works, but needs care when client code is itself multi-threaded,
  *              (and needs care if trying 'outer threading' around im2col)
- * - '2' was ok for mb=1, but may have malloc issues when mb=8 ?
+ * - '2' was ok for mb=1, but may SOMETIMES have malloc issues when mb>=8 ? XXX CONFIRMED, Dec2020
+ *   - perhaps related to thread_local init issues ??
  *
  * - really want `omp threadprivate`, but not available for Aurora yet
  */
@@ -459,9 +460,9 @@ vednnConvFwd_gemm(
   // if not in nested omp, sgemm internally threaded --> "_T" suffix,
   //                       else assume wrapper has usual minibatch threading
   // assume omp_set_dynamic(1) [default] so nested omp ||ism does not happen
-  ftrace_impl = (omp_in_parallel()? "vednnConvFwd_gemm": "vednnConvFwd_gemm_mb");
+  ftrace_impl = (omp_in_parallel()? "vednnConvFwd_gemm_mb": "vednnConvFwd_gemm");
 #else
-  ftrace_impl = "vednnConvFwd_gemm"; // sgemm with no threads (I think)
+  ftrace_impl = "vednnConvFwd_gemm"; // sgemm may use threads
 #endif
   DBG(" %s pDataIn@%p pDataKernel@%p pDataBias@%p pDataOut@%p pOne@%p pColBuf@%p\n",
       ftrace_impl, (void*)pDataIn, (void*)pDataKernel, (void*)pDataBias,
@@ -631,7 +632,7 @@ vednnConvBkD_Gemm(
 #if VEDNN_USE_OPENMP
   ftrace_impl = (omp_in_parallel()? "vednnConvBkD_gemm_mb": "vednnConvBkD_gemm");
 #else
-  ftrace_impl = "vednnConvBkD_gemm"; // sgemm with no threads (I think)
+  ftrace_impl = "vednnConvBkD_gemm"; // sgemm may use threads
 #endif
   LFTRACE_BEGIN(ftrace_impl);
   int n, g;
@@ -716,7 +717,7 @@ vednnConvBkF_gemm(
 #if VEDNN_USE_OPENMP
   ftrace_impl = (omp_in_parallel()? "vednnConvBkF_gemm_mb": "vednnConvBkF_gemm");
 #else
-  ftrace_impl = "vednnConvBkF_gemm"; // sgemm with no threads (I think)
+  ftrace_impl = "vednnConvBkF_gemm"; // sgemm may use threads
 #endif
   LFTRACE_BEGIN(ftrace_impl);
   int n, g;
@@ -828,6 +829,7 @@ vednnError_t vednnConvolutionForward_direct_gemm(VEDNN_CONVFWD_ARGS)
 #else
     using vednn::scratchpad::vednn_scratchpad_float_ones;
     pOnes_ = vednn_scratchpad_float_ones(pColcols/*floats*/); // ow * oh of 1.0f
+    DBG(" pOnes_=%p\n",(void*)pOnes_);
 #endif
   }
   float const* restrict const pOnes = (float const*)pOnes_;

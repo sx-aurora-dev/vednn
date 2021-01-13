@@ -43,9 +43,9 @@ vednnConvolutionForward_mb_threads( vednnConvForward_t pFunc,
       int64_t myBatch = nBatch + ( threadid < remain ? 1 : 0 ) ;
 
       assert(myBatch > 0); // NEW (bugfix)
-      if( myBatch == 0 ) {
-        rc |= VEDNN_SUCCESS ;
-      }else{
+      //if( myBatch == 0 ) {
+      //  rc |= VEDNN_SUCCESS ;
+      //}else{
         vednnTensorParam_t _pParamIn  = *pParamIn  ; _pParamIn.batch = myBatch ;
         vednnTensorParam_t _pParamOut = *pParamOut ; _pParamOut.batch = myBatch ;
         float* _pDataIn  = ((float *)pDataIn) + batchBegin * pParamIn->channel * pParamIn->height * pParamIn->width ;
@@ -53,7 +53,7 @@ vednnConvolutionForward_mb_threads( vednnConvForward_t pFunc,
 
         rc |= pFunc(&_pParamIn, (void*)_pDataIn, pParamKernel, pDataKernel,
             pParamBias, pDataBias, pParamConv, &_pParamOut, (void*) _pDataOut) ;
-      }
+      //}
     }
     return (vednnError_t)(rc<3? rc: 1); // 3 is not an allowed value
   }

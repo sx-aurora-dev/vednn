@@ -11,15 +11,33 @@
 JITCONV=jitconv
 make -f Makefile.big $JITCONV
 if [ $# -eq 2 ]; then 
-	OPTS="-r 3 -t 8 -p"  # -p means dilation 1 convention (libvednn)
+	OPTS="-k -r 9 -t 8 -p"  # -p means dilation 1 convention (libvednn)
 	pfx="$1"
 	testfile="$2"
+	shift; shift; OPTS="${OPTS} $*"
+elif [ $# -gt 2 ]; then 
+	pfx="$1"
+	testfile="$2"
+	shift; shift; OPTS="$*"
+	# Ex. isz.txt (all with mb1) with mb7 override:
+	#  ./dtree.sh iszmb7- -S jit-iszmb7 isz.txt -k -r 9 -t 8 mb7 -p
+	# -p MUST be last option (it will be followed by isz.txt)
+	# -S was given so runs could go on bothe VE_NODE_NUMBER 0 and 2 concurrently
 else
 	OPTS="-r 9 -t 8 -M"  # -M means dilation 0 convention (OneDNN)
 	pfx="mini-"
 	testfile="params/txt/mini.txt"
 fi
+echo "$0 run parameters:"
+echo "pfx     : ${pfx}"
+echo "testfile: ${testfile}"
+echo "OPTS    : ${OPTS}"
+echo ""
 nlines=`wc ${testfile} | awk '{print $1}'`
+echo "testfile nlines = ${nlines}"
+#
+# Note: 1st line is assumed to be a number, and skipped
+#
 make ${JITCONV} &&
 	{ for ii in `seq 2 ${nlines}`; do
 		# Do not maintain jit impls (huge number of files)
@@ -38,7 +56,8 @@ make ${JITCONV} &&
 }
 grep '^ max jit DIFF' ${pfx}*.log
 # file list sorted by line number suffix == line number in ${testfile}
-pfxfiles=`ls -1 ${pfx}*.log | sort -t '-' -k 2,2n`
+#pfxfiles=`ls -1 ${pfx}*.log | sort -t '-' -k 2,2n`
+pfxfiles=`ls -1v ${pfx}*.log`
 # print the impls in speed order
 { for f in ${pfxfiles}; do
 	#params=`head -n20 "${f}" | grep '^PARAMETER' | awk '{print $4;}'`;
@@ -73,6 +92,12 @@ done; } 2>&1 | tee ${pfx}fastest.summary
 done; } 2>&1 |tee ${pfx}d1q.summary
 
 # unclutter main dir, leaving the .summary files
-if [ -d "$pfx" ]; then rmdir "${pfx}"; fi
+if [ -d "${pfx}" ]; then rm -r "${pfx}.bak"; mv "${pfx}" "${pfx}.bak"; fi
 mkdir "${pfx}";
 for f in ${pfxfiles}; do mv "${f}" "${pfx}"/; done
+
+# create a summary .csv file (ordered by numeric suffix, to agree with run order, not alphabetically)
+{  for f in `ls -v ${pfx}/${pfx}*log`;
+	sed '/.*combined/,/.*Legend/!d;//d;/^$/d' "${f}" | gawk -f 2r.awk;
+done; } | gawk 'p==1 && /^param/{next} /^param/{p=p+1} //{print}' \
+	> ${pfx}.csv

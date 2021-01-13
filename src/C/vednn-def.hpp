@@ -28,7 +28,7 @@
 //static inline pid_t gettid() { return syscall(__NR_gettid); }
 
 #ifndef VEDNN_SCRATCH_VERBOSE
-#define VEDNN_SCRATCH_VERBOSE 1
+#define VEDNN_SCRATCH_VERBOSE 0
 #endif
 #ifndef VEDNN_SCRATCH_DBG
 #if VEDNN_SCRATCH_VERBOSE
@@ -122,7 +122,7 @@ void* vednn_scratchpad_tls(size_t bytes);
 float* vednn_scratchpad_float_ones(size_t const floats);
 
 // Yet another exposed internal detail from vednnInitScratchpad.cpp
-void vednn_init_scratchpadTLS(size_t const bytes);
+//void vednn_init_scratchpadTLS(size_t const bytes);
 
 /** borrowed from mkldnn scratchpad, Apache 2.0 license.
  * Overkill, for vednn, and introduces extra function calls if used as public API.
@@ -154,7 +154,7 @@ struct ScratchpadFloatOnes;
 // These provide a ref count to keep regions allocated
 // for duration that library is loaded into executing process.
 extern ScratchpadShared             *scratchpadShared;
-extern thread_local ScratchpadTLS   *scratchpadTLS;
+extern thread_local ScratchpadTLS   *threadScratch;
 extern ScratchpadFloatOnes          *scratchpadFloatOnes;
 
 /** Implementation of the Scratchpad interface that uses malloc/free
@@ -240,7 +240,7 @@ private:
  */
 struct ScratchpadTLS : public ScratchpadBase {
 private:
-    friend void vednn_init_scratchpadTLS(size_t const bytes);
+    friend void vednn_init_scratchpadTLS();
     ScratchpadTLS() {
         scratchpad_ = nullptr;
         size_ = 0U;
@@ -254,19 +254,19 @@ public:
         bytes = ((bytes+pad()*2U)+15U)/16U*16U;
         unsigned tmp = ++reference_count_;
         if(tmp == 1){
-            //printf(" vednn: scratchpadTLS INIT!\n");
-            vednn_init_scratchpadTLS(bytes);
+            VEDNN_SCRATCH_DBG(" vednn: ScratchpadTLS INIT!\n");
+            //vednn_init_scratchpadTLS(bytes);
         }
-        assert( reference_count_ >= 2U );
+        //assert( reference_count_ >= 2U );
         if (bytes > size_)
             free_malloc(bytes);
-        //VEDNN_SCRATCH_DBG(" vednn-ompthr %d ScratchpadTLS[ %lu bytes ] @ %p REF %u\n",
-        //        get_thread_num(), (long unsigned)bytes, (void*)scratchpad_, reference_count_+1U);
+        VEDNN_SCRATCH_DBG(" vednn-ompthr %d ScratchpadTLS[ %lu bytes ] @ %p REF %u\n",
+                get_thread_num(), (long unsigned)bytes, (void*)scratchpad_, reference_count_+1U);
     }
     ~ScratchpadTLS() {
         unsigned tmp = --reference_count_;
-        //VEDNN_SCRATCH_DBG(" vednn-ompthr %d ~ScratchpadTLS[ %lu bytes ] @ %p REF %u\n",
-        //        get_thread_num(), (long unsigned)size_, (void*)scratchpad_, tmp);
+        VEDNN_SCRATCH_DBG(" vednn-ompthr %d ~ScratchpadTLS[ %lu bytes ] @ %p REF %u\n",
+                get_thread_num(), (long unsigned)size_, (void*)scratchpad_, tmp);
         if (tmp== 0)
             freeme();
     }
@@ -276,16 +276,16 @@ public:
         return (void*)( (char*)scratchpad_+pad() ); }
     virtual size_t size() const { return size_; }
     virtual unsigned ref() const { return reference_count_; }
+    static unsigned pad() { return 4096; }
 private:
-    static unsigned pad() { return 2048U; }
     static size_t page_size() { return 4096U; } // 2097152U ideally want page boundary (2M?)
     static void freeme();
     static void free_malloc(size_t const bytes);
     // ncc historically had definite issues running thread_local object constructors.
     // Here I ASSUME ncc will properly initialize thread_local fundamental types.
-    thread_local static void *scratchpad_;
-    thread_local static size_t size_;
-    thread_local static volatile unsigned int reference_count_;
+    static thread_local void *scratchpad_;
+    static thread_local size_t size_;
+    static thread_local volatile unsigned int reference_count_;
     // nc++ 2.4 : "unsuitable threadprivate variable"
     //OMP(threadprivate(scratchpad_))//;
     //OMP(threadprivate(size_))//;
@@ -322,14 +322,22 @@ struct ScratchpadFloatOnes : public ScratchpadBase {
 #if VEDNN_SCRATCH_VERBOSE
 #pragma omp critical
         {
-            VEDNN_SCRATCH_DBG(" %s%sthr %d/%d floats=%lu",
+            VEDNN_SCRATCH_DBG(" %s%sthr %d/%d floatOnes=%lu",
                     (omp_in_parallel()? "||":""), (omp_get_nested()? "nested-":""),
                     omp_get_thread_num(), omp_get_num_threads(),
                     (long unsigned)floats);
         }
 #endif
 
-#if 1 //this style of "max reduction" was buggy.  Not sure if ncc supports max reduction
+#if 0 // This code block allows threads to agree on a max size of read-only shared data
+        // However, omp barrier should NOT appear within omp section (hang)
+        // OTOH, without barrier have a race condition.
+        // SOLUTION: allocate resources OUTSIDE omp section and pass in
+        //           as arg (do not use a file-scope statics in libraries)
+        // BUT this changes API (or just copy the (short) direct_gemm impl
+        // into a helper routine that is file static and has the nec. added
+        // resource args.
+
         // ERROR -- ok only with mb=8 or 1; otherwise can hang
         // BUG was in vednnConvolutionForward.c default "mb" wrapper:
         //   You CANNOT "if(myBatch==0) {rc|=VEDNN_SUCCESS}", because then some
@@ -350,22 +358,44 @@ struct ScratchpadFloatOnes : public ScratchpadBase {
             VEDNN_SCRATCH_DBG(" maxfloats=%lu\n", (long unsigned)maxfloats);
         }
 #pragma omp barrier
+        // try an alt "implicit barrier"? No still can hang 
+//#pragma omp parallel
+//        {
+//            ;
+//        }
         floats = maxfloats;
 
-#else // simpler: assume all threads agree on 'floats' size, 1st thread here can allocate
+#elif 0 // simpler: assume all threads agree on 'floats' size, 1st thread here can allocate
+        // Still need to know all threads will never access a previous buffer:
+#pragma omp barrier
+#else
+        // DO NOTHING, use floats as is
+        // NOTE: this is also a bug because jitconv on multiple tests might
+        // have a thread get here "early" and invalidate a pointer that is
+        // still in use by another thread.  Probably some shared ptr hack
+        // that could circumvent.
+        //
+        // This is partly why I changed test scripts to run a single test and quit
+        // (i.e. each line of tests file starts up a new jitconv test)
+#endif
+#endif
+
+#ifdef VEDNN_USE_OPENMP
         // now any one thread can do the allocation ...
-#pragma omp single /* one thread allocates, omp barrier at end, threads agree on max size. */
+//#pragma omp barrier
+//#pragma omp single /* one thread allocates, omp barrier at end, threads have now agreed on max size. */
+        // issues when executed inside || region?
 #endif
-#endif
+#pragma omp critical // I don't favor this way  (I wish barrer+single could work in all cases)
         {
-            VEDNN_SCRATCH_DBG(" floats=%lu\n", (long unsigned)floats);
+            VEDNN_SCRATCH_DBG(" flobts=%lu ", (long unsigned)floats);
             if (floats > size_) {
                 //vednn::mcheck();
                 if (scratchpad_ != nullptr) free(scratchpad_); size_ = floats;
                 /* Allocating memory buffers on a page boundary to reduce TLB/page misses */
                 const size_t page_size = 4096U;
                 void* sp = vednn::malloc(floats*sizeof(float), page_size);
-                VEDNN_SCRATCH_DBG(" vednn ScratchpadFloatOnes[ %lu bytes ] @ %p\n",
+                VEDNN_SCRATCH_DBG(" vednn ScratchpadFloatOnes[ %lu bytes ] @ %p ",
                         (long unsigned)(floats*sizeof(float)), sp);
                 //vednn::mcheck();
                 if(size_) ScratchpadBase::checkNonNULL(sp,__FILE__,__LINE__);
@@ -377,6 +407,7 @@ struct ScratchpadFloatOnes : public ScratchpadBase {
                 }
             }
             ++reference_count_; // thread group contributes 1 to ref count
+            VEDNN_SCRATCH_DBG(" rff=%lu\n", (long unsigned)reference_count_);
         } // single => implicit barrier
     }
     /** also threadsafe, with thread-barrier at both \e entry and \e exit.
@@ -384,8 +415,10 @@ struct ScratchpadFloatOnes : public ScratchpadBase {
     ~ScratchpadFloatOnes() {
 #ifdef VEDNN_USE_OPENMP
         // for dealloc, need barrier at beginning, not end, of omp block
-#pragma omp barrier
-#pragma omp single
+//#pragma omp barrier
+//#pragma omp single
+        // but may have issues inside omp region
+#pragma omp critical
 #endif
         {
             if (reference_count_ == 0) { // (cannot throw if in omp)
@@ -406,6 +439,14 @@ struct ScratchpadFloatOnes : public ScratchpadBase {
             }
         } // implicit omp barrier so next constructor can safely run
     }
+    virtual size_t size() const { return size_; }
+    virtual unsigned ref() const { return reference_count_; }
+private:
+    static void *scratchpad_;
+    static size_t size_;
+    static unsigned int reference_count_;
+    friend float* vednn_scratchpad_float_ones(size_t const floats);
+    /** dangerous function */
     virtual void *get() const {
         // paranoia:
         if(scratchpad_ == nullptr && reference_count_ != 0) {
@@ -415,12 +456,6 @@ struct ScratchpadFloatOnes : public ScratchpadBase {
         }
         return scratchpad_;
     }
-    virtual size_t size() const { return size_; }
-    virtual unsigned ref() const { return reference_count_; }
-private:
-    static void *scratchpad_;
-    static size_t size_;
-    static unsigned int reference_count_;
 };
 
 inline void* vednn_scratchpad_shared(size_t bytes){

@@ -84,7 +84,7 @@ vednn_linear_test : vednn_linear_test.o vednn_helper.o linear_gemm.o
 vednn_pool_test : vednn_pool_test.o vednn_helper.o maxpooling.o
 
 clean:
-	rm -f $(OBJS) $(TARGETS) *.L *.O *.s ftrace.out *~
+	rm -f $(OBJS) $(TARGETS) *.L *.LL *.O *.s ftrace.out *~
 clean_vednn:
 	@for d in vednn vednn-ftrace1; do \
 		if [ -d "$${d}" ]; then \
@@ -93,5 +93,5 @@ clean_vednn:
 		fi; \
 		done;
 realclean: clean clean_vednn
-	rm -rf ./vednn-ftrace1 ./vednn
+	rm -rf ./vednn-ftrace1 ./vednn libmegajit.a
 #

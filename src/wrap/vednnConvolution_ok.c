@@ -66,6 +66,7 @@ FWD_FN_OK(vednnConvolutionForward_direct_default)
     return ok? VEDNN_SUCCESS: VEDNN_ERROR_INVALID_PARAM;
 }
 
+#if 0 // original form:
 #define CHK_vecC ( \
         pParamOut->height * pParamOut->width <= 16 \
         || (   (pParamOut->height * pParamOut->width < 64) \
@@ -75,6 +76,11 @@ FWD_FN_OK(vednnConvolutionForward_direct_default)
          /*  | pParamKernel->height | pParamKernel->width) != 1 ) */ \
            ) \
         )
+#else // run it more often for timings
+#define CHK_vecC ( \
+        pParamOut->height * pParamOut->width <= 4096 \
+        )
+#endif
 #define DIL(N) (pParamConv->dilationHeight == (N) && pParamConv->dilationWidth == (N))
 #define PAD(N) (pParamConv->padHeight == (N) && pParamConv->padWidth == (N))
 #define STR(N) (pParamConv->strideHeight == (N) && pParamConv->strideWidth == (N))
@@ -139,7 +145,7 @@ FWD_FN_OK_LIKE(dil1_str1_pad0_ker1, dil1_str1_pad0,
 FWD_FN_OK_LIKE(dil1_str1_pad0_ker1_T, dil1_str1_pad0_ker1, 1);
 FWD_FN_OK_LIKE(dil1_str1_pad0_ker4_iwU256, dil1_str1_pad0,
         pParamKernel->width == 4 && pParamKernel->height == 4
-        && pParamKernel->inChannel <= 256);
+        && pParamIn->width <= 256);
 FWD_FN_OK_LIKE(dil1_str1_pad0_ker3_iw2XU256_ow2X_ioaligned, dil1_str1_pad0,
         pParamKernel->width == 3 && pParamKernel->height == 3
         && (pParamOut->width <= 256)
