@@ -185,7 +185,8 @@ vednnConvolutionForwardChoice( VEDNN_CONVFWD_API_ARGS )
         }
         if (KER(5)) {  // d1s1pSk5
           if (OWU(128)) OMPWRAP(dil1_str1_padsame_ker5_owU128)//;
-          OMPWRAP(dil1_str1_padsame_ker5)//;
+          else if(pParamIn->height >= 5) OMPWRAP(dil1_str1_padsame_ker5)//;
+          OMPWRAP(dil1_str1_padsame)//;
         }
         if (KER(2)) OMPWRAP(dil1_str1_padsame_ker2)//;
         OMPWRAP(dil1_str1_padsame)//;
