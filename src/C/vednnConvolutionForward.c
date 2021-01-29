@@ -164,8 +164,10 @@ vednnError_t vednnConvolutionForwardBody(
       }else if (pParamKernel->height == 5 && pParamKernel->width == 5){ // d1s1pSk5
         if( pParamOut->width <= 128 )
           OMPWRAP(dil1_str1_padsame_ker5_owU128);
-        else
-          OMPWRAP(dil1_str1_padsame_ker5);
+        else if( pParamIn->height >= 5)
+          OMPWRAP(dil1_str1_padsame_ker5) ;
+	else
+	  OMPWRAP(dil1_str1_padsame);
       }else if (pParamKernel->height == 2 && pParamKernel->width == 2) // d1s1pSk2
         OMPWRAP(dil1_str1_padsame_ker2);
       else
