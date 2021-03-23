@@ -22,3 +22,4 @@ cjitConv01
 libmega*
 jitconv
 tmp_cjit*
+*.summary

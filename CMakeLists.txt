@@ -9,17 +9,16 @@ set_property(CACHE USE_FTRACE PROPERTY STRINGS OFF 1 2) # informative only
 
 # Can use env variables NCC and NCXX to override default VE compiler
 if(DEFINED ENV{NCC})
-    set(NCC ENV{NCC} CACHE FILEPATH "ncc command")
+    set(NCC $ENV{NCC} CACHE FILEPATH "ncc command")
 else()
     set(NCC "/opt/nec/ve/bin/ncc" CACHE FILEPATH "Path of ncc")
 endif()
 if(DEFINED ENV{NCXX})
-    set(NCXX ENV{NCXX} CACHE FILEPATH "nc++ command")
+    set(NCXX $ENV{NCXX} CACHE FILEPATH "nc++ command")
 else()
     set(NCXX "/opt/nec/ve/bin/nc++" CACHE FILEPATH "Path of nc++")
 endif()
 set(CMAKE_AR /opt/nec/ve/bin/nar)
-
 # If unspecified build release with debug info
 set(default_build_type "RelWithDebInfo")
 if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
@@ -79,7 +78,12 @@ message(STATUS "BUILD_SHARED ------> ${BUILD_SHARED}")
 # so we no longer need a custom path and library for VEPERF header/library
 
 # vednnx may link to blas libraries (for gen-dnn im2col in 'src/wrap/vconv')
-set(NLCDIR "/opt/nec/ve/nlc/2.0.0" CACHE STRING "VE blas install directory")
+#set(NLCDIR "/opt/nec/ve/nlc/2.0.0" CACHE STRING "VE blas install directory")
+if(DEFINED ENV{NLC_HOME})
+    set(NLCDIR $ENV{NLC_HOME} CACHE STRING "VE blas install directory")
+else()
+    set(NLCDIR "/opt/nec/ve/nlc/2.2.0" CACHE STRING "VE blas install directory")
+endif()
 # Some targets want finer control of optimization flags,
 # so let defaults only add debug flags for now:
 set(CMAKE_C_FLAGS_RELEASE "-DNDEBUG -DTMP11")

@@ -120,18 +120,19 @@ static CjitSyms const* getForwardJitSymbols(struct param const* pNetwork, int nE
     // hmmm I want to only JIT ONCE, use many times
     // XXX FOR NOW assume all jit symbols are forward no bias
     // added ability for C api to track which nEntry..
+    // If you change these, also check CjitConv.cpp dfgNames[] and Makefile
     char const* generators[] = {
+        "cjitConvFwd1q", // STANDARD ITEM
+        "cjitConvFwd6", // STANDARD ITEM
         // MOVED into cjitConvFwd6:    "cjitConvFwd6vel",
-        //"cjitConvFwd1", // usually slower
-        //"cjitConvFwd1p", // usually slower, 1 with ptrs vs offsets
-        //"cjitConvFwd1b", // usually slower? 1 with mask precalc
-        "cjitConvFwd1q",
-        //"cjitConvFwd2", // usually slower
-        //"cjitConvFwd3", // usually slower
+        "cjitConvFwd1", // usually slower
+        "cjitConvFwd1p", // usually slower, 1 with ptrs vs offsets
+        "cjitConvFwd1b", // usually slower? 1 with mask precalc
+        "cjitConvFwd2", // usually slower
+        "cjitConvFwd3", // usually slower
         // 4 and 5 have a bug in kBy1 loop.  Should cross-check with Fwd3 and fix TODO
         //"cjitConvFwd4",
         //"cjitConvFwd5",
-        "cjitConvFwd6",
         NULL};
     // jit_dir is now settable as -S SUBDIR [default tmp_cjitConv]
     struct CjitOpt cjitOpt= { jit_dir, 0, 0 }; // "tmp_cjitConv", full prep, full build 

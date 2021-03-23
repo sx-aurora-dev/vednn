@@ -44,6 +44,8 @@ TARGETS:=vejit-unpack
 # x86 targets now optional : g++ headers not always installed (ds08)
 #TARGETS+=cjitConv00-x86 cjitConv01-x86
 
+CXXSTD=-gnu++17
+
 ifeq ($(COMPILE_TYPE),ncc)
 TARGETS+=vednn_conv_test vednn_linear_test vednn_pool_test
 #TARGETS+=cjitConv01# vejit demo # REMOVED (uses veintrin.h)
@@ -51,6 +53,13 @@ TARGETS+=vednn_conv_test vednn_linear_test vednn_pool_test
 TARGETS+=ve_simpleconv
 TARGETS+=ve_cmpconv
 TARGETS+=jitconv
+
+NCC_VERSION:=${shell ${CXX} --version 2>&1 | gawk '{print $$3; exit}'}
+# missing xstring_view for gnu++17, so some files regress to 14 :
+ifeq '${NCC_VERSION}' '3.1.23'
+CXXSTD:=-std=gnu++14
+endif
+
 endif
 
 all: Hello mnist vejit-unpack $(TARGETS) Goodbye
@@ -102,7 +111,10 @@ CLANG_FLAGS = -DVEDNN_USE_OPENMP -target ve -O3 -mllvm -show-spill-message-vec -
 #
 #/opt/nec/nosupport/llvm-ve/bin/clang -DVEDNN_USE_OPENMP -I/usr/uhome/aurora/4gi/nlabhpg/kruus/vednn-ek/src/intrinsic/..  -target ve -O3 -mllvm -show-spill-message-vec -fno-vectorize -fno-unroll-loops -fno-slp-vectorize -fno-crash-diagnostics   -o CMakeFiles/vednn_intrinsic_convolution_forward.dir/direct_dil1_str1_padsameB.c.o   -c /usr/uhome/aurora/4gi/nlabhpg/kruus/vednn-ek/src/intrinsic/Convolution/Forward/direct_dil1_str1_padsameB.c
 
-BLAS_DIR	= /opt/nec/ve/nlc/2.0.0
+BLAS_DIR	= /opt/nec/ve/nlc/2.2.0
+ifneq '$(NLC_HOME)' ''
+BLAS_DIR	= $(NLC_HOME)
+endif
 BLAS_INC_DIR	= $(BLAS_DIR)/include
 BLAS_LIB_DIR	= $(BLAS_DIR)/lib
 CFLAGS			+= -I$(BLAS_INC_DIR) 
@@ -171,11 +183,13 @@ CLANG_FLAGS += -Ivejit/include
 
 # gnu++ is needed for nc++ extended asm
 CXXFLAGS:=$(CFLAGS) -std=gnu++17
+# NEW: nc++ 3.1.23 include file xstring not found!  (but ok with gnu++14)
+CXXFLAGS+=${CXXSTD}# override
 
 CJITDEF=-DVEDNNX_DIR="$(abspath $(VEDNNX_DIR))" -DVEJIT_DIR="$(mkfile_dir)vejit"
 CJIT_OPTS:=-I$(VEDNNX_DIR)/include -I$(VJINC) $(CJITDEF)
-CJIT_CXX:=$(CXX) ${CXXFLAGS} -g2     ${CJIT_OPTS} -Wl,-rpath-link,/opt/nec/ve/lib
-CJIT_CC:= $(CC)  ${CFLAGS}   -g2     ${CJIT_OPTS} -Wl,-rpath-link,/opt/nec/ve/lib
+CJIT_CXX:=$(CXX) ${CXXFLAGS} ${CXXSTD} -g2 ${CJIT_OPTS} -Wl,-rpath-link,/opt/nec/ve/lib
+CJIT_CC:= $(CC)  ${CFLAGS}   ${CXXSTD} -g2 ${CJIT_OPTS} -Wl,-rpath-link,/opt/nec/ve/lib
 CJITX86:=g++ -g -O2 -std=c++11 -Wall $(CJIT_OPTS)
 CJITX86_CC:=gcc -g -O2 -std=c11 -Wall $(CJIT_OPTS)
 
@@ -192,6 +206,8 @@ Hello:
 	@echo "CLANG         = ${CLANG}"
 	@echo "CLANG_HAS_VE  = ${CLANG_HAS_VE}"
 	@echo "TARGETS       = ${TARGETS}"
+	@echo "NCC_VERSION   = ${NCC_VERSION}"
+	@echo "CXXSTD        = ${CXXSTD}"
 	-if [ -d "${VEDNN_DIR}"  ]; then ls -l "${VEDNN_DIR}"/* ; fi
 	-if [ -d "${VEDNNX_DIR}" ]; then ls -l "${VEDNNX_DIR}"/*; fi
 	-ls -l ../vednn*.tar.gz
@@ -215,6 +231,7 @@ $(VEJIT_STAMPFILE): $(VEJIT_TARBALL)
 	@#if [ -f "$@" ]; then echo 'touching $@'; $(MAKE) --touch $@; fi
 	-ls -l $@ $(VEJIT_TARBALL)
 vejit-unpack: $(VEJIT_STAMPFILE) 	# unpack the tarball if it is newer
+	echo "OK, $(VEJIT_STAMPFILE) et al. unpacked from $(VEJIT_TARBALL)"
 vejit: $(VEJIT_TARBALL)      		# This rull ALWAYS unpacks the tarball
 	-if [ -d vejit ]; then chmod -R ugo+rw vejit; rm -rf $@; fi
 	tar xzf $<
@@ -312,12 +329,14 @@ cjitConv01: cjitConv01.cpp vejit-unpack
 	#	-Wl,-rpath,/opt/nec/ve/ncc/1.7.21/lib
 	{ ve_exec ./$@ || echo "Exit status $$?"; } 2>&1 | tee $@.log
 	nreadelf -ds tmp_$@/lib$@.so >> $@.log 2>&1
+	# nc++-3.1.23 broken with "missing include file <xstring_view>
 cjitConv-ve.o:	cjitConv.cpp cjitConv.hpp conv_test_param.h ve_cvecops.hpp
-	$(CJIT_CXX) -E $< -o cjitConv.i
-	$(CJIT_CXX) -c $< -o $@
+	$(CJIT_CXX) ${CXXSTD} -E $< -o cjitConv.i
+	$(CJIT_CXX) ${CXXSTD} -c $< -o $@
 	@echo '$@ is made!'
 cjitConv-ve.lo:	cjitConv.cpp cjitConv.hpp conv_test_param.h ve_cvecops.hpp
 	$(CJIT_CXX) -fPIC -c $< -o $@
+
 cjitConv%-x86.o: cjitConv%.cpp cjitConv.hpp conv_test_param.h ve_cvecops.hpp
 	$(CJITX86) -c $< -o $@
 cjitConv%-x86.lo: cjitConv%.cpp cjitConv.hpp conv_test_param.h ve_cvecops.hpp
@@ -332,7 +351,7 @@ CJITCONV_SET:=cjitConvFwd1q cjitConvFwd6
 # coordinate with list of used jit impls in:
 # 		jitconv.cpp
 # 		cjitConv.cpp
-#CJITCONV_SET+=cjitConvFwd1 cjitConvFwd1b cjitConvFwd1p cjitConvFwd2 cjitConvFwd3 cjitConvFwd4 cjitConvFwd5
+CJITCONV_SET+=cjitConvFwd1 cjitConvFwd1b cjitConvFwd1p cjitConvFwd2 cjitConvFwd3 cjitConvFwd4 cjitConvFwd5
 libcjitConv-ve.a: $(patsubst %,%-ve.o,$(CJITCONV_SET)) cjitConv-ve.o ve_cvecops-ve.o
 	rm -f $@; $(AR) cqs $@ $^ # create quick with index
 libcjitConv-x86.a: cjitConv-x86.o $(patsubst %,%-x86.o,$(CJITCONV_SET)) ve_cvecops-x86.o
@@ -586,8 +605,8 @@ libmegajit.so: # if lbmegajit does not exist, create a zero-length file instead,
 	fi
 	ls -l libmegajit*
 jitconv.o: jitconv.cpp conv_test_param.h
-	$(CXX) ${CXXFLAGS} -E $< -o jitconv.i
-	$(CXX) ${CXXFLAGS} -Wall -Werror -c $< -o $@
+	$(CXX) ${CXXFLAGS} ${CXXSTD} -E $< -o jitconv.i
+	$(CXX) ${CXXFLAGS} ${CXXSTD} -Wall -Werror -c $< -o $@
 
 # local override of libvednn decision tree[s]?
 LOCALIMPLS+=choose_cnvfwd.o
@@ -698,9 +717,9 @@ gen-dnn.log: force
 	} >& $@.new
 	if [ -f $@ ]; then mv $@ $@.bak; fi; mv $@.new $@
 %-ve.o: %.cpp
-	$(CXX) $(CXXFLAGS) -Wall -Werror -c $< ${LDLIBS} -o $@
+	$(CXX) $(CXXFLAGS) $(CXXSTD) -Wall -Werror -c $< ${LDLIBS} -o $@
 %-ve.lo: %.cpp
-	$(CXX) $(CXXFLAGS) -fPIC -Wall -Werror -c $< ${LDLIBS} -o $@
+	$(CXX) $(CXXFLAGS) $(CXXSTD) -fPIC -Wall -Werror -c $< ${LDLIBS} -o $@
 dom-ve.o: dom.hpp	
 testdom1-ve: testdom1.cpp dom-ve.o
 	$(CXX) $(CXXFLAGS) -Wall -Werror $^ -o $@

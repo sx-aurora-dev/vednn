@@ -36,7 +36,10 @@ CFLAGS	= $(COPTS)
 LDLIBS	= $(COPTS) -lm
 AR	= $(VE_BIN_DIR)/nar
 
-BLAS_DIR	= /opt/nec/ve/nlc/2.0.0
+BLAS_DIR	= /opt/nec/ve/nlc/2.2.0
+ifneq '$(NLC_HOME)' ''
+BLAS_DIR	= $(NLC_HOME)
+endif
 BLAS_INC_DIR	= $(BLAS_DIR)/include
 BLAS_LIB_DIR	= $(BLAS_DIR)/lib
 CFLAGS		+= -I$(BLAS_INC_DIR) 
@@ -80,8 +83,8 @@ convolution_gemm-ncc.s: convolution_gemm.c
 convolution_gemm.o: convolution_gemm-ncc.s
 	$(CC) $(CFLAGS) -o $@ -c $<
 .PHONY: force
-jitconv resnext-t8.log resnext-t8-mb8.log ve_cmpconv jitconv: force
-	$(MAKE) -fMakefile.big $@
+jitconv resnext-t8.log resnext-t8-mb8.log ve_cmpconv: force
+	$(MAKE) -fMakefile.big vejit-unpack $@
 clean:
 	rm -f $(OBJS) $(TARGETS) *.L *.O *.s ftrace.out *~
 	$(MAKE) -fMakefile.big clean

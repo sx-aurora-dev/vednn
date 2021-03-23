@@ -56,7 +56,10 @@ CFLAGS	= $(COPTS)
 LDLIBS	= $(COPTS) -lm
 AR	= $(AURORA_BIN_DIR)/nar
 
-BLAS_DIR	= /opt/nec/ve/nlc/1.0.0
+BLAS_DIR	= /opt/nec/ve/nlc/2.2.0
+ifneq '$(NLC_HOME)' ''
+BLAS_DIR	= $(NLC_HOME)
+endif
 BLAS_INC_DIR	= $(BLAS_DIR)/include
 BLAS_LIB_DIR	= $(BLAS_DIR)/lib
 CFLAGS		+= -I$(BLAS_INC_DIR) 

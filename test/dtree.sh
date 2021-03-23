@@ -97,7 +97,7 @@ mkdir "${pfx}";
 for f in ${pfxfiles}; do mv "${f}" "${pfx}"/; done
 
 # create a summary .csv file (ordered by numeric suffix, to agree with run order, not alphabetically)
-{  for f in `ls -v ${pfx}/${pfx}*log`;
+{  for f in `ls -v ${pfx}/${pfx}*log`; do
 	sed '/.*combined/,/.*Legend/!d;//d;/^$/d' "${f}" | gawk -f 2r.awk;
 done; } | gawk 'p==1 && /^param/{next} /^param/{p=p+1} //{print}' \
 	> ${pfx}.csv
