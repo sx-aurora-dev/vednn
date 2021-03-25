@@ -125,11 +125,11 @@ static CjitSyms const* getForwardJitSymbols(struct param const* pNetwork, int nE
         "cjitConvFwd1q", // STANDARD ITEM
         "cjitConvFwd6", // STANDARD ITEM
         // MOVED into cjitConvFwd6:    "cjitConvFwd6vel",
-        "cjitConvFwd1", // usually slower
-        "cjitConvFwd1p", // usually slower, 1 with ptrs vs offsets
-        "cjitConvFwd1b", // usually slower? 1 with mask precalc
-        "cjitConvFwd2", // usually slower
-        "cjitConvFwd3", // usually slower
+        //"cjitConvFwd1", // usually slower
+        //"cjitConvFwd1p", // usually slower, 1 with ptrs vs offsets
+        //"cjitConvFwd1b", // usually slower? 1 with mask precalc
+        //"cjitConvFwd2", // usually slower
+        //"cjitConvFwd3", // usually slower
         // 4 and 5 have a bug in kBy1 loop.  Should cross-check with Fwd3 and fix TODO
         //"cjitConvFwd4",
         //"cjitConvFwd5",
@@ -263,6 +263,7 @@ void testForward(struct param *pNetwork, int nEntry, double HZ, int flagBias, in
         if(doStd){
             cout<<"doStd pConv->region is "<<pConv->region<<"   layer "<<pNw_param_cstr
                 <<"   thr="<<vednn_get_num_threads()<<"="<<omp_get_num_threads()<<"/"<<omp_get_max_threads()<<endl;
+            param_cstr_short(pNw,pNw_param_cstr,100);
 #if 1
             char extended_impl_name[200];
             {
@@ -348,6 +349,7 @@ void testForward(struct param *pNetwork, int nEntry, double HZ, int flagBias, in
             tdRepo.append(td,1/*verbose*/);
         }
         if(doItr){
+            param_cstr_short(pNw,pNw_param_cstr,100);
             size_t const maxImpls = 64;
             double max_diff = 0.0;
             unsigned long long c[2];
@@ -499,6 +501,8 @@ void testForward(struct param *pNetwork, int nEntry, double HZ, int flagBias, in
         if(doJit && allsyms)
         {
             cout<<" doJit thr="<<vednn_get_num_threads()<<"="<<omp_get_num_threads()<<"/"<<omp_get_max_threads()<<endl;
+            param_cstr_short(pNw,pNw_param_cstr,100);
+            cout<<"doJit "<<&pNw_param_cstr[0]<<"    ops="<<pConv->ops<<endl;
             printf("XXX Assuming all symbols are really vednnConv##Forward##_t impls\n");
             double max_diff = 0.0;
             unsigned long long c[2];

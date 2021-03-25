@@ -146,9 +146,6 @@ void krn_i2c_sw1( int64_t const kernel_row, int64_t kernel_col,
     } else {
       int64_t const ic0 = -pad_w + kernel_col * dilation_w;
       float const* restrict data_im_row = &data_im_channel[input_row * width];
-      int64_t ic_sw[256];
-#pragma _NEC vreg(ic_sw)
-      for(int64_t i=0; i<256; ++i) ic_sw[i] = ic0 + i*1;
       float x[256];
 #pragma _NEC vreg(x)
       // unblock loop, generate register explicitly, force single store
@@ -156,14 +153,12 @@ void krn_i2c_sw1( int64_t const kernel_row, int64_t kernel_col,
         int64_t const ocBlen = (output_w-ocB < 256? output_w-ocB: 256);
 #pragma _NEC shortloop
         for (int64_t output_col = ocB; output_col<ocB+ocBlen; ++output_col) {	// outWidth
-          x[output_col-ocB] = data_im_row[ ic0 + output_col*1];
+          x[output_col-ocB] = data_im_row[ ic0 + output_col/* *1 stride_w */];
           if ( (u64)(ic0 + output_col )>= (u64)width )
             x[output_col-ocB] = 0.f; //fzeros[output_col-ocB];
           data_col[outOffset++] = x[output_col-ocB]; // single store
         }
       }//outWidth
-#pragma _NEC shortloop
-      for(int i=0; i<256; ++i) ic_sw[i] += 256*1;
     }//outWidth Blocking
   }
   DBG(" outOffset=%lu",(u64)outOffset); // output_h * output_w

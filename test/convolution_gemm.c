@@ -1,4 +1,6 @@
 /* -*- Mode: C; c-basic-offset:4 ; indent-tabs-mode:nil ; -*- */
+/** \file
+ * jitconv "doRef" calculation - a simplified gemm impl */
 #include "vednn_helper.h"
 #include "convolution_gemm.h"
 #include <string.h>
@@ -146,6 +148,8 @@ col2im_cpu(
   LFTRACE_END("col2im_cpu");
 }
 
+// pOne is oh*ow of 1.0f
+// pColBuff is scratch of ic*kw*kh * ow*oh * iw*ih (huge, in this version) see conv_test_param.c
   vednnError_t
 convolution_forward_gemm(
     const vednnTensorParam_t * restrict pParamIn, const void * restrict pDataIn,

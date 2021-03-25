@@ -78,7 +78,10 @@ testconvForward_alloc( struct testconvForward *pConv, struct param const* pNw,
     }
     rv[3] = createKernelParam(&pConv->pParamKernel, DTYPE_FLOAT, filter_layout,
             inChannelGroup, outChannelGroup, pNw->kernWidth, pNw->kernHeight);
-    rv[4] = createConvolutionParam(&pConv->pParamConv, pNw->group, pNw->strideWidth, pNw->strideHeight, pNw->padWidth, pNw->padHeight, pNw->dilationHeight, pNw->dilationWidth);
+    // Beware: width,height order!
+    rv[4] = createConvolutionParam(&pConv->pParamConv, pNw->group, pNw->strideWidth,
+            pNw->strideHeight, pNw->padWidth, pNw->padHeight,
+            pNw->dilationWidth, pNw->dilationHeight);
     if (rv[0] != VEDNN_SUCCESS || rv[1] != VEDNN_SUCCESS || ( flagBias && rv[2] != VEDNN_SUCCESS )
             || rv[3] != VEDNN_SUCCESS || rv[4] != VEDNN_SUCCESS )
         ERROR_EXIT("Failed to create/initialize structure.");
@@ -135,10 +138,10 @@ testconvForward_dumpParms( struct testconvForward const* pConv, int const flagBi
     if(!tpOut) printf("tpOut:NULL");
     else printf("tpOut{f32,%d,%d,%d,%d}\n",tpOut->batch,tpOut->channel,tpOut->width,tpOut->height);
     if(!parm) printf("parm:NULL");
-    else printf("parm{g%d_sw%dsh%d_pw%dph%d_dw%ddh%d}\n",parm->group,
-            parm->strideWidth,   parm->strideHeight,
-            parm->padWidth,      parm->padHeight,
-            parm->dilationWidth, parm->dilationHeight);
+    else printf("parm{g%d_sh%dsw%d_ph%dpw%d_dh%ddw%d}\n",parm->group,
+            parm->strideHeight,   parm->strideWidth,
+            parm->padHeight,      parm->padWidth,
+            parm->dilationHeight, parm->dilationWidth);
 }
 void
 testconvForward_randomData( struct testconvForward const* pConv, int const flagBias ){
@@ -291,7 +294,8 @@ testconvBackwardData_alloc( struct testconvBackwardData *pConv, struct param con
     rv[2] = createKernelParam(&pConv->pParamKernel, DTYPE_FLOAT, filter_layout,
             inChannelGroup, outChannelGroup, pNw->kernWidth, pNw->kernHeight);
     rv[3] = createConvolutionParam(&pConv->pParamConv, pNw->group, pNw->strideWidth,
-            pNw->strideHeight, pNw->padWidth, pNw->padHeight, pNw->dilationHeight, pNw->dilationWidth);
+            pNw->strideHeight, pNw->padWidth, pNw->padHeight,
+            pNw->dilationWidth, pNw->dilationHeight);
     if (rv[0] != VEDNN_SUCCESS || rv[1] != VEDNN_SUCCESS || rv[2] != VEDNN_SUCCESS || rv[3] != VEDNN_SUCCESS ) {
         fprintf(stderr, "Failed to create/initialize structure.\n");
         exit(1);
@@ -333,10 +337,10 @@ testconvBackwardData_dumpParms( struct testconvBackwardData const *pConv ){
     else printf("tpGo {f32,mb%d,%d,%d,%d}\n",tpGo->batch,tpGo->channel,tpGo->width,tpGo->height);
     printf("tpKrn{f32,ic%doc%d_kw%dkh%d}\n",tpKrn->inChannel,tpKrn->outChannel,tpKrn->width,tpKrn->height);
     printf("tpGin{f32,mb%d,%d,%d,%d}\n",tpGin->batch,tpGin->channel,tpGin->width,tpGin->height);
-    printf("parm{g%d_sw%dsh%d_pw%dph%d_dw%ddh%d}\n",parm->group,
-            parm->strideWidth,   parm->strideHeight,
-            parm->padWidth,      parm->padHeight,
-            parm->dilationWidth, parm->dilationHeight);
+    printf("parm{g%d_sh%dsw%d_ph%dpw%d_dh%ddw%d}\n",parm->group,
+            parm->strideHeight,   parm->strideWidth,
+            parm->padHeight,      parm->padWidth,
+            parm->dilationHeight, parm->dilationWidth);
 }
 void
 testconvBackwardData_oclobber( struct testconvBackwardData const* pConv ){
@@ -461,7 +465,9 @@ void testconvBackwardFilter_alloc( struct testconvBackwardFilter *pConv, struct 
     rv[1] = createTensorParam(&pConv->pParamGradOut, DTYPE_FLOAT, pNw->batchNum, pNw->outChannel, pNw->outWidth, pNw->outHeight);
     rv[2] = createKernelParam(&pConv->pParamGradKernel, DTYPE_FLOAT, filter_layout,
             inChannelGroup, outChannelGroup, pNw->kernWidth, pNw->kernHeight);
-    rv[3] = createConvolutionParam(&pConv->pParamConv, pNw->group, pNw->strideWidth, pNw->strideHeight, pNw->padWidth, pNw->padHeight, pNw->dilationHeight, pNw->dilationWidth);
+    rv[3] = createConvolutionParam(&pConv->pParamConv, pNw->group, pNw->strideWidth,
+            pNw->strideHeight, pNw->padWidth, pNw->padHeight,
+            pNw->dilationWidth, pNw->dilationHeight);
     if (rv[0] != VEDNN_SUCCESS || rv[1] != VEDNN_SUCCESS || rv[2] != VEDNN_SUCCESS || rv[3] != VEDNN_SUCCESS ) {
         fprintf(stderr, "Failed to create/initialize structure.\n");
         exit(1);
@@ -495,10 +501,10 @@ void testconvBackwardFilter_dumpParms( struct testconvBackwardFilter const *pCon
     else printf("tpGo {f32,mb%d,%d,%d,%d}\n",tpGo->batch,tpGo->channel,tpGo->width,tpGo->height);
     if(!tpGk) printf("tpGk:NULL\n");
     else printf("tpGk{f32,ic%doc%d_kw%dkh%d}\n",tpGk->inChannel,tpGk->outChannel,tpGk->width,tpGk->height);
-    printf("parm{g%d_sw%dsh%d_pw%dph%d_dw%ddh%d}\n",parm->group,
-            parm->strideWidth,   parm->strideHeight,
-            parm->padWidth,      parm->padHeight,
-            parm->dilationWidth, parm->dilationHeight);
+    printf("parm{g%d_sh%dsw%d_ph%dpw%d_dh%ddw%d}\n",parm->group,
+            parm->strideHeight,   parm->strideWidth,
+            parm->padHeight,      parm->padWidth,
+            parm->dilationHeight, parm->dilationWidth);
 }
 void testconvBackwardFilter_randomData( struct testconvBackwardFilter const* pConv ){
     generateRandomData(getTensorDataType(pConv->pParamIn),

@@ -201,20 +201,20 @@ struct testconvBackwardFilter {
     char ref_region[128];
 };
 
-/** exact output height/width for convolution. d==0 for "no dilation" (cf. vednn 1 for none) */
+/** exact output height/width for convolution.
+ * NB: libvednn uses d==1 for "no dilation", while OneDNN uses d==0. */
 // exact output height/width for convolution.
-// d==0 for "no dilation". NO NO. libvednn uses d==1.
 // this function does NOT agree with mkl-dnn calc, as a result.
 // *--p--*-------i-------*--p--*
 // | (k-1)*s+1 | ...    |
-//
+// --- longhand example ---
 // mb1ic16ih5oc16oh3kh7ph3, 1,1, 16,5,5, 16,3,3, 7,7, 1,1, 1,1
 // pppiiiiippp   i+2p = 11, kern reach is 7 = (7-1)*1+1 = (k-1)*s+1
-// (11 - 7) / d +1 
-// ppppp iiiiiiiii ppppppp
+// (11 - 7) / d +1 = 5: figure
+// pppad iiiiimage pppppad
 // 1 2 3 4 5 6 7 8 9 10 11
-// 1^^^^^^^^^^^^ i+2p
-//   2^^^^^^^^^^^^ ...
+// 1^^^^^^^^^^^^ kern 7, out@4;
+//   2^^^^^^^^^^^^ kern 7, out@5; ...
 //     3 4 5^^^^^^^^^^^^^^^  5 outputs
 inline int
 compute_out( int i, int k, int s, int p, int d ){
@@ -232,6 +232,8 @@ compute_out( int i, int k, int s, int p, int d ){
         : numer / s + 1;
     // mkl-dnn deconv: return (i - 1) * s + (k - 1) * (d + 1) + 2 * p + 1;
 }
+// Note: OneDNN and libvednn only offer *symmetric* padding.  Some other
+//       ML frameworks allow asymmetric padding.
 inline int
 compute_pad( int o, int i, int k, int s, int d ){
     int numer = ((o-1) * s - i + ((k - 1) * (d + 0) + 1)) / 2;
@@ -1024,7 +1026,7 @@ inline void param_cstr_error_exit(){
 inline char const*
 param_cstr(struct param const* const p, char * const buf, size_t const n){
     if(snprintf(buf, n,
-            "mb%dg%d_ic%dih%diw%d_oc%doh%dow%d_kh%dph%dsh%ddh%d_kw%dpw%dsw%ddw%d",
+            "mb%dg%d_ic%dih%diw%d_oc%doh%dow%d_kh%dph%dsh%ddh%d_kw%dpw%dsw%ddw%dnOneDNN",
             p->batchNum, p->group,
             p->inChannel, p->inHeight, p->inWidth,
             p->outChannel, p->outHeight, p->outWidth,
@@ -1086,6 +1088,7 @@ param_cstr_short(struct param const* const p, char * const buf, size_t const n){
             if(p->padHeight     !=0) DPRINT("ph%d",p->padHeight);
             if(p->dilationHeight!=1) DPRINT("dh%d",p->dilationHeight-1); // dil-1 for mkl-dnn string
         }
+        DPRINT("nOneDNN");
     }else if(1){ // more aggressive default-or-equal eliminations
         // --> shorter jit symbol names, nicer screen output
         int rem_len = n;
@@ -1113,10 +1116,11 @@ param_cstr_short(struct param const* const p, char * const buf, size_t const n){
             if(p->padWidth == p->padHeight) DPRINT("ph%d",p->padHeight);
             else DPRINT("ph%dpw%d",p->padHeight,p->padWidth);
         }
-        if(p->dilationHeight !=1 || p->dilationWidth != 1){ // 1 is libvednn "no dilation"
-            if(p->dilationWidth == p->dilationHeight) DPRINT("dh%d",p->dilationHeight);
-            else DPRINT("dh%ddw%d",p->dilationHeight,p->dilationWidth);
+        if(p->dilationHeight !=1 || p->dilationWidth != 1){ // print dil-1 for OneDNN format.
+            if(p->dilationWidth == p->dilationHeight) DPRINT("dh%d",p->dilationHeight-1);
+            else DPRINT("dh%ddw%d",p->dilationHeight-1,p->dilationWidth-1);
         }
+        DPRINT("nOneDNN");
     }else{ // very long string, every field explicit
         param_cstr(p,buf,n);
     }
