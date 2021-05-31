@@ -2,6 +2,7 @@ FTRACE:=YES
 OPENMP:=YES
 VE_BIN_DIR=/opt/nec/ve/bin
 CC=$(VE_BIN_DIR)/ncc
+CXX=$(VE_BIN_DIR)/nc++
 COMPILE_TYPE:=$(word 1,$(shell $(CC) --version 2>&1))
 $(if $(COMPILE_TYPE),,$(error could not determine C compiler type?)) # VE(ncc) vs x86(gcc or ...)
 

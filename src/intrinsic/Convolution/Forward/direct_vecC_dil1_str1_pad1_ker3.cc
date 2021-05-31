@@ -367,6 +367,96 @@ static inline void func(
 	    }
 	  }
 	}
+	else {
+
+	  __vr vri[X+2] ;
+#pragma clang loop unroll(full)
+	  for(int64_t xx=1; xx<X+1; xx++) {
+	    int64_t inputIndex  = inGroupOffset + ((n * inChannel + c) * inHeight + h) * inWidth + wl + xx;
+	    vri[xx] = _vel_vldu_vssl(4*inHeight*inWidth, &pIn[inputIndex], vl) ;
+	  }
+
+	  __vr vriP[X+2] ;
+#pragma clang loop unroll(full)
+	  for(int64_t xx=1; xx<X+1; xx++) {
+	    vriP[xx] = _vel_vshf_vvvsl(vri[xx], vri[xx], VE_VSHUFFLE_YUZU, vl) ;
+	  }
+
+	  /* s0 */
+	  {
+	    __vr vrk_s0[NUMKERNEL] ;
+#pragma clang loop unroll(full)
+	    for(int64_t kk=0; kk<NUMKERNEL; kk++) {
+	      vrk_s0[kk] = _vel_vldu_vssl(4*kernelDistanceByC, pKerValue+kk*kernelDistanceByK+0*kernelDistanceByS, vl) ;
+	    }
+
+	    if( remain ) {
+#pragma clang loop unroll(full)
+	      for(int64_t xx=1; xx<X; xx++) {
+	        vrsum0[xx] = _vel_vfmads_vvvvvl(vrsum0[xx], vri[xx+0], vrk_s0[0], vrsum0[xx], vl) ;
+	      }
+	    }
+#pragma clang loop unroll(full)
+	    for(int64_t kk=0; kk<nPacked; kk++) {
+	      __vr vrkp_s0 = _vel_vshf_vvvsl(vrk_s0[2*kk+remain], vrk_s0[2*kk+remain+1], VE_VSHUFFLE_YUZU, vl) ;
+
+#pragma clang loop unroll(full)
+	      for(int64_t xx=1; xx<X; xx++) {
+		vrsum[kk*X+xx] = _vel_pvfmad_vvvvvl(vrsum[kk*X+xx], vriP[xx+0], vrkp_s0, vrsum[kk*X+xx], vl) ;
+	      }
+	    }
+	  }
+
+	  /* s1 */
+	  {
+	    __vr vrk_s1[NUMKERNEL] ;
+#pragma clang loop unroll(full)
+	    for(int64_t kk=0; kk<NUMKERNEL; kk++) {
+	      vrk_s1[kk] = _vel_vldu_vssl(4*kernelDistanceByC, pKerValue+kk*kernelDistanceByK+1*kernelDistanceByS, vl) ;
+	    }
+
+	    if( remain ) {
+#pragma clang loop unroll(full)
+	      for(int64_t xx=0; xx<X; xx++) {
+		vrsum0[xx] = _vel_vfmads_vvvvvl(vrsum0[xx], vri[xx+1], vrk_s1[0], vrsum0[xx], vl) ;
+	      }
+	    }
+
+#pragma clang loop unroll(full)
+	    for(int64_t kk=0; kk<nPacked; kk++) {
+	      __vr vrkp_s1 = _vel_vshf_vvvsl(vrk_s1[2*kk+remain], vrk_s1[2*kk+remain+1], VE_VSHUFFLE_YUZU, vl) ;
+#pragma clang loop unroll(full)
+	      for(int64_t xx=0; xx<X; xx++) {
+		vrsum[kk*X+xx] = _vel_pvfmad_vvvvvl(vrsum[kk*X+xx], vriP[xx+1], vrkp_s1, vrsum[kk*X+xx], vl) ;
+	      }
+	    }
+	  }
+
+	  /* s2 */
+	  {
+	    __vr vrk_s2[NUMKERNEL] ;
+#pragma clang loop unroll(full)
+	    for(int64_t kk=0; kk<NUMKERNEL; kk++) {
+	      vrk_s2[kk] = _vel_vldu_vssl(4*kernelDistanceByC, pKerValue+kk*kernelDistanceByK+2*kernelDistanceByS, vl) ;
+	    }
+
+	    if( remain ) {
+#pragma clang loop unroll(full)
+	      for(int64_t xx=0; xx<X-1; xx++) {
+		vrsum0[xx] = _vel_vfmads_vvvvvl(vrsum0[xx], vri[xx+2], vrk_s2[0], vrsum0[xx], vl) ;
+	      }
+	    }
+
+#pragma clang loop unroll(full)
+	    for(int64_t kk=0; kk<nPacked; kk++) {
+	      __vr vrkp_s2 = _vel_vshf_vvvsl(vrk_s2[2*kk+remain], vrk_s2[2*kk+remain+1], VE_VSHUFFLE_YUZU, vl) ;
+#pragma clang loop unroll(full)
+	      for(int64_t xx=0; xx<X-1; xx++) {
+		vrsum[kk*X+xx] = _vel_pvfmad_vvvvvl(vrsum[kk*X+xx], vriP[xx+2], vrkp_s2, vrsum[kk*X+xx], vl) ;
+	      }
+	    }
+	  }
+	}
       } // kernWidth
     } // kernHeight
   } // inChannel
