@@ -25,7 +25,7 @@ vednnLinearBackwardWeight_wrapper(
       int64_t inDimBegin = nInDim * threadid + ( threadid < remain ? threadid : remain ) ;
       int64_t myInDim    = nInDim + ( threadid < remain ? 1 : 0 ) ;
 
-      if( nInDim == 0 ) {
+      if( myInDim == 0 ) {
         rc |= VEDNN_SUCCESS ;
       }
       else  {
