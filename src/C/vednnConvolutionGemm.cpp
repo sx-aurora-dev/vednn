@@ -4,8 +4,8 @@
 #include "vednn.h"
 #include "vednn-def.hpp"             // vednn.h + C++ scratchpad API (C++ can inline one call)
 #include "gen-dnn/mkldnn_os.h"       // OMP pragmas (part of mkldnn_thread now?)
-#include "gen-dnn/mkldnn_thread.hpp" // omp_get_xxx stubs (if nec), parallel_nd
-#include "gen-dnn/utils.hpp"
+//#include "gen-dnn/mkldnn_thread.hpp" // omp_get_xxx stubs (if nec), parallel_nd
+//#include "gen-dnn/utils.hpp"
 
 #include <stdio.h>
 #include <assert.h>
@@ -20,10 +20,14 @@
  *   - perhaps related to thread_local init issues ??
  *
  * - really want `omp threadprivate`, but not available for Aurora yet
+ * - because of this, setup and teardown of re-usable thread scratch for
+ *   omp threads is still "not nice".
  */
 #ifndef SCRATCHPAD
 #define SCRATCHPAD 2
 #endif
+
+#define GEMM_PARA_THRESH 32768
 
 #define LOCAL_FTRACE 1
 #if LOCAL_FTRACE
@@ -36,7 +40,128 @@
 #define LFTRACE_IF(...) do{}while(0)
 #endif // LOCAL_FTRACE
 
-#define SGEMM   sgemm_
+// Around Jan. 2022, ncc-3.4.20, nlc 2.3.0,
+// SGEMM began to segfault for M==1,
+// so a workaround writes out the trivial matrix multiply.
+/// 0 : SGEMM works great
+/// 1 : safe macros
+#define SGEMM_M1_SEGFAULTS 1
+
+#if SGEMM_M1_SEGFAULTS==0 // issues ncc-3.4.20 and M==1 ???
+#define SGEMM sgemm_
+#define SGEMM_A1B0 sgemm_
+#define SGEMM_A1B1K1 sgemm_
+#define SGEMM_A1B0t sgemm_
+#define SGEMM_A1tB1 sgemm_
+#else
+#define SGEMM sgemm_ // dangerous now - require bug workaround for M=1
+#define SGEMM_A1B0   SGEMM_SAFE_A1B0
+#define SGEMM_A1B1K1 SGEMM_SAFE_A1B1K1
+#define SGEMM_A1B0t SGEMM_SAFE_A1B0t
+#define SGEMM_A1tB1 SGEMM_SAFE_A1tB1
+#endif
+
+/// A workaround for SGEMM M==1 segfaults. (circa ncc-3.4.20, Jan 2022)
+/// For alpha=1, beta=0 (main gemm calculation)
+#define SGEMM_SAFE_A1B0(TRANSA,TRANSB, N,M,K, ALPHA,A,LDA, B,LDB, BETA,C,LDC) \
+  do { \
+    if(*(M) > 1){ \
+      sgemm_(TRANSA,TRANSB, N,M,K, ALPHA,A,LDA, B,LDB, BETA,C,LDC); \
+    }else{ \
+      int const NN = *(N); \
+      /*int const MM = *(M);*/ \
+      int const KK = *(K); \
+      if(*(M) == 1 && *(K) > 1){ /* using just M==1 */ \
+        _Pragma("omp parallel if(NN * KK > 32768)") /* C99 */ \
+        for (int n=0; n < (NN); ++n) { \
+          float acc = 0.0f; \
+          for (int k=0; k < (KK); ++k) { \
+            acc += (A)[k * (NN) + n] * (B)[k]; \
+          } \
+          (C)[n] = acc; /* M==1 && beta==0.0 : no accumulation into C */ \
+        } \
+      }else{ /* M=1, K=1 */ \
+        _Pragma("omp parallel if((NN) > 32768)") \
+        for (int n=0; n < *(N); ++n) { \
+          (C)[n] = (A)[n] * (B)[0]; \
+        } \
+      } \
+    } \
+  }while(0)
+/// Backward Data also has alpha=1, beta=0, but B[] is transposed
+// XXX test with jitconv -T BackwardData
+#define SGEMM_SAFE_A1B0t(TRANSA,TRANSB, N,M,K, ALPHA,A,LDA, B,LDB, BETA,C,LDC) \
+  do { \
+    if(*(M) > 1){ \
+      sgemm_(TRANSA,TRANSB, N,M,K, ALPHA,A,LDA, B,LDB, BETA,C,LDC); \
+    }else{ \
+      /* for M=1, B is K x 1, so vector ignoring the transpose is OK */ \
+      int const NN = *(N); \
+      /*int const MM = *(M);*/ \
+      int const KK = *(K); \
+      if(*(M) == 1 && *(K) > 1){ /* using just M==1 */ \
+        _Pragma("omp parallel if(NN * KK > 32768)") /* C99 */ \
+        for (int n=0; n < (NN); ++n) { \
+          float acc = 0.0f; \
+          for (int k=0; k < (KK); ++k) { \
+            acc += (A)[k * (NN) + n] * (B)[k]; \
+          } \
+          (C)[n] = acc; /* M==1 && beta==0.0 : no accumulation into C */ \
+        } \
+      }else{ /* M=1, K=1 */ \
+        _Pragma("omp parallel if((NN) > 32768)") \
+        for (int n=0; n < *(N); ++n) { \
+          (C)[n] = (A)[n] * (B)[0]; \
+        } \
+      } \
+    } \
+  }while(0)
+/// for BackwardFilter, alpha=1, beta=1 and A is transposed
+// XXX test with jitconv -T BackwardFilter
+#define SGEMM_SAFE_A1tB1(TRANSA,TRANSB, N,M,K, ALPHA,A,LDA, B,LDB, BETA,C,LDC) \
+  do { \
+    if(*(M) > 1){ \
+      sgemm_(TRANSA,TRANSB, N,M,K, ALPHA,A,LDA, B,LDB, BETA,C,LDC); \
+    }else{ \
+      /* for M=1, A is N x K, so need A transpose wrt. Forward impl */ \
+      int const NN = *(N); \
+      int const KK = *(K); \
+      if(*(M) == 1 && *(K) > 1){ /* using just M==1 */ \
+        _Pragma("omp parallel if(NN * KK > 32768)") /* C99 */ \
+        for (int n=0; n < (NN); ++n) { \
+          float acc = 0.0f; \
+          for (int k=0; k < (KK); ++k) { \
+            acc += (A)[n * (KK) + k] * (B)[k]; \
+          } \
+          (C)[n] += acc; /* beta=1 accumulation into C */ \
+        } \
+      }else{ /* M=1, K=1 */ \
+        _Pragma("omp parallel if((NN) > 32768)") \
+        for (int n=0; n < (NN); ++n) { \
+          (C)[n] += (A)[n] * (B)[0]; /* beta=1 accum */ \
+        } \
+      } \
+    } \
+  }while(0)
+// using M==1 and K==1
+// here A[N] is 1.0
+/// workaround for M=1 bias segfault.
+/// Here K=1, alpha=1, beta=1, \b and A[] is all-1.0  (bias accumulation)
+#define SGEMM_SAFE_A1B1K1(TRANSA,TRANSB, N,M,K, ALPHA,A,LDA, B,LDB, BETA,C,LDC) \
+  do { \
+    if(1 && *(M) > 1) /* always elide? */ \
+    { \
+      sgemm_(TRANSA,TRANSB, N,M,K, ALPHA,A,LDA, B,LDB, BETA,C,LDC); \
+    }else{ \
+      int const MN = *(M) * *(N); \
+      float const B_0 = *(B);/* (B)[0] */ \
+      /* wrong output if try to parallelize? */ \
+      /* _Pragma("omp parallel if(MN > 32768)") */ \
+      for (int mn=0; mn < MN; ++mn) { \
+        (C)[mn] += B_0; \
+      } \
+    } \
+  }while(0)
 
 #if 0
 #define DBG(...) do{printf(__VA_ARGS__);fflush(stdout);}while(0)
@@ -512,18 +637,49 @@ vednnConvFwd_gemm(
         int M = outChannelGroup;
         int N = outWidth * outHeight;
         int K = inChannelGroup;
-        int LDB = inWidth * inHeight;
+        int LDA = inWidth * inHeight;
 
-        SGEMM(&NOTRANS, &NOTRANS, &N, &M, &K,
-            &FONE, (float *) &pIn[inOffset], &LDB,
+        // SGEMM failure: ncc 3.4.20 if M=1,K=1
+        // see test/covnolution_gemm.c (gemm-Ref)
+        SGEMM_A1B0(&NOTRANS, &NOTRANS, &N, &M, &K,
+            &FONE, (float *) &pIn[inOffset], &LDA,
             (float *) &pKernel[kernGroupOffset], &K,
             &FZERO, &pOut[outOffset], &N);
+#if 0 // if you have the bug, the workaround is something like this:
+        if (M>1) { // || K>1)
+          SGEMM(&NOTRANS, &NOTRANS, &N, &M, &K,
+              &FONE, (float *) &pIn[inOffset], &LDA,
+              (float *) &pKernel[kernGroupOffset], &K,
+              &FZERO, &pOut[outOffset], &N);
+        }else{
+          float const* A = (float const*)&pIn[inOffset];            // size N x K
+          float const* B = (float const*)&pKernel[kernGroupOffset]; // size K x M
+          float * C = &pOut[outOffset];                             // size N x M
+          if(M==1 && K>1){ // using just M==1
+#pragma omp parallel if(N*K>GEMM_PARA_THRESH)
+            for (int n=0; n<N; n++) {
+              float acc = 0.0f;
+              for (int k=0; k<K; k++) {
+                acc += A[k*N+n] * B[k];
+              }
+              C[n] = acc; // M==1 && beta==0.0 : no accumulation into C
+            }
+          }else{
+            // using M==1 and K==1
+            float b0 = B[0];
+#pragma omp parallel if(N>GEMM_PARA_THRESH)
+            for (int n=0; n<N; n++) {
+              C[n] = A[n] * b0;
+            }
+          }
+        }
+#endif
 
         if (pBias) {
-          SGEMM(&NOTRANS, &NOTRANS, &N, &M, &IONE,
-              &FONE, (float *) pOne, &N,
-              (float *) &pBias[biasGroupOffset], &IONE,
-              &FONE, &pOut[outOffset], &N);
+          SGEMM_A1B1K1(&NOTRANS, &NOTRANS, &N, &M, &IONE,
+              &FONE, (float *) pOne, &N,                // N x 1
+              (float *) &pBias[biasGroupOffset], &IONE, // 1 x M
+              &FONE, &pOut[outOffset], &N);             // N x M
         }
       } // group
     } // batch
@@ -554,16 +710,17 @@ vednnConvFwd_gemm(
             /*padHeight, padWidth,*/ strideHeight, strideWidth, /*dilationHeight, dilationWidth,*/
             pColBuf, getThreads());
 
-        SGEMM(&NOTRANS, &NOTRANS, &N, &M, &K,
+        // XXX test M=1 here fro blas segfault (let's assume here too)
+        SGEMM_A1B0(&NOTRANS, &NOTRANS, &N, &M, &K,
             &FONE, pColBuf, &N,
             (float *)&pKernel[kernGroupOffset], &K,
             &FZERO, &pOut[outOffset], &N);
 
         if (pBias) {
-          SGEMM(&NOTRANS, &NOTRANS, &N, &M, &IONE,
-              &FONE, (float *)pOne, &N,
-              (float *) &pBias[biasGroupOffset], &IONE,
-              &FONE, &pOut[outOffset], &N);
+          SGEMM_A1B1K1(&NOTRANS, &NOTRANS, &N, &M, &IONE,
+              &FONE, (float *) pOne, &N,                // N x 1
+              (float *) &pBias[biasGroupOffset], &IONE, // 1 x M
+              &FONE, &pOut[outOffset], &N);             // N x M
         }
       } // group
     } // batch
@@ -597,16 +754,16 @@ vednnConvFwd_gemm(
             padHeight, padWidth, strideHeight, strideWidth, dilationHeight, dilationWidth,
             pColBuf, getThreads());
 
-        SGEMM(&NOTRANS, &NOTRANS, &N, &M, &K,
+        SGEMM_A1B0(&NOTRANS, &NOTRANS, &N, &M, &K,
             &FONE, pColBuf, &N,
             (float *)&pKernel[kernGroupOffset], &K,
             &FZERO, &pOut[outOffset], &N);
 
         if (pBias) {
-          SGEMM(&NOTRANS, &NOTRANS, &N, &M, &IONE,
-              &FONE, (float *)pOne, &N,
-              (float *) &pBias[biasGroupOffset], &IONE,
-              &FONE, &pOut[outOffset], &N);
+          SGEMM_A1B1K1(&NOTRANS, &NOTRANS, &N, &M, &IONE,
+              &FONE, (float *)pOne, &N,                 // size N x 1
+              (float *) &pBias[biasGroupOffset], &IONE, // size 1 x M
+              &FONE, &pOut[outOffset], &N);             // size N x M
         }
       } // group
     } // batch
@@ -677,13 +834,13 @@ vednnConvBkD_Gemm(
       int K = gOutChannelGroup;
 
       if( no_im2col ) {
-        SGEMM(&NOTRANS, &TRANS, &N, &M, &K,
+        SGEMM_A1B0t(&NOTRANS, &TRANS, &N, &M, &K,
             &FONE, (float *) &pGradOut[gOutOffset], &N,
             (float *) &pKernel[kernGroupOffset], &M,
             &FZERO, &pGradIn[gInOffset], &N);
       }
       else {
-        SGEMM(&NOTRANS, &TRANS, &N, &M, &K,
+        SGEMM_A1B0t(&NOTRANS, &TRANS, &N, &M, &K,
             &FONE, (float *) &pGradOut[gOutOffset], &N,
             (float *) &pKernel[kernGroupOffset], &M,
             &FZERO, pColBuf, &N);
@@ -762,7 +919,7 @@ vednnConvBkF_gemm(
         int N = inChannelGroup * kernWidth * kernHeight;
         int K = outWidth * outHeight;
 
-        SGEMM(&TRANS, &NOTRANS, &N, &M, &K,
+        SGEMM_A1tB1(&TRANS, &NOTRANS, &N, &M, &K,
             &FONE,  (float*)&pIn[inOffset], &K,
             (float*)&pOut[outOffset], &K,
             &FONE, &pKernel[kernGroupOffset], &N);
@@ -777,7 +934,7 @@ vednnConvBkF_gemm(
         int N = inChannelGroup * kernWidth * kernHeight;
         int K = outWidth * outHeight;
 
-        SGEMM(&TRANS, &NOTRANS, &N, &M, &K,
+        SGEMM_A1tB1(&TRANS, &NOTRANS, &N, &M, &K,
             &FONE,  pColBuf, &K,
             (float*)&pOut[outOffset], &K,
             &FONE, &pKernel[kernGroupOffset], &N);
