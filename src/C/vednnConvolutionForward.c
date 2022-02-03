@@ -185,8 +185,19 @@ vednnConvolutionForwardChoice( VEDNN_CONVFWD_API_ARGS )
         }
         if (KER(5)) {  // d1s1pSk5
           if (OWU(128)) OMPWRAP(dil1_str1_padsame_ker5_owU128)//;
-          else if(pParamIn->height >= 5) OMPWRAP(dil1_str1_padsame_ker5)//;
-          OMPWRAP(dil1_str1_padsame)//;
+          //
+          // XXX the following change 01-29-2021 "mem error fix"
+          //     produces wrong output and even sometimes memory corruption.
+          //     Removed (perhaps revert to the memory error version?
+          //
+          //else if(pParamIn->height >= 5) OMPWRAP(dil1_str1_padsame_ker5)//;
+          //
+          //  The following is a much slower substitute, gemm seems faster.
+          //OMPWRAP(dil1_str1_padsame)//;
+          //
+          // uninvestigated (sometimes slightly faster): if (pParamIn->batch >= 4) OMPWRAP(gemm);
+          NOWRAP(gemm); // this seems to do very well (often 25% faster)
+          //
         }
         if (KER(2)) OMPWRAP(dil1_str1_padsame_ker2)//;
         OMPWRAP(dil1_str1_padsame)//;

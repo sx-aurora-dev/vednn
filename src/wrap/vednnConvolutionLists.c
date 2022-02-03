@@ -58,7 +58,11 @@ static vednnConvForwardImpls vednnConvForwardList_[] = {
     IMPL_FNS(vednnConvolutionForward_direct_dil1_str1_padsame_ker3,"cnvFwd-d1s1pSk3"),
     IMPL_WRAPNONE_FNS(Forward,dil1_str1_padsame_ker3_T,"cnvFwd-d1s1pSk3_T"),
     IMPL_FNS(vednnConvolutionForward_direct_dil1_str1_padsame_ker5_owU128,"cnvFwd-d1s1pSk5owU128"),
-    IMPL_FNS(vednnConvolutionForward_direct_dil1_str1_padsame_ker5,"cnvFwd-d1s1pSk5"),
+    //
+    // XXX 01-29-2021 commit broke this one
+    //
+    //IMPL_FNS(vednnConvolutionForward_direct_dil1_str1_padsame_ker5,"cnvFwd-d1s1pSk5"),
+    //
     IMPL_FNS(vednnConvolutionForward_direct_dil1_str1_padsame_ker2,"cnvFwd-d1s1pSk2"),
     IMPL_FNS(vednnConvolutionForward_direct_dil1_str1_padsame,"cnvFwd-d1s1pS"),
     // d1s1p0
