@@ -1,10 +1,11 @@
-
-#include "vednnConvolutionForward.h"
-#include "vednnConvolutionBackwardData.h"
-#include "vednnConvolutionBackwardFilter.h"
+// This code was a now-removed libvednn standalone-gemm convolution.
+// Moved into wrap/ library code.
+// Deprecated.
+//
+#include "direct_gendnn.h" // fwd decl
 #include "vednn2gendnn.h"
 
-#include "gemm_convolution.hpp"
+#include "detail/vconv/gemm_convolution.hpp"
 #include <assert.h>
 #include <stdio.h>
 

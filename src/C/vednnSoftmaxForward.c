@@ -4,6 +4,10 @@
 #include <float.h>
 #include <math.h>
 
+static VEDNN_SOFTMAXFWD_DECL(Fast);
+static VEDNN_SOFTMAXFWD_DECL(Accurate);
+static VEDNN_SOFTMAXFWD_DECL(Log);
+
 static inline vednnError_t
 vednnSoftmaxForward_wrapper(
     vednnSoftmaxForward_t pFunc,

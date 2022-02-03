@@ -1,3 +1,6 @@
+#
+# deprecated
+#
 OBJECTS:= # FOO.cpp.o
 CHEADERS:=
 CXXHEADERS:=
@@ -64,15 +67,15 @@ endif
 all: header_check test_mdC test_md
 	echo "DONE"
 TARGETS:=test_mdC test_md
-header_check: include
+header_check:
 	gcc -std=c11 $(INC) vednn2gendnn.h
 	gcc -std=c11 $(INC) md_util.h
-include: ../../../vconv-ve.tar.gz
-	chmod -R u+rw include lib src; rm -rf include lib src
-	tar xzf ../../../vconv-ve.tar.gz
-	chmod -R ugo-w include lib src
-	chmod ugo+rw include lib src
-	@#ls -lR include lib src
+#include: ../../../vconv-ve.tar.gz
+#	chmod -R u+rw include lib src; rm -rf include lib src
+#	tar xzf ../../../vconv-ve.tar.gz
+#	chmod -R ugo-w include lib src
+#	chmod ugo+rw include lib src
+#	@#ls -lR include lib src
 lib: |include
 src: |include
 .PHONY: unpack Makefile
@@ -88,8 +91,5 @@ test_md: test_md.cpp.o md_util.cpp.o |include # expanded functionality
 clean:
 	rm -f *.o *.lo *.a *.so a.out *.gch $(TARGETS)
 realclean: clean
-	for f in include lib src; do \
-		if [ -d "$$f" ]; then chmod -R u+rw $$f; rm -rf $$f; fi; \
-	done
 	rm -f *.log
 #last line

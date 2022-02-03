@@ -1,6 +1,6 @@
-#include "memory_desc_wrapper.hpp"
+#include "detail/vconv/memory_desc_wrapper.hpp"
 #include "md_util.h"
-#include "mkldnn_debug.h"
+#include "detail/vconv/mkldnn_debug.h"
 #include <stdio.h>
 
 namespace vconv {

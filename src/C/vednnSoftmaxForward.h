@@ -21,9 +21,11 @@ vednnError_t (*vednnSoftmaxForward_t) ( VEDNN_SOFTMAXFWD_ARGS );
 #define VEDNN_SOFTMAXFWD_DECL(IMPL) vednnError_t \
     vednnSoftmaxForward_##IMPL( VEDNN_SOFTMAXFWD_ARGS )
 
+#if 0 // these symbols are not exposed, static in .c file
 VEDNN_SOFTMAXFWD_DECL(Fast);
 VEDNN_SOFTMAXFWD_DECL(Accurate);
 VEDNN_SOFTMAXFWD_DECL(Log);
+#endif
 
 #ifdef __cplusplus
 }//extern "C"

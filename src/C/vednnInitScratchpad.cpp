@@ -27,7 +27,7 @@ unsigned int ScratchpadFloatOnes::reference_count_ = 0;
 /// \group library-wide stratchpads
 //@{
 ScratchpadShared            *scratchpadShared = nullptr;
-static thread_local ScratchpadTLS  *threadScratch = nullptr;
+thread_local ScratchpadTLS  *threadScratch = nullptr;
 ScratchpadFloatOnes         *scratchpadFloatOnes = nullptr;
 //@}
 
@@ -88,7 +88,7 @@ static void vednn_init_scratchpad_shared(size_t const bytes){
 }
 // This must be done per thread, but the threads may not exist yet (except for 'master')
 // This is internal to libvednnn.
-static void vednn_init_scratchpadTLS(){
+void vednn_init_scratchpadTLS(){
 #pragma omp parallel
     {
         threadScratch = new ScratchpadTLS();

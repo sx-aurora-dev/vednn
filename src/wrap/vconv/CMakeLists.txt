@@ -47,32 +47,66 @@ endif()
 #        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
 #        )
 #endif()
+file(GLOB_RECURSE VGEMM_HEADERS
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/detail/vgemm/*.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/detail/vgemm/*.hpp
+    )
+file(GLOB_RECURSE VGEMM_SOURCES
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/vgemm/*.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/vgemm/*.cpp
+    )
 file(GLOB_RECURSE VCONV_HEADERS
-    ${CMAKE_CURRENT_SOURCE_DIR}/include/*.h
-    ${CMAKE_CURRENT_SOURCE_DIR}/include/*.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/detail/vconv/*.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/detail/vconv/*.hpp
     )
 file(GLOB_RECURSE VCONV_SOURCES
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/*.c
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/vconv/*.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/vconv/*.cpp
     )
+file(GLOB WRAP_VCONV_HEADERS
+    ${CMAKE_CURRENT_SOURCE_DIR}/*.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/*.hpp
+    )
+file(GLOB WRAP_VCONV_SOURCES
+    ${CMAKE_CURRENT_SOURCE_DIR}/*.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp
+    )
+message(STATUS "vgemm headers ${VGEMM_HEADERS}")
+message(STATUS "vgemm sources ${VGEMM_SOURCES}")
 message(STATUS "vconv headers ${VCONV_HEADERS}")
 message(STATUS "vconv sources ${VCONV_SOURCES}")
-file(COPY ${VCONV_HEADERS} DESTINATION ${CMAKE_BINARY_DIR}/include/gen-dnn)
-# vconv headers installed at CMAKE_INSTALL_PREFIX/include/C/gen-dnn
+message(STATUS "wrap_vconv headers ${VGEMM_HEADERS}")
+message(STATUS "wrap_vconv sources ${VGEMM_SOURCES}")
+file(COPY ${WRAP_VCONV_HEADERS} DESTINATION ${CMAKE_BINARY_DIR}/include/wrap/)
+file(COPY ${VGEMM_HEADERS} DESTINATION ${CMAKE_BINARY_DIR}/include/wrap/detail/vgemm)
+file(COPY ${VCONV_HEADERS} DESTINATION ${CMAKE_BINARY_DIR}/include/wrap/detail/vconv)
+# wrap_vconv headers installed at CMAKE_INSTALL_PREFIX/include/wrap/
 
-#include_directories("../wrap" "../.." "../../C" "./include/gen-dnn/vconv" "./include/gen-dnn/vgemm" "${NLCDIR}/include")
-include_directories("../wrap" "../.." "../../C" "${CMAKE_BINARY_DIR}/include" "${NLCDIR}/include")
+#include_directories("../wrap" "../.." "../../C" "./include/vgemm" "./include/gendnn/vconv" "${NLCDIR}/include")
+#include_directories("../wrap" "../.." "../../C" "${CMAKE_BINARY_DIR}/include/" "${NLCDIR}/include")
+include_directories(
+    #"../wrap"
+    "."
+    "../.."
+    "../../C"
+    #"${CMAKE_BINARY_DIR}/include"
+    "${CMAKE_BINARY_DIR}/include/wrap"
+    "${CMAKE_BINARY_DIR}/include/wrap/detail/vgemm/"
+    "${CMAKE_BINARY_DIR}/include/wrap/detail/vconv"
+    "${NLCDIR}/include")
 
 # The Makefile has the best set of compilation flags
 add_library(vconv_code OBJECT
     direct_gendnn.cpp
     md_util.cpp
+    ${VGEMM_SOURCES}
     ${VCONV_SOURCES}
+    ${WRAP_VCONV_SOURCES}
     )
 # Oh, need to run vconv_unPack at CMAKE-TIME [not build-time] to get file globs correct
 #add_dependencies(vconv_code vconv_unPack)
 
-message(STATUS "src/C/vconv/ LIBWRAP ${LIBWRAP}")
+#message(STATUS "src/C/vconv/ LIBWRAP ${LIBWRAP}")
 #target_link_libraries(vconv_code cblas blas)
 
 # libvednnx iterator exposes low-level calls (with different parameter ordering)
@@ -83,7 +117,7 @@ message(STATUS "src/C/vconv/ LIBWRAP ${LIBWRAP}")
 install(FILES
     vednn2gendnn.h
     md_util.h
-    ${VCONV_HEADERS}
-    DESTINATION include/C/gen-dnn
+    ${WRAP_VCONV_HEADERS}
+    DESTINATION include/wrap
     )
 # vim: et ts=4 sw=4 ai

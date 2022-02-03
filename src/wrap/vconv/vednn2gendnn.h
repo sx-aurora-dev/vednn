@@ -1,7 +1,7 @@
 #ifndef VEDNN2GENDNN_H
 #define VEDNN2GENDNN_H
 #include "vednn.h"
-#include "mkldnn_types.h"
+#include "detail/vconv/mkldnn_types.h"
 
 #if defined(__cplusplus)
 extern "C" {

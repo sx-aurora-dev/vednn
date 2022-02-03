@@ -44,7 +44,8 @@ TARGETS:=vejit-unpack
 # x86 targets now optional : g++ headers not always installed (ds08)
 #TARGETS+=cjitConv00-x86 cjitConv01-x86
 
-CXXSTD=-gnu++17
+#CXXSTD=-gnu++17
+CXXSTD=-std=gnu++17
 
 ifeq ($(COMPILE_TYPE),ncc)
 TARGETS+=vednn_conv_test vednn_linear_test vednn_pool_test
@@ -182,9 +183,15 @@ CLANG_FLAGS += -Ivejit/include
 #LDLIBS	+= -L./vejit/lib -Wl,-rpath,'$(mkfile_dir)vejit/lib' -ljit1
 
 # gnu++ is needed for nc++ extended asm
-CXXFLAGS:=$(CFLAGS) -std=gnu++17
+CXXFLAGS:=$(CFLAGS)
 # NEW: nc++ 3.1.23 include file xstring not found!  (but ok with gnu++14)
 CXXFLAGS+=${CXXSTD}# override
+CXXSTD:=
+
+CFLAGS:=$(CFLAGS)     -Wall
+CXXFLAGS:=$(CXXFLAGS) -Wall
+CFLAGS:=$(CFLAGS)     -Werror
+CXXFLAGS:=$(CXXFLAGS) -Werror
 
 CJITDEF=-DVEDNNX_DIR="$(abspath $(VEDNNX_DIR))" -DVEJIT_DIR="$(mkfile_dir)vejit"
 CJIT_OPTS:=-I$(VEDNNX_DIR)/include -I$(VJINC) $(CJITDEF)
@@ -207,6 +214,7 @@ Hello:
 	@echo "CLANG_HAS_VE  = ${CLANG_HAS_VE}"
 	@echo "TARGETS       = ${TARGETS}"
 	@echo "NCC_VERSION   = ${NCC_VERSION}"
+	@echo "CXXFLAGS      = ${CXXFLAGS}"
 	@echo "CXXSTD        = ${CXXSTD}"
 	-if [ -d "${VEDNN_DIR}"  ]; then ls -l "${VEDNN_DIR}"/* ; fi
 	-if [ -d "${VEDNNX_DIR}" ]; then ls -l "${VEDNNX_DIR}"/*; fi
@@ -609,7 +617,7 @@ jitconv.o: jitconv.cpp conv_test_param.h
 	$(CXX) ${CXXFLAGS} ${CXXSTD} -Wall -Werror -c $< -o $@
 
 # local override of libvednn decision tree[s]?
-LOCALIMPLS+=choose_cnvfwd.o
+#LOCALIMPLS+=choose_cnvfwd.o
 
 choose_cnvfwd.o: choose_cnvfwd.c
 	$(CC) ${CFLAGS} -E $< -o choose_cnvfwd.i

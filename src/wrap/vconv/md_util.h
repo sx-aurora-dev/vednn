@@ -1,6 +1,6 @@
 #ifndef PRINT_H
 #define PRINT_H
-#include "mkldnn_types.h"
+#include "detail/vconv/mkldnn_types.h"
 
 #ifdef __cplusplus
 extern "C" {

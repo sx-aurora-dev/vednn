@@ -10,6 +10,7 @@
 #include "vechash.hpp"
 
 #include "testdata.hpp"
+#include "timer.h"
 
 #include <assert.h>
 #include <unistd.h>
@@ -17,7 +18,7 @@
 #include <sys/resource.h> // getrlimit, setrlimit
 
 #include <cmath>
-#include <cctype>
+#include <cctype>           // tooupper, ...
 #include <iostream>
 #include <vector>
 
@@ -35,6 +36,21 @@ static inline int check_control_c() {
     return control_c_flag;
 }
 }
+
+struct JitconvDo {
+    JitconvDo()
+        : doRef(1), doStd(1), doItr(1), doJit(1), doJitunrolls(1),
+        filter_layout(VEDNN_FILTER_LAYOUT_NCHW)
+    {}
+    int doRef; // do ref gemm calc
+    int doStd; // do libvednn default calc
+    int doItr; // do libvednnx "all" calc
+    int doJit; // (for forward)
+    int doJitunrolls; // jit unroll variant?
+    //... according to "-o[R|S|I|J]" default -oRSIJ
+    filterLayout_t filter_layout; // VEDNN_FILTER_LAYOUT_[NCHW|HWCN]
+    // ... according to "-f filter_[nchw|hwcn]" argument
+};
 
 #if 0 // unused
 static std::string getPath() {
@@ -152,13 +168,16 @@ static CjitSyms const* getForwardJitSymbols(struct param const* pNetwork, int nE
     return allsyms;
 }
 
-void testForward(struct param *pNetwork, int nEntry, double HZ, int flagBias, int flagCSV, int reps, filterLayout_t filter_layout)
+void testForward(struct param *pNetwork, int nEntry, double HZ, int flagBias, int flagCSV, int reps, JitconvDo const& doOpt)
 {
-    static int const doRef = 1; // do ref gemm calc
-    static int const doStd = 1; // do libvednn default calc
-    static int const doItr = 1; // do libvednnx "all" calc
-    static int const doJit = 1;
-    static int const doJitunrolls = 1; // clang now has issues with many unrollings (_ve_lvl)
+    // extract common test run options
+    int const doRef = doOpt.doRef;
+    int const doStd = doOpt.doStd;
+    int const doItr = doOpt.doItr;
+    int const doJit = doOpt.doJit;
+    int const doJitunrolls = doOpt.doJitunrolls;
+    filterLayout_t const filter_layout = doOpt.filter_layout;
+
     int t;
     typedef struct testconvForward conv;
     printf("Beginning %s\n",__PRETTY_FUNCTION__);
@@ -682,11 +701,16 @@ void testForward(struct param *pNetwork, int nEntry, double HZ, int flagBias, in
     cjitSyms_free(allsyms); allsyms=nullptr;
 }
 
-void testBackwardData(struct param *pNetwork, int nEntry, double HZ, int flagCSV, int reps, filterLayout_t filter_layout)
+void testBackwardData(struct param *pNetwork, int nEntry, double HZ, int flagCSV, int reps, JitconvDo const& doOpt)
 {
-    static int const doRef = 1; // do ref gemm calc
-    static int const doStd = 1; // do libvednn default calc
-    static int const doItr = 1; // do libvednnx "all" calc
+    // extract common test run options
+    int const doRef = doOpt.doRef;
+    int const doStd = doOpt.doStd;
+    int const doItr = doOpt.doItr;
+    //int const doJit = doOpt.doJit;
+    //int const doJitunrolls = doOpt.doJitunrolls;
+    filterLayout_t const filter_layout = doOpt.filter_layout;
+
     int t;
     typedef struct testconvBackwardData conv;
     TestDataRepo tdRepo(HZ);
@@ -964,8 +988,16 @@ void testBackwardData(struct param *pNetwork, int nEntry, double HZ, int flagCSV
 #endif
 }
 
-void testBackwardFilter(struct param *pNetwork, int nEntry, double HZ, int flagCSV, int reps, filterLayout_t filter_layout)
+void testBackwardFilter(struct param *pNetwork, int nEntry, double HZ, int flagCSV, int reps, JitconvDo const& doOpt)
 {
+    // extract common test run options -- this code has not been revised!
+    //int const doRef = doOpt.doRef;
+    //int const doStd = doOpt.doStd;
+    //int const doItr = doOpt.doItr;
+    //int const doJit = doOpt.doJit;
+    //int const doJitunrolls = doOpt.doJitunrolls;
+    filterLayout_t const filter_layout = doOpt.filter_layout;
+
     int t;
     typedef struct testconvBackwardFilter conv;
     conv *pConvBuff = (conv *) XMALLOC(nEntry * sizeof(conv));
@@ -1083,8 +1115,8 @@ static void help(){
             "\n   -k        enable cacheKiller before every timed call"
             "\n   -f STRING filter layout: [filter_nchw] filter_hwcn"
             "\n               Note: current JIT impls assume filter_nchw (iohw) kernel data"
-            //"\n   -j        disallow jit impls"
-            //"\n   -J        allow jit impls [default]"
+            "\n   -o CHARS  doRef,doStd,doItr,doJit,doJitunroll options"
+            "\n               default -o RSIJU (run all types of impls)"
             //"\n   -I        name1[,name2,...] list of allowed impl names"
             //"\n   -V        print version, standard/jit impl names ??
             "\n OVERRIDES: non-option as TAG[=]NUMBER...  Examples: mb=64 kh3kw3 ih32iw=32"
@@ -1187,6 +1219,7 @@ int main(int argc, char **argv)
     int threads      = 1 ; /* set to -ve to repeat for 0..8 threads */
     char m_for_mkldnn = 'v';
     filterLayout_t filter_layout = VEDNN_FILTER_LAYOUT_NCHW;
+    JitconvDo doOpt;
 
     const rlim_t kStackSize = 16 * 1024 * 1024;   // min stack size = 16 MB
     struct rlimit rl;
@@ -1237,7 +1270,7 @@ int main(int argc, char **argv)
         .pName          = "N" // set to "Y" if maybe found some overrides
     };
     vector<string> ldlibs; // load libraries [if problems, report and continue]
-    while((opt = getopt(argc, argv, "p:M:CH:T:t:r:l:S:kf:")) != -1) {
+    while((opt = getopt(argc, argv, "p:M:CH:T:t:r:l:S:kf:o:")) != -1) {
         switch (opt) {
         case 'M':
             m_for_mkldnn = 'm'; // fall-through
@@ -1266,7 +1299,11 @@ int main(int argc, char **argv)
                     }
                 }
                 if (! found )  {
-                    fprintf(stderr, "Invalid test type.\n");
+                    fprintf(stderr, "Invalid test type.\n  -T options:");
+                    for (int t=0; t<sizeof(tests)/sizeof(tests[0]); ++t) {
+                        fprintf(stderr, " %s", tests[t].pName);
+                    }
+                    fprintf(stderr,"\n");
                     exit(1);
                 }
             }
@@ -1285,6 +1322,33 @@ int main(int argc, char **argv)
                     fprintf(stderr, "Invalid filter layout.\n");
                     exit(1);
                 }
+            }
+        case 'o' :
+            {
+                int doRef = 0;
+                int doStd = 0;
+                int doItr = 0;
+                int doJit = 0;
+                int doJitunrolls = 0;
+                int o_err = 0;
+                for (int i=0; optarg[i] != '\0'; ++i){
+                   char const o=toupper(optarg[i]);
+                   if (o=='R') doRef=1;
+                   else if (o=='S') doStd=1;
+                   else if (o=='I') doItr=1;
+                   else if (o=='J') doJit=1;
+                   else if (o=='U') doJitunrolls=1;
+                   else ++o_err;
+                }
+                if(o_err){
+                    fprintf(stderr, "Invalid -o [R|S|I|J|U]... setting");
+                    exit(1);
+                }
+                doOpt.doRef = doRef;;
+                doOpt.doStd = doStd;
+                doOpt.doItr = doItr;
+                doOpt.doJit = doJit;
+                doOpt.doJitunrolls = doJitunrolls;
             }
         case 't':
             threads = atof(optarg);
@@ -1320,6 +1384,8 @@ int main(int argc, char **argv)
         fprintf(stderr, "Unexpected arguments\n");
         exit(1);
     }
+
+    doOpt.filter_layout = filter_layout;
     if ( pParamPath == NULL ) {
         //pParamPath = "./params/conv/alexnet.txt";
         pParamPath = default_parameter_file;
@@ -1430,16 +1496,16 @@ int main(int argc, char **argv)
 #endif
         switch(testtype) {
         case CONV_TEST_FORWARD :
-            testForward(pParams, nParams, HZ, 0, flagCSV, reps, filter_layout);
+            testForward(pParams, nParams, HZ, 0, flagCSV, reps, doOpt);
             break ;
         case CONV_TEST_FORWARD_ADDBIAS :
-            testForward(pParams, nParams, HZ, 1, flagCSV, reps, filter_layout);
+            testForward(pParams, nParams, HZ, 1, flagCSV, reps, doOpt);
             break ;
         case CONV_TEST_BACKWARD_DATA :
-            testBackwardData(pParams, nParams, HZ, flagCSV, reps, filter_layout);
+            testBackwardData(pParams, nParams, HZ, flagCSV, reps, doOpt);
             break ;
         case CONV_TEST_BACKWARD_FILTER :
-            testBackwardFilter(pParams, nParams, HZ, flagCSV, reps, filter_layout);
+            testBackwardFilter(pParams, nParams, HZ, flagCSV, reps, doOpt);
             break ;
         default :
             break ;
