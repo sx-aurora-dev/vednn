@@ -100,14 +100,23 @@ vednnError_t vednnConvolutionBackwardData(
         else if (KER(1)) OMPWRAP(dil1_str1_padsame_ker1);
         else OMPWRAP(dil1_str1_padsame);
       }
-      else if (PAD(0) && KER(3)  && IWU(256)
+      else if (PAD(0) && KER(3)  // && IWU(256) // XXX removed for now
                && (pParamGradIn->width & 0x01) == 0
                && (pParamGradOut->width & 0x01) == 0
                && (((uint64_t)pDataGradIn) & 0x07) == 0
-               && (((uint64_t)pDataGradOut) & 0x07) == 0 )
+               && (((uint64_t)pDataGradOut) & 0x07) == 0
+               && IWU(30) // XXX iw2XU256 wrong results... Feb 2022
+              )
       {
-        if (IWU(32)) OMPWRAP(dil1_str1_pad0_ker3_iw2XU32_ow2X_ioaligned);
-        else /*   */ OMPWRAP(dil1_str1_pad0_ker3_iw2XU256_ow2X_ioaligned);
+        //
+        // XXX U32 found wrong results for iw32, ok for iw30
+        // XXX U256 removed Feb 2022 (wrong results, always)
+        //if (IWU(32)) OMPWRAP(dil1_str1_pad0_ker3_iw2XU32_ow2X_ioaligned);
+        //else /*   */ OMPWRAP(dil1_str1_pad0_ker3_iw2XU256_ow2X_ioaligned);
+        //
+        // instead, only allowing this option (with "U30" actually)
+        //
+        OMPWRAP(dil1_str1_pad0_ker3_iw2XU32_ow2X_ioaligned);
       }
       else if (IWU(128))
       {
