@@ -148,7 +148,8 @@ FWD_FN_OK_LIKE(dil1_str1_pad0_ker4_iwU256, dil1_str1_pad0,
         && pParamIn->width <= 256);
 FWD_FN_OK_LIKE(dil1_str1_pad0_ker3_iw2XU256_ow2X_ioaligned, dil1_str1_pad0,
         pParamKernel->width == 3 && pParamKernel->height == 3
-        && (pParamOut->width <= 256)
+        // should impl name change to reflect "correctness limit"? XXX
+        && (pParamOut->width <= 256) /* actual correctness limit XXX */
         && (pParamIn->width  & 0x1) == 0 /*&& (((uint64_t)pDataIn)  & 0x7) == 0*/
         && (pParamOut->width & 0x1) == 0 /*&& (((uint64_t)pDataOut) & 0x7) == 0*/ );
 FWD_RT_OK(vednnConvolutionForward_direct_dil1_str1_pad0_ker3_iw2XU256_ow2X_ioaligned)

@@ -208,7 +208,11 @@ vednnConvolutionForwardChoice( VEDNN_CONVFWD_API_ARGS )
       { // d1p0 and oh expected value
         if (STR(1))
         { // d1s1p0
-          if (KER(3) && IWU(256)
+          if (KER(3) // && IWU(256) // XXX original concords with impl name
+              // XXX but actually it seems the "correctly able to run" condition is
+              //     (though often the ioaligned may not be fastest, even though code
+              //      looks good.  If many channels, often 2x slower).
+              && OWU(256)
               && (pParamIn->width & 0x1) == 0  && (((uint64_t)pDataIn) & 0x7) == 0
               && (pParamOut->width & 0x1) == 0 && (((uint64_t)pDataOut) & 0x7) == 0 )
             OMPWRAP(dil1_str1_pad0_ker3_iw2XU256_ow2X_ioaligned)//;
