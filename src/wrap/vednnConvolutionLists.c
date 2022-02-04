@@ -137,10 +137,18 @@ static vednnConvBackwardDataImpls vednnConvBackwardDataList_[] = {
     IMPL_FNS(vednnConvolutionBackwardData_direct_dil1_str1_padsame_ker1,"cnvBkD-s1-k1"),
     IMPL_FNS(vednnConvolutionBackwardData_direct_dil1_str1_padsame_ker2,"cnvBkD-s1pS-k2"),
     // k3
+    // modified to NOT include iw==32 in 'ok' function due to observed incorrect output
+    // during test/ioaligned3.test
     IMPL_RTFNS(vednnConvolutionBackwardData_direct_dil1_str1_pad0_ker3_iw2XU32_ow2X_ioaligned,
             "cnvBkD-d1s1p0k3iw2XU32_ow2X_ioaligned"),
-    IMPL_RTFNS(vednnConvolutionBackwardData_direct_dil1_str1_pad0_ker3_iw2XU256_ow2X_ioaligned,
-            "cnvBkD-d1s1p0k3iw2XU256_ow2X_ioaligned"),
+    //
+    // XXX removed - wrong results as per test/ioalign3.test (U32 variant seems fine)
+    // produces NaNs
+    //
+    //IMPL_RTFNS(vednnConvolutionBackwardData_direct_dil1_str1_pad0_ker3_iw2XU256_ow2X_ioaligned,
+    //        "cnvBkD-d1s1p0k3iw2XU256_ow2X_ioaligned"),
+    // This one should be fixed up, because it is potentially quite fast!
+    //
     IMPL_FNS(vednnConvolutionBackwardData_direct_dil1_str2_pad1_ker3_iwU256,"cnvBkD-d1s2p1-k3-iwU256"),
     IMPL_FNS(vednnConvolutionBackwardData_direct_dil1_str2_ker3_iwU256,"cnvBkD-d1s2-k3-iwU256"),
     IMPL_FNS(vednnConvolutionBackwardData_direct_dil1_str1_pad0_ker3_iwU128,"cnvBkD-d1s1p0k3_iwU128"),
@@ -162,12 +170,14 @@ static vednnConvBackwardDataImpls vednnConvBackwardDataList_[] = {
     IMPL_FNS(vednnConvolutionBackwardData_direct_iwU128,"cnvBkD-iwU128"),
     IMPL_FNS(vednnConvolutionBackwardData_direct_default,"cnvBkD-def"),
     //
-    // XXX removed: sometimes wrong output
+    // XXX removed: sometimes wrong output "Needs investigation"
+    //     but the ref code seems OK -- maybe a transcription error for libveddn code?
+    //                               -- or a threading issue.
     //
     //IMPL_WRAPNONE_FNS(BackwardData, gemm,"cnvBkD-gemm_T"), // sgemm internal threading
+    //IMPL_FNS(vednnConvolutionBackwardData_direct_gemm,"cnvBkD-gemm"), // minibatch threading
     //
     //
-    IMPL_FNS(vednnConvolutionBackwardData_direct_gemm,"cnvBkD-gemm"), // minibatch threading
     // extras...
     //IMPL_FNS(vednnConvolutionBackwardData_direct_default2,"cnvBkD-def2"),
     //IMPL_FNS(vednnConvolutionBackwardData_direct_gendnn,"cnvBkD-gendnn"), // check if implemented XXX

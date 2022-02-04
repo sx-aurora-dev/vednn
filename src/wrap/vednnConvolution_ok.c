@@ -333,14 +333,22 @@ BKWD_FN_OK_LIKE(dil1_str1_pad0_ker3_iw2XU256_ow2X_ioaligned, dil1_str1,
         PAD(0) && KER(3) && IWU(256) /* TODO check output size correct */
         && (pParamGradIn->width & 0x01) == 0
         && (pParamGradOut->width & 0x01) == 0
-        /*&& (((uint64_t)pDataGradIn) & 0x07) == 0*/
+        /*&& (((uint64_t)pDataGradIn) & 0x07) == 0*/ // this is a runtime check
         /*&& (((uint64_t)pDataGradOut) & 0x07) == 0*/
         );
 BKWD_RT_OK(vednnConvolutionBackwardData_direct_dil1_str1_pad0_ker3_iw2XU32_ow2X_ioaligned)
     CHK2_ALIGN8(pDataGradIn,pDataGradOut);
 BKWD_FN_OK_LIKE(dil1_str1_pad0_ker3_iw2XU32_ow2X_ioaligned,
         dil1_str1_pad0_ker3_iw2XU256_ow2X_ioaligned,
-        IWU(32));
+        PAD(0) && KER(3)
+        && (pParamGradIn->width & 0x01) == 0
+        && (pParamGradOut->width & 0x01) == 0
+        //
+        // && IWU(32) // original
+        && IWU(30) /* XXX TODO why doesn't original IWU(32) work? */
+        // ex. mb8g8_ic8ih512iw32_oc8oh510ow30_kh3 in test/ioaligned3.test gives:
+        // I cnvBkD-d1s1p0k3iw2XU32_ow2X_ioaligned  |    1x     0.660 t1 ~0.1280  26.70G k3M1K1-130
+        );
 
 #undef OWU
 #undef IWU
