@@ -290,7 +290,7 @@ vednnError_t vednnConvolutionForwardAddBias( VEDNN_CONVFWD_API_ARGS )
   vednnError_t rc = c.rc; // initial value only
   if (rc == VEDNN_SUCCESS) { // 
       // debug...
-      fprintf(stderr, " cnvFwd-def=%s\n", c.impl); fflush(stderr);
+      //fprintf(stderr, " cnvFwd-def=%s\n", c.impl); fflush(stderr);
       assert( c.pFunc != NULL );
 
       // ftrace according to compile flags
