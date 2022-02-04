@@ -810,12 +810,32 @@ vednnConvBkD_Gemm(
   int gOutChannelGroup = gOutChannel  / group;
   int gInChannelGroup  = gInChannel / group;
 
+  int no_im2col = (kernWidth == 1 && kernHeight == 1 && strideWidth == 1 && strideHeight == 1 && padWidth == 0 && padHeight == 0);
+  //chkThreads();
+
+  float * transformed_filter = NULL ;
+  if( pParamKernel->layout == VEDNN_FILTER_LAYOUT_HWCN ) { // only support group=1
+
+    const int N = gOutChannel ;
+    const int C = gInChannel ;
+    const int H = kernHeight ;
+    const int W = kernWidth ;
+
+    float * filter = (float *) pDataKernel ;
+    transformed_filter = (float *) malloc(sizeof(float)*N*C*H*W) ;
+#pragma omp parallel for
+    for(int n=0; n<N ; n++) {
+      for(int c=0; c<C ; c++) {
+        for(int hw=0; hw<H*W ; hw++) {
+          transformed_filter[((n*C+c)*H)*W+hw] = filter[((hw)*C+c)*N+n] ;
+        }
+      }
+    }
+  }
+
   const float * restrict pGradOut = (float const*)pDataGradOut;
   const float * restrict pKernel  = (float const*)pDataKernel;
   float * restrict pGradIn  = (float*)pDataGradIn;
-
-  int no_im2col = (kernWidth == 1 && kernHeight == 1 && strideWidth == 1 && strideHeight == 1 && padWidth == 0 && padHeight == 0);
-  //chkThreads();
 
   for (n = 0; n < batch; n++) { // this->num_
     int gOutBatchOffset  = n * gOutChannel  * gOutWidth  * gOutHeight;
@@ -852,6 +872,8 @@ vednnConvBkD_Gemm(
       }
     } // group
   } // batch
+
+  if( transformed_filter != NULL ) free(transformed_filter) ;
 
   LFTRACE_END(ftrace_impl);
   return VEDNN_SUCCESS;
@@ -895,12 +917,24 @@ vednnConvBkF_gemm(
   int inChannelGroup  = inChannel  / group;   // pParamKernel->inChannel
   int outChannelGroup = outChannel / group;   // pParamKernel->outChannel
 
+  int no_im2col = (kernWidth == 1 && kernHeight == 1 && strideWidth == 1 && strideHeight == 1 && padWidth == 0 && padHeight == 0);
+  //chkThreads();
+
+  float * transformed_filter = NULL ;
+  if( pParamGradKernel->layout == VEDNN_FILTER_LAYOUT_HWCN ) { // only support group=1
+    const int N = outChannel ;
+    const int C = inChannel ;
+    const int H = kernHeight ;
+    const int W = kernWidth ;
+
+    transformed_filter = (float *) malloc(sizeof(float)*N*C*H*W) ;
+#pragma omp parallel for
+    for(int i=0; i<N*C*H*W; i++) transformed_filter[i] = 0.f ;
+  }
+
   const float * restrict pIn     = (float const*)pDataIn;
   const float * restrict pOut    = (float const*)pDataGradOut;
   float * restrict pKernel       = (float*)pDataGradKernel ;
-
-  int no_im2col = (kernWidth == 1 && kernHeight == 1 && strideWidth == 1 && strideHeight == 1 && padWidth == 0 && padHeight == 0);
-  //chkThreads();
 
   for (n = 0; n < batch; n++) { // this->num_
     int inBatchOffset  = n * inChannel  * inWidth  * inHeight;
@@ -941,6 +975,25 @@ vednnConvBkF_gemm(
       }
     } // group
   } // batch
+
+  if( transformed_filter != NULL ) {
+    const int N = outChannel ;
+    const int C = inChannel ;
+    const int H = kernHeight ;
+    const int W = kernWidth ;
+
+    float * filter = (float *) pDataGradKernel ;
+#pragma omp parallel for
+    for(int n=0; n<N ; n++) {
+      for(int c=0; c<C ; c++) {
+        for(int hw=0; hw<H*W ; hw++) {
+          filter[((hw)*C+c)*N+n] += transformed_filter[((n*C+c)*H)*W+hw] ;
+        }
+      }
+    }
+
+    free(transformed_filter) ;
+  }
 
   LFTRACE_END(ftrace_impl);
   return VEDNN_SUCCESS;
@@ -1014,6 +1067,8 @@ vednnError_t vednnConvolutionForward_direct_gemm(VEDNN_CONVFWD_ARGS)
  *   allowing sgemm/blas to use internal threads.
  *
  * \note a third option has "_T" kernels that thread via both \c mb and \c g.
+ *
+ * \note correctness issues! review nested threading.
  */
 vednnError_t vednnConvolutionForward_direct_gemm_mb(VEDNN_CONVFWD_ARGS)
     //const vednnTensorParam_t * restrict         pParamIn,

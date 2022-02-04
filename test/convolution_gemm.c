@@ -111,8 +111,32 @@
   }while(0)
 /// for BackwardFilter, alpha=1, beta=1 and A is transposed
 // XXX test with jitconv -T BackwardFilter
+// try only a single omp || ?
+// needs testing of ALL impls (update jitconv testBackwardFilter!!!)
+#define SGEMM_SAFE_A1tB1_0(TRANSA,TRANSB, N,M,K, ALPHA,A,LDA, B,LDB, BETA,C,LDC) \
+  do { \
+    /*printf(" A1tB1 N=%d M=%d K=%d\n",*(N),*(M),*(K)); fflush(stdout);*/ \
+    if(*(M) > 1){ \
+      sgemm_(TRANSA,TRANSB, N,M,K, ALPHA,A,LDA, B,LDB, BETA,C,LDC); \
+    }else{ \
+      /* for M=1, A is N x K, so need A transpose wrt. Forward impl */ \
+      int const NN = *(N); \
+      int const KK = *(K); \
+      int const NNKK = NN*KK; \
+      /* M==1, any K */ \
+      _Pragma("omp parallel if(NNKK > 32768)") /* C99 */ \
+      for (int n=0; n < (NN); ++n) { \
+        float acc = 0.0f; \
+        for (int k=0; k < (KK); ++k) { \
+          acc += (A)[n * (KK) + k] * (B)[k]; \
+        } \
+        (C)[n] += acc; /* beta=1 accumulation into C */ \
+      } \
+    } \
+  }while(0)
 #define SGEMM_SAFE_A1tB1(TRANSA,TRANSB, N,M,K, ALPHA,A,LDA, B,LDB, BETA,C,LDC) \
   do { \
+    /*printf(" A1tB1 N=%d M=%d K=%d\n",*(N),*(M),*(K)); fflush(stdout);*/ \
     if(*(M) > 1){ \
       sgemm_(TRANSA,TRANSB, N,M,K, ALPHA,A,LDA, B,LDB, BETA,C,LDC); \
     }else{ \
@@ -120,7 +144,7 @@
       int const NN = *(N); \
       int const KK = *(K); \
       if(*(M) == 1 && *(K) > 1){ /* using just M==1 */ \
-        _Pragma("omp parallel if(NN * KK > 32768)") /* C99 */ \
+        /*_Pragma("omp parallel if(NN * KK > 32768)")*/ /* C99 */ \
         for (int n=0; n < (NN); ++n) { \
           float acc = 0.0f; \
           for (int k=0; k < (KK); ++k) { \
@@ -129,7 +153,7 @@
           (C)[n] += acc; /* beta=1 accumulation into C */ \
         } \
       }else{ /* M=1, K=1 */ \
-        _Pragma("omp parallel if((NN) > 32768)") \
+        /*_Pragma("omp parallel if((NN) > 32768)")*/ \
         for (int n=0; n < (NN); ++n) { \
           (C)[n] += (A)[n] * (B)[0]; /* beta=1 accum */ \
         } \

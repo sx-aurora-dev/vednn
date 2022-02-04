@@ -527,6 +527,7 @@ testconvBackwardFilter_refcalcs( struct testconvBackwardFilter *pConvArray, int 
     FTRACE_BEGIN(ref_all_region);
     for (int i=0; i<nEntry; i++) {
         struct testconvBackwardFilter *pConv = &pConvArray[i];
+        printf(" refcalc %s\n", pConvArray[i].region); fflush(stdout);
         FTRACE_BEGIN(ref_regions[i].name);
         // Convolution
         rv = convolution_backward_filter_gemm(pConv->pParamIn, pConv->pDataIn,

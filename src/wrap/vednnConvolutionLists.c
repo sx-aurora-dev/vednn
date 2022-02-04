@@ -89,7 +89,12 @@ static vednnConvForwardImpls vednnConvForwardList_[] = {
     IMPL_FNS(vednnConvolutionForward_direct_default,"cnvFwd-def"),
     // customizations (stable, working, but win in isolated circumstances)
     //IMPL_WRAPNONE_EASY_FNS(vednnConvolutionForward_direct_gemm,"cnvFwd-gemm"),
-    IMPL_FNS(vednnConvolutionForward_direct_gemm_mb,"cnvFwd-gemm_mb"), // minibatch threading
+    //
+    // XXX sometimes wrong output, Jan 2022
+    //
+    //IMPL_FNS(vednnConvolutionForward_direct_gemm_mb,"cnvFwd-gemm_mb"), // minibatch threading
+    //
+    //
     IMPL_WRAPNONE_FNS(Forward, gemm,"cnvFwd-gemm"), // sgemm internal threading
     // WIP 
     //IMPL_WRAPNONE_EASY_FNS(vednnConvolutionForward_direct_gendnn,"cnvFwd-gendnn"), // scratchpad issues?
@@ -156,7 +161,12 @@ static vednnConvBackwardDataImpls vednnConvBackwardDataList_[] = {
     IMPL_FNS(vednnConvolutionBackwardData_direct_dil1_str1,"cnvBkD-d1s1"),
     IMPL_FNS(vednnConvolutionBackwardData_direct_iwU128,"cnvBkD-iwU128"),
     IMPL_FNS(vednnConvolutionBackwardData_direct_default,"cnvBkD-def"),
-    IMPL_WRAPNONE_FNS(BackwardData, gemm,"cnvBkD-gemm_T"), // sgemm internal threading
+    //
+    // XXX removed: sometimes wrong output
+    //
+    //IMPL_WRAPNONE_FNS(BackwardData, gemm,"cnvBkD-gemm_T"), // sgemm internal threading
+    //
+    //
     IMPL_FNS(vednnConvolutionBackwardData_direct_gemm,"cnvBkD-gemm"), // minibatch threading
     // extras...
     //IMPL_FNS(vednnConvolutionBackwardData_direct_default2,"cnvBkD-def2"),
