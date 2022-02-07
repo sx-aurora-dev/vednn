@@ -29,7 +29,7 @@ myfile_path:=$(abspath $(lastword $(MAKEFILE_LIST)))
 myfile_dir:=$(dir $(myfile_path))
 MAKE_UNPACK:=$(MAKE) -C $(myfile_dir) -f $(myfile_path)
 
-VEDNN_SUBDIR:=../install
+VEDNN_SUBDIR:=../build
 # Default to "left-over" build directories (historical default)
 # If you REMOVE the tarballs, we'll try an existing build into ../install :
 # realpath would require dir to exist; so use abspath
