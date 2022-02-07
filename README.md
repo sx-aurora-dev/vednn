@@ -65,8 +65,10 @@ $ ftrace
 ### jit (testing only)
 - in test/ directory, extra targets use Makefile.big to build jitconv (main test program)
 - When you update vejit.tar.gz (a product of the jit support project),
-  - `export CC=/opt/nec/ve/bin/ncc CXX=/opt/nec/ve/bin/nc++`
-  - `cd test && make -f Makefile.big vejit-unpack` will install it under test/vejit/
-  - `export VEDNN_DIR=../build`
-  - `make -f Makefile.big`
-
+```
+# make sure ncc, nc++ are in the $PATH
+export CC=ncc CXX=nc++
+cd test
+make -f Makefile.big vejit-unpack      # will install it under test/vejit/
+make -f Makefile.big VEDNN_DIR=../build
+```
