@@ -5,6 +5,7 @@ llvm is used to build vednn.
 Install llvm for VE from [[https://github.com/sx-aurora-dev/llvm-project]].
 
 ## Build
+```
 $ mkdir build
 $ cd build
 $ cmake -DLLVM_DIR=<llvm_install_prefix>/lib/cmake/llvm [OPTIONS] ..
@@ -18,9 +19,19 @@ $ make && make install
 
 -DCMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT	[Default : OFF ( Install to /usr/local ) ]
 -DCMAKE_INSTALL_PREFIX=<PATH> [Default : /usr/local]
-
+```
 
 ## Run some tests
+
+Bring **ncc** into the PATH, with all that's needed. For example by doing:
+```
+export NLC_PREFIX=/opt/nec/ve/nlc/2.2.0
+. ${NLC_PREFIX}/bin/nlcvars.sh
+export PATH=/opt/nec/ve/bin:$PATH
+```
+
+Build and run some tests:
+```
 $ cd ../test
 $ CC=ncc CXX=nC++ make vednn_conv_test vednn_linear_test vednn_pool_test
 $ ./vednn_conv_test   -H 0.8e9 -p params/conv/alexnet.txt   -T ConvForward
@@ -29,6 +40,7 @@ $ ./vednn_linear_test -H 0.8e9 -p params/linear/alexnet.txt -T LinearForward
 $ ftrace
 $ ./vednn_pool_test   -H 0.8e9 -p params/pool/alexnet.txt   -T MaxPoolForward
 $ ftrace
+```
 
 ## additions:
 - src/wrap/ has:
