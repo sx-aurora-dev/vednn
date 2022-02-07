@@ -2,7 +2,7 @@
 ## Install llvm
 
 llvm is used to build vednn.
-Install llvm for VE from [[https://github.com/sx-aurora-dev/llvm]].
+Install llvm for VE from [[https://github.com/sx-aurora-dev/llvm-project]].
 
 ## Build
 $ mkdir build
@@ -55,5 +55,6 @@ $ ftrace
 - When you update vejit.tar.gz (a product of the jit support project),
   - `export CC=/opt/nec/ve/bin/ncc CXX=/opt/nec/ve/bin/nc++`
   - `cd test && make -f Makefile.big vejit-unpack` will install it under test/vejit/
-
+  - `export VEDNN_DIR=../build`
+  - `make -f Makefile.big`
 
